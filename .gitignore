@@ -1,0 +1,16 @@
+/vendor/
+/node_modules/
+/.env
+/.env.*.local
+/storage/private/
+/storage/public/
+/storage/app/public/
+/storage/debugbar/
+/storage/framework/cache/
+/storage/framework/sessions/
+/storage/framework/views/
+/storage/logs/
+*.log
+.DS_Store
+Thumbs.db
+.phpunit.result.cache

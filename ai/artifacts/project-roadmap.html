@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Monitor — 后续阶段详细进度计划</title>
+<style>
+:root {
+  --bg: #0d1017; --bg1: #141822; --bg2: #1c2133; --bg3: #232840;
+  --border: #2e3451; --text: #dde1f0; --muted: #7b80a0;
+  --accent: #7c6af7; --teal: #00cec9; --green: #00c896;
+  --orange: #ffb347; --red: #f06060; --yellow: #f5d76e;
+  --blue: #5dade2; --pink: #f78fb3; --purple: #c39af7;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',sans-serif;background:var(--bg);color:var(--text);line-height:1.7}
+.wrap{max-width:1120px;margin:0 auto;padding:56px 40px}
+
+/* Cover */
+.cover{padding:80px 0 60px;text-align:center;position:relative;overflow:hidden}
+.cover::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 90% 60% at 50% -10%,rgba(124,106,247,.12) 0%,transparent 70%);pointer-events:none}
+.badge{display:inline-flex;align-items:center;gap:8px;padding:6px 20px;background:rgba(124,106,247,.1);border:1px solid rgba(124,106,247,.3);border-radius:100px;font-size:12px;color:var(--accent);letter-spacing:1.5px;margin-bottom:24px;text-transform:uppercase}
+.cover h1{font-size:46px;font-weight:900;letter-spacing:-2px;background:linear-gradient(135deg,#a89bff 0%,#7c6af7 40%,#00cec9 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:12px}
+.cover .sub{font-size:16px;color:var(--muted);max-width:640px;margin:0 auto 36px}
+.meta-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.meta-item{padding:6px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--muted)}
+.meta-item b{color:var(--text)}
+
+/* Section */
+.divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:50px 0}
+.section{margin:50px 0}
+.sec-title{display:flex;align-items:center;gap:14px;margin-bottom:24px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.sec-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.sec-title h2{font-size:20px;font-weight:700}
+.sec-sub{margin-left:auto;font-size:12px;color:var(--muted)}
+
+/* Phase Summary Cards */
+.phase-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:36px}
+.phase-card{border-radius:14px;padding:18px 14px;text-align:center;border:1px solid;cursor:pointer;transition:transform .2s,box-shadow .2s}
+.phase-card:hover{transform:translateY(-3px);box-shadow:0 8px 32px rgba(0,0,0,.3)}
+.phase-card .ph-num{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:6px;text-transform:uppercase}
+.phase-card .ph-name{font-size:14px;font-weight:700;margin-bottom:4px}
+.phase-card .ph-dur{font-size:11px;color:var(--muted);margin-bottom:8px}
+.phase-card .ph-tasks{font-size:22px;font-weight:900;margin-bottom:2px}
+.phase-card .ph-lbl{font-size:11px;color:var(--muted)}
+.phase-card .ph-bar{height:4px;border-radius:2px;margin-top:10px;background:rgba(255,255,255,.08)}
+.phase-card .ph-bar-fill{height:100%;border-radius:2px;transition:width .6s ease}
+
+.ph-s1{background:rgba(240,96,96,.07);border-color:rgba(240,96,96,.2)}
+.ph-s1 .ph-num,.ph-s1 .ph-tasks{color:#f06060}
+.ph-s1 .ph-bar-fill{background:#f06060}
+.ph-s2{background:rgba(255,179,71,.07);border-color:rgba(255,179,71,.2)}
+.ph-s2 .ph-num,.ph-s2 .ph-tasks{color:var(--orange)}
+.ph-s2 .ph-bar-fill{background:var(--orange)}
+.ph-s3{background:rgba(124,106,247,.07);border-color:rgba(124,106,247,.2)}
+.ph-s3 .ph-num,.ph-s3 .ph-tasks{color:var(--accent)}
+.ph-s3 .ph-bar-fill{background:var(--accent)}
+.ph-s4{background:rgba(0,206,201,.07);border-color:rgba(0,206,201,.2)}
+.ph-s4 .ph-num,.ph-s4 .ph-tasks{color:var(--teal)}
+.ph-s4 .ph-bar-fill{background:var(--teal)}
+.ph-s5{background:rgba(0,200,150,.07);border-color:rgba(0,200,150,.2)}
+.ph-s5 .ph-num,.ph-s5 .ph-tasks{color:var(--green)}
+.ph-s5 .ph-bar-fill{background:var(--green)}
+
+/* Gantt */
+.gantt-wrap{overflow-x:auto;margin-top:10px}
+.gantt{min-width:900px;border-radius:12px;overflow:hidden;border:1px solid var(--border)}
+.gantt-header{display:grid;grid-template-columns:220px repeat(12,1fr);background:var(--bg3);border-bottom:1px solid var(--border)}
+.gantt-header .gh-task{padding:10px 14px;font-size:12px;font-weight:700;color:var(--muted);border-right:1px solid var(--border)}
+.gantt-header .gh-week{padding:10px 6px;font-size:11px;color:var(--muted);text-align:center;border-right:1px solid rgba(46,52,81,.5)}
+.gantt-row{display:grid;grid-template-columns:220px repeat(12,1fr);border-bottom:1px solid rgba(46,52,81,.4);transition:background .15s}
+.gantt-row:last-child{border-bottom:none}
+.gantt-row:hover{background:rgba(255,255,255,.02)}
+.gantt-row.group-header{background:var(--bg3)}
+.gr-label{padding:11px 14px;font-size:13px;border-right:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.gr-label.group{font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+.gr-label .task-name{flex:1;line-height:1.3}
+.gr-label .owner-tag{font-size:10px;padding:2px 7px;border-radius:4px;background:var(--bg3);color:var(--muted);flex-shrink:0;white-space:nowrap}
+.gc{border-right:1px solid rgba(46,52,81,.3);position:relative;min-height:38px}
+.bar{position:absolute;top:50%;transform:translateY(-50%);height:18px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px}
+.bar.b-red{background:rgba(240,96,96,.25);border:1px solid rgba(240,96,96,.4);color:#f06060}
+.bar.b-orange{background:rgba(255,179,71,.2);border:1px solid rgba(255,179,71,.35);color:var(--orange)}
+.bar.b-purple{background:rgba(124,106,247,.2);border:1px solid rgba(124,106,247,.35);color:var(--accent)}
+.bar.b-teal{background:rgba(0,206,201,.15);border:1px solid rgba(0,206,201,.3);color:var(--teal)}
+.bar.b-green{background:rgba(0,200,150,.15);border:1px solid rgba(0,200,150,.3);color:var(--green)}
+.today-line{position:absolute;top:0;bottom:0;width:2px;background:var(--accent);z-index:10;pointer-events:none}
+.today-line::before{content:'TODAY';position:absolute;top:2px;left:4px;font-size:9px;font-weight:700;color:var(--accent);letter-spacing:.5px}
+
+/* Task Detail Cards */
+.phase-detail{margin-bottom:32px}
+.phase-header{display:flex;align-items:center;gap:12px;padding:18px 20px;border-radius:12px 12px 0 0;border:1px solid;border-bottom:none;cursor:pointer}
+.ph-expand-icon{margin-left:auto;font-size:12px;color:var(--muted);transition:transform .2s}
+.phase-body{border:1px solid;border-top:none;border-radius:0 0 12px 12px;overflow:hidden}
+.task-row{display:grid;grid-template-columns:2fr 1fr 1fr 100px 90px;gap:0;border-bottom:1px solid rgba(46,52,81,.3);transition:background .15s}
+.task-row:last-child{border-bottom:none}
+.task-row:hover{background:rgba(255,255,255,.02)}
+.task-row.header{background:var(--bg3);font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.tr-cell{padding:12px 16px;font-size:13px;display:flex;align-items:center;gap:8px}
+.tr-cell:not(:last-child){border-right:1px solid rgba(46,52,81,.2)}
+.task-id{font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;flex-shrink:0}
+.dep-chip{font-size:10px;padding:2px 6px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--muted)}
+.pri-badge{font-size:11px;font-weight:700;padding:2px 9px;border-radius:6px}
+.pri-P0{background:rgba(240,96,96,.15);color:#f06060}
+.pri-P1{background:rgba(255,179,71,.15);color:var(--orange)}
+.pri-P2{background:rgba(124,106,247,.15);color:var(--accent)}
+.pri-P3{background:rgba(93,173,226,.15);color:var(--blue)}
+.status-done{background:rgba(0,200,150,.12);color:var(--green);font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600}
+.status-todo{background:rgba(46,52,81,.5);color:var(--muted);font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600}
+.status-inprogress{background:rgba(255,179,71,.12);color:var(--orange);font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600}
+
+/* Milestones */
+.milestone-row{display:flex;align-items:stretch;gap:0;position:relative;margin-bottom:0}
+.milestone-row::before{content:'';position:absolute;left:22px;top:48px;bottom:0;width:2px;background:linear-gradient(to bottom,var(--border),transparent)}
+.milestone-row:last-child::before{display:none}
+.ms-dot{width:44px;flex-shrink:0;display:flex;align-items:flex-start;justify-content:center;padding-top:20px}
+.ms-dot-inner{width:14px;height:14px;border-radius:50%;border:2px solid;flex-shrink:0;z-index:1;position:relative}
+.ms-card{flex:1;margin:8px 0 20px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px 20px}
+.ms-top{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.ms-phase{font-size:11px;font-weight:700;padding:2px 9px;border-radius:6px}
+.ms-date{font-size:12px;color:var(--muted)}
+.ms-name{font-size:15px;font-weight:700;margin-bottom:6px}
+.ms-deliverables{list-style:none;margin-top:8px}
+.ms-deliverables li{font-size:13px;color:var(--muted);padding:3px 0;display:flex;align-items:center;gap:8px}
+.ms-deliverables li::before{content:'→';color:var(--accent);font-size:11px;flex-shrink:0}
+.ms-criteria{margin-top:10px;padding:10px 14px;background:var(--bg3);border-radius:8px}
+.ms-criteria-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.ms-criteria-list{list-style:none}
+.ms-criteria-list li{font-size:12px;color:var(--text);padding:2px 0;display:flex;gap:6px}
+.ms-criteria-list li::before{content:'✓';color:var(--green);flex-shrink:0}
+
+/* Risk register */
+.risk-table{width:100%;border-collapse:collapse}
+.risk-table th{padding:10px 14px;background:var(--bg3);text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid var(--border)}
+.risk-table td{padding:11px 14px;font-size:13px;border-bottom:1px solid rgba(46,52,81,.3);vertical-align:top}
+.risk-table tr:last-child td{border-bottom:none}
+.risk-table tr:hover td{background:rgba(255,255,255,.015)}
+.risk-impact{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px}
+.ri-high{background:rgba(240,96,96,.15);color:#f06060}
+.ri-med{background:rgba(255,179,71,.15);color:var(--orange)}
+.ri-low{background:rgba(93,173,226,.15);color:var(--blue)}
+
+/* Review cadence */
+.cadence-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.cadence-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px}
+.cadence-card .cc-title{font-size:14px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.cadence-card .cc-freq{font-size:11px;font-weight:700;padding:2px 9px;border-radius:6px;margin-left:auto}
+.cadence-card ul{list-style:none}
+.cadence-card ul li{font-size:13px;color:var(--muted);padding:4px 0;display:flex;gap:8px}
+.cadence-card ul li::before{content:'•';color:var(--accent);flex-shrink:0}
+
+/* Progress tracker */
+.progress-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px}
+.ps-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center}
+.ps-card .ps-val{font-size:34px;font-weight:900;background:linear-gradient(135deg,#a89bff,#00cec9);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.ps-card .ps-label{font-size:12px;color:var(--muted);margin-top:4px}
+.ps-card .ps-sub{font-size:11px;color:var(--green);margin-top:2px}
+
+/* Print */
+@media print{
+  body{background:#fff;color:#000}
+  .cover::before,.ph-s1,.ph-s2,.ph-s3,.ph-s4,.ph-s5,.gantt,.phase-body{border-color:#ccc!important}
+  .bar,h1,.ps-val,.milestone-row::before{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+@media(max-width:768px){
+  .phase-grid{grid-template-columns:repeat(2,1fr)}
+  .cadence-grid{grid-template-columns:1fr}
+  .progress-summary{grid-template-columns:repeat(2,1fr)}
+  .task-row{grid-template-columns:1fr 80px}
+  .tr-cell:nth-child(n+3){display:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- Cover -->
+<div class="cover">
+  <div class="badge">📅 Project Monitor · 后续阶段进度计划 v1.0</div>
+  <h1>详细进度计划</h1>
+  <p class="sub">基于代码审计结果制定的 3 个月分阶段执行路线图，涵盖安全加固、功能完善、生产就绪全流程</p>
+  <div class="meta-row">
+    <div class="meta-item">📅 计划生成：<b>2026-06-14</b></div>
+    <div class="meta-item">📆 计划周期：<b>2026-06-16 → 2026-09-12</b></div>
+    <div class="meta-item">⏱️ 总时长：<b>13 周</b></div>
+    <div class="meta-item">📋 总任务数：<b>42 项</b></div>
+    <div class="meta-item">✅ 已完成：<b>18 项（安全审计）</b></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- Progress Summary -->
+<div class="section">
+  <div class="progress-summary">
+    <div class="ps-card">
+      <div class="ps-val">100%</div>
+      <div class="ps-label">安全审计修复率</div>
+      <div class="ps-sub">P0×5 + P1×7 + P2×6 = 18项全部完成</div>
+    </div>
+    <div class="ps-card">
+      <div class="ps-val">161</div>
+      <div class="ps-label">当前测试通过数</div>
+      <div class="ps-sub">442 assertions / 0 failures</div>
+    </div>
+    <div class="ps-card">
+      <div class="ps-val">42</div>
+      <div class="ps-label">后续计划任务总数</div>
+      <div class="ps-sub">5 个阶段，13 周</div>
+    </div>
+    <div class="ps-card">
+      <div class="ps-val">5</div>
+      <div class="ps-label">关键里程碑节点</div>
+      <div class="ps-sub">每阶段末 Gate 验收</div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- Phase Overview -->
+<div class="section">
+  <div class="sec-title">
+    <div class="sec-icon" style="background:rgba(124,106,247,.15)">🗺️</div>
+    <h2>阶段总览</h2>
+    <span class="sec-sub">5 个阶段 · 13 周 · 42 任务</span>
+  </div>
+  <div class="phase-grid">
+    <div class="phase-card ph-s1">
+      <div class="ph-num">Phase 1</div>
+      <div class="ph-name">安全补强</div>
+      <div class="ph-dur">第 1–2 周</div>
+      <div class="ph-tasks">8</div>
+      <div class="ph-lbl">项任务</div>
+      <div class="ph-bar"><div class="ph-bar-fill" style="width:0%"></div></div>
+    </div>
+    <div class="phase-card ph-s2">
+      <div class="ph-num">Phase 2</div>
+      <div class="ph-name">功能完善</div>
+      <div class="ph-dur">第 3–5 周</div>
+      <div class="ph-tasks">10</div>
+      <div class="ph-lbl">项任务</div>
+      <div class="ph-bar"><div class="ph-bar-fill" style="width:0%"></div></div>
+    </div>
+    <div class="phase-card ph-s3">
+      <div class="ph-num">Phase 3</div>
+      <div class="ph-name">CI/CD 与质量</div>
+      <div class="ph-dur">第 6–8 周</div>
+      <div class="ph-tasks">9</div>
+      <div class="ph-lbl">项任务</div>
+      <div class="ph-bar"><div class="ph-bar-fill" style="width:0%"></div></div>
+    </div>
+    <div class="phase-card ph-s4">
+      <div class="ph-num">Phase 4</div>
+      <div class="ph-name">生产就绪</div>
+      <div class="ph-dur">第 9–11 周</div>
+      <div class="ph-tasks">9</div>
+      <div class="ph-lbl">项任务</div>
+      <div class="ph-bar"><div class="ph-bar-fill" style="width:0%"></div></div>
+    </div>
+    <div class="phase-card ph-s5">
+      <div class="ph-num">Phase 5</div>
+      <div class="ph-name">技术升级</div>
+      <div class="ph-dur">第 12–13 周</div>
+      <div class="ph-tasks">6</div>
+      <div class="ph-lbl">项任务</div>
+      <div class="ph-bar"><div class="ph-bar-fill" style="width:0%"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- Gantt Chart -->
+<div class="section">
+  <div class="sec-title">
+    <div class="sec-icon" style="background:rgba(0,206,201,.15)">📊</div>
+    <h2>甘特图（13周总览）</h2>
+    <span class="sec-sub">W1 = 2026-06-16 · W13 = 2026-09-12</span>
+  </div>
+  <div class="gantt-wrap">
+    <div class="gantt">
+      <div class="gantt-header">
+        <div class="gh-task">任务 / 模块</div>
+        <div class="gh-week">W1</div><div class="gh-week">W2</div><div class="gh-week">W3</div>
+        <div class="gh-week">W4</div><div class="gh-week">W5</div><div class="gh-week">W6</div>
+        <div class="gh-week">W7</div><div class="gh-week">W8</div><div class="gh-week">W9</div>
+        <div class="gh-week">W10</div><div class="gh-week">W11</div><div class="gh-week">W12</div>
+      </div>
+      <div class="gantt-row group-header"><div class="gr-label group">🔴 Phase 1 · 安全补强（W1-W2）</div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div></div>
+      <div class="gantt-row"><div class="gr-label"><span class="task-name">R1 资源权限 Trait（3个组件）</span><span class="owner-tag">后端</span></div><div class="gc" style="position:relative"><div class="bar b-red" style="left:4%;width:60%">3d</div></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div></div>
+      <div class="gantt-row"><div class="gr-label"><span class="task-name">R2 Webhook 加密存储</span><span class="owner-tag">后端</span></div><div class="gc" style="position:relative"><div class="bar b-red" style="left:4%;width:30%">1d</div></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div></div>
+      <div class="gantt-row"><div class="gr-label"><span class="task-name">输入校验补全（RiskMgr/TaskBoard）</span><span class="owner-tag">后端</span></div><div class="gc" style="position:relative"><div class="bar b-red" style="left:40%;width:56%">2d</div></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div></div>
+      <div class="gantt-row"><div class="gr-label"><span class="task-name">权限单元测试（≥8个）</span><span class="owner-tag">测试</span></div><div class="gc"></div><div class="gc" style="position:relative"><div class="bar b-red" style="left:4%;width:60%">3d</div></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div></div>
+      <div class="gantt-row"><div class="gr-label"><span class="task-name">Larastan 静态分析集成</span><span class="owner-tag">工程</span></div><div class="gc"></div><div class="gc" style="position:relative"><div class="bar b-red" style="left:4%;width:45%">2d</div></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div></div>
+      <div class="gantt-row"><div class="gr-label"><span class="task-name">SQL 慢查询监控告警</span><span class="owner-tag">工程</span></div><div class="gc"></div><div class="gc" style="position:relative"><div class="bar b-red" style="left:50%;width:46%">1d</div></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div></div>
+      <div class="gantt-row"><div class="gr-label"><span class="task-name">🔖 Gate-1 验收</span><span class="owner-tag">TL</span></div><div class="gc"></div><div class="gc" style="position:relative"><div class="bar b-red" style="left:70%;width:26%;font-size:9px;font-weight:900">GATE</div></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div></div>
+
+      <div class="gantt-row group-header"><div class="gr-label group">🟠 Phase 2 · 功能完善（W3-W5）</div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div></div>
+      <div class="gantt-row"><div class="gr-label"><span class="task-name">Demo Data Seeder</span><span class="owner-tag">后端</span></div><div class="gc"></div><div class="gc"></div><div class="gc" style="position:relative"><div class="bar b-orange" style="left:4%;width:45%">2d</div></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div></div>
+      <div class="gantt-row"><div class="gr-label"><span class="task-name">GitHub 定时同步 Schedule</span><span class="owner-tag">后端</span></div><div class="gc"></div><div class="gc"></div><div class="gc" style="position:relative"><div class="bar b-orange" style="left:4%;width:92%">3d</div></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div></div>
+      <div class="gantt-row"><div class="gr-label"><span class="task-name">Dashboard 实时轮询（$poll）</span><span class="owner-tag">全栈</span></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc" style="position:relative"><div class="bar b-orange" style="left:4%;width:92%">3d</div></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div></div>
+      <div class="gantt-row"><div class="gr-label"><span class="task-name">PostgreSQL 16 完整兼容验证</span><span class="owner-tag">测试</span></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc" style="position:relative"><div class="bar b-orange" style="left:4%;width:92%">2d</div></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div></div>
+      <div class="gantt-row"><div class="gr-label"><span class="task-name">Feishu 推送集成测试</span><span class="owner-tag">测试</span></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc" style="position:relative"><div class="bar b-orange" style="left:50%;width:46%">1d</div></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div></div>
+      <div class="gantt-row"><div class="gr-label"><span class="task-name">🔖 Gate-2 验收</span><span class="owner-tag">TL</span></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc" style="position:relative"><div class="bar b-orange" style="left:70%;width:26%;font-size:9px;font-weight:900">GATE</div></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div></div>
+
+      <div class="gantt-row group-header"><div class="gr-label group">🟣 Phase 3 · CI/CD 与质量（W6-W8）</div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div></div>
+      <div class="gantt-row"><div class="gr-label"><span class="task-name">GitHub Actions CI 流水线</span><span class="owner-tag">工程</span></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc" style="position:relative"><div class="bar b-purple" style="left:4%;width:92%">3d</div></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div></div>
+      <div class="gantt-row"><div class="gr-label"><span class="task-name">操作审计日志模块</span><span class="owner-tag">后端</span></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc" style="position:relative"><div class="bar b-purple" style="left:4%;width:92%">4d</div></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div></div>
+      <div class="gantt-row"><div class="gr-label"><span class="task-name">Dusk E2E 测试（5 关键场景）</span><span class="owner-tag">测试</span></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc" style="position:relative"><div class="bar b-purple" style="left:4%;width:92%">4d</div></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div></div>
+      <div class="gantt-row"><div class="gr-label"><span class="task-name">Dependabot 依赖自动扫描</span><span class="owner-tag">安全</span></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc" style="position:relative"><div class="bar b-purple" style="left:4%;width:40%">1d</div></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div></div>
+      <div class="gantt-row"><div class="gr-label"><span class="task-name">🔖 Gate-3 验收</span><span class="owner-tag">TL</span></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc" style="position:relative"><div class="bar b-purple" style="left:70%;width:26%;font-size:9px;font-weight:900">GATE</div></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div></div>
+
+      <div class="gantt-row group-header"><div class="gr-label group">🔵 Phase 4 · 生产就绪（W9-W11）</div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div></div>
+      <div class="gantt-row"><div class="gr-label"><span class="task-name">deploy.sh + 压测脚本（100用户）</span><span class="owner-tag">工程</span></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc" style="position:relative"><div class="bar b-teal" style="left:4%;width:60%">3d</div></div><div class="gc"></div><div class="gc"></div><div class="gc"></div></div>
+      <div class="gantt-row"><div class="gr-label"><span class="task-name">监控告警接入（Sentry+飞书）</span><span class="owner-tag">运维</span></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc" style="position:relative"><div class="bar b-teal" style="left:4%;width:60%">3d</div></div><div class="gc"></div><div class="gc"></div></div>
+      <div class="gantt-row"><div class="gr-label"><span class="task-name">灾备恢复演练 &amp; 回滚验证</span><span class="owner-tag">运维</span></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc" style="position:relative"><div class="bar b-teal" style="left:4%;width:60%">2d</div></div><div class="gc"></div></div>
+      <div class="gantt-row"><div class="gr-label"><span class="task-name">🔖 Gate-4 生产就绪</span><span class="owner-tag">TL</span></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc" style="position:relative"><div class="bar b-teal" style="left:70%;width:26%;font-size:9px;font-weight:900">GATE</div></div><div class="gc"></div></div>
+
+      <div class="gantt-row group-header"><div class="gr-label group">🟢 Phase 5 · 技术升级（W12-W13）</div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div></div>
+      <div class="gantt-row"><div class="gr-label"><span class="task-name">2FA 双因素认证</span><span class="owner-tag">安全</span></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc" style="position:relative"><div class="bar b-green" style="left:4%;width:75%">4d</div></div></div>
+      <div class="gantt-row"><div class="gr-label"><span class="task-name">Gate/Policy 权限体系重构</span><span class="owner-tag">后端</span></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc" style="position:relative"><div class="bar b-green" style="left:4%;width:92%">5d</div></div></div>
+      <div class="gantt-row"><div class="gr-label"><span class="task-name">Laravel CVE 补丁升级</span><span class="owner-tag">工程</span></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc"></div><div class="gc" style="position:relative"><div class="bar b-green" style="left:4%;width:50%">2d</div></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- Milestones -->
+<div class="section">
+  <div class="sec-title">
+    <div class="sec-icon" style="background:rgba(124,106,247,.15)">🏁</div>
+    <h2>关键里程碑与验收标准</h2>
+    <span class="sec-sub">5 个 Gate 节点</span>
+  </div>
+
+  <div class="milestone-row">
+    <div class="ms-dot"><div class="ms-dot-inner" style="border-color:#f06060;background:rgba(240,96,96,.2)"></div></div>
+    <div class="ms-card">
+      <div class="ms-top">
+        <span class="ms-phase" style="background:rgba(240,96,96,.15);color:#f06060">M1 · Phase 1</span>
+        <span class="ms-date">📅 2026-06-27（W2 末）</span>
+        <span class="ms-date" style="margin-left:auto;color:var(--muted)">缓冲：+3 工作日</span>
+      </div>
+      <div class="ms-name">安全补强完成 · Gate-1 通过</div>
+      <ul class="ms-deliverables">
+        <li>R1 资源级权限 Trait 覆盖 RoleManager / RiskManager / MetricBuilder</li>
+        <li>R2 Webhook URL 加密存储至数据库（AES-256）</li>
+        <li>TaskBoard / RiskManager 输入校验规则补全</li>
+        <li>Larastan Level 5+ 通过，0 类型错误</li>
+        <li>SQL 慢查询 &gt;500ms 触发飞书告警</li>
+      </ul>
+      <div class="ms-criteria">
+        <div class="ms-criteria-title">验收标准</div>
+        <ul class="ms-criteria-list">
+          <li>测试总数 ≥ 169（新增权限测试 ≥8 个），全部通过</li>
+          <li>IDOR 渗透测试：越权访问返回 403，不泄露数据</li>
+          <li>Larastan CI 检查集成完毕，阻塞 PR 合并</li>
+          <li>代码 Review 通过，无高危 TODO 残留</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="milestone-row">
+    <div class="ms-dot"><div class="ms-dot-inner" style="border-color:var(--orange);background:rgba(255,179,71,.2)"></div></div>
+    <div class="ms-card">
+      <div class="ms-top">
+        <span class="ms-phase" style="background:rgba(255,179,71,.15);color:var(--orange)">M2 · Phase 2</span>
+        <span class="ms-date">📅 2026-07-18（W5 末）</span>
+        <span class="ms-date" style="margin-left:auto;color:var(--muted)">缓冲：+3 工作日</span>
+      </div>
+      <div class="ms-name">功能完善完成 · Gate-2 通过</div>
+      <ul class="ms-deliverables">
+        <li>Demo Data Seeder 含 3 个演示项目 + 20 任务 + 5 风险</li>
+        <li>GitHub 数据自动同步（每 30 分钟一次，失败重试）</li>
+        <li>Dashboard 仪表盘 30 秒实时轮询刷新</li>
+        <li>PostgreSQL 16 环境全量测试通过</li>
+        <li>飞书 Webhook 端到端推送测试通过</li>
+      </ul>
+      <div class="ms-criteria">
+        <div class="ms-criteria-title">验收标准</div>
+        <ul class="ms-criteria-list">
+          <li>PG 环境测试通过率 100%，无 SQLite 专有语法残留</li>
+          <li>GitHub 同步演示可运行，日志记录完整</li>
+          <li>新建项目后 30s 内仪表盘数据刷新</li>
+          <li>Seeder 执行 &lt;10s，数据可重复生成</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="milestone-row">
+    <div class="ms-dot"><div class="ms-dot-inner" style="border-color:var(--accent);background:rgba(124,106,247,.2)"></div></div>
+    <div class="ms-card">
+      <div class="ms-top">
+        <span class="ms-phase" style="background:rgba(124,106,247,.15);color:var(--accent)">M3 · Phase 3</span>
+        <span class="ms-date">📅 2026-08-08（W8 末）</span>
+        <span class="ms-date" style="margin-left:auto;color:var(--muted)">缓冲：+3 工作日</span>
+      </div>
+      <div class="ms-name">CI/CD 与质量体系完成 · Gate-3 通过</div>
+      <ul class="ms-deliverables">
+        <li>GitHub Actions：自动运行测试 + Larastan + 安全扫描</li>
+        <li>操作审计日志（登录/权限变更/数据删除 全记录）</li>
+        <li>Dusk E2E 测试：登录、创建项目、分配任务、风险告警、导出 CSV</li>
+        <li>Dependabot 配置，自动提 PR 升级依赖</li>
+      </ul>
+      <div class="ms-criteria">
+        <div class="ms-criteria-title">验收标准</div>
+        <ul class="ms-criteria-list">
+          <li>CI 流水线 &lt;5 分钟完成，PR 需全绿才可合并</li>
+          <li>审计日志查询 API 可用，支持时间范围筛选</li>
+          <li>5 个 Dusk 场景全部通过（Chrome headless）</li>
+          <li>Dependabot 已发出第一批依赖升级 PR</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="milestone-row">
+    <div class="ms-dot"><div class="ms-dot-inner" style="border-color:var(--teal);background:rgba(0,206,201,.2)"></div></div>
+    <div class="ms-card">
+      <div class="ms-top">
+        <span class="ms-phase" style="background:rgba(0,206,201,.15);color:var(--teal)">M4 · Phase 4</span>
+        <span class="ms-date">📅 2026-08-29（W11 末）</span>
+        <span class="ms-date" style="margin-left:auto;color:var(--muted)">缓冲：+4 工作日</span>
+      </div>
+      <div class="ms-name">生产就绪 · Gate-4 通过 → 可上线</div>
+      <ul class="ms-deliverables">
+        <li>deploy.sh 一键部署脚本（零宕机蓝绿发布）</li>
+        <li>k6 压测：100 并发用户，P95 &lt;800ms</li>
+        <li>Sentry 错误监控 + 飞书告警接入</li>
+        <li>灾备恢复演练：数据库故障恢复 &lt;5 分钟</li>
+        <li>生产配置清单 Checklist 全部 ✅</li>
+      </ul>
+      <div class="ms-criteria">
+        <div class="ms-criteria-title">验收标准</div>
+        <ul class="ms-criteria-list">
+          <li>压测通过：1000 请求零 5xx 错误，P95 &lt;800ms</li>
+          <li>部署演练：新版本上线后回滚 &lt;2 分钟</li>
+          <li>Sentry 首次错误到飞书通知 &lt;1 分钟</li>
+          <li>生产环境 .env 无默认值，APP_KEY 外部注入</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="milestone-row">
+    <div class="ms-dot"><div class="ms-dot-inner" style="border-color:var(--green);background:rgba(0,200,150,.2)"></div></div>
+    <div class="ms-card">
+      <div class="ms-top">
+        <span class="ms-phase" style="background:rgba(0,200,150,.15);color:var(--green)">M5 · Phase 5</span>
+        <span class="ms-date">📅 2026-09-12（W13 末）</span>
+        <span class="ms-date" style="margin-left:auto;color:var(--muted)">缓冲：+3 工作日</span>
+      </div>
+      <div class="ms-name">技术升级完成 · 项目成熟度达标</div>
+      <ul class="ms-deliverables">
+        <li>2FA TOTP 认证可用（QRCODE + 备用码）</li>
+        <li>Gate/Policy 全面替代 permission 字符串比较</li>
+        <li>Laravel CVE-2026 补丁升级完成</li>
+        <li>最终审计报告更新，所有问题标记 Closed</li>
+      </ul>
+      <div class="ms-criteria">
+        <div class="ms-criteria-title">验收标准</div>
+        <ul class="ms-criteria-list">
+          <li>2FA 注册 / 验证 / 禁用流程完整测试通过</li>
+          <li>Policy 单元测试覆盖所有 CRU D 操作</li>
+          <li>composer audit 0 漏洞输出</li>
+          <li>测试总数 ≥ 200，测试覆盖率 ≥ 75%</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- Task Detail Table -->
+<div class="section">
+  <div class="sec-title">
+    <div class="sec-icon" style="background:rgba(255,179,71,.15)">📋</div>
+    <h2>任务分解与依赖关系</h2>
+    <span class="sec-sub">42 任务 · 含优先级 / 负责人 / 依赖 / 预估工时</span>
+  </div>
+
+  <!-- Phase 1 -->
+  <div class="phase-detail">
+    <div class="phase-header" style="background:rgba(240,96,96,.07);border-color:rgba(240,96,96,.2)">
+      <span style="font-size:16px">🔴</span>
+      <span style="font-weight:700">Phase 1 · 安全补强</span>
+      <span style="font-size:13px;color:var(--muted);margin-left:8px">W1-W2 · 2026-06-16 ~ 2026-06-27</span>
+      <span style="margin-left:auto;font-size:12px;color:#f06060;font-weight:700">8 任务 / 18d</span>
+    </div>
+    <div class="phase-body" style="border-color:rgba(240,96,96,.15)">
+      <div class="task-row header">
+        <div class="tr-cell">任务名称</div>
+        <div class="tr-cell">负责人</div>
+        <div class="tr-cell">依赖</div>
+        <div class="tr-cell">优先级</div>
+        <div class="tr-cell">预估</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(240,96,96,.15);color:#f06060">T-01</span>实现 AuthorizesResourceAccess Trait（3组件）</div>
+        <div class="tr-cell">后端工程师</div>
+        <div class="tr-cell">—</div>
+        <div class="tr-cell"><span class="pri-badge pri-P0">P0</span></div>
+        <div class="tr-cell">3d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(240,96,96,.15);color:#f06060">T-02</span>Webhook URL 加密（encrypt/decrypt helpers）</div>
+        <div class="tr-cell">后端工程师</div>
+        <div class="tr-cell">—</div>
+        <div class="tr-cell"><span class="pri-badge pri-P0">P0</span></div>
+        <div class="tr-cell">1d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(240,96,96,.15);color:#f06060">T-03</span>RiskManager / TaskBoard 输入校验 rules() 补全</div>
+        <div class="tr-cell">后端工程师</div>
+        <div class="tr-cell">T-01</div>
+        <div class="tr-cell"><span class="pri-badge pri-P0">P0</span></div>
+        <div class="tr-cell">2d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(240,96,96,.15);color:#f06060">T-04</span>权限单元测试（AuthTest × 8+）</div>
+        <div class="tr-cell">测试工程师</div>
+        <div class="tr-cell">T-01, T-03</div>
+        <div class="tr-cell"><span class="pri-badge pri-P0">P0</span></div>
+        <div class="tr-cell">3d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(240,96,96,.15);color:#f06060">T-05</span>Larastan 集成（composer require + phpstan.neon）</div>
+        <div class="tr-cell">工程效能</div>
+        <div class="tr-cell">—</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">2d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(240,96,96,.15);color:#f06060">T-06</span>SQL 监控（DB::listen → 500ms 告警）</div>
+        <div class="tr-cell">工程效能</div>
+        <div class="tr-cell">—</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">1d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(240,96,96,.15);color:#f06060">T-07</span>Webhook 加密单元测试（encrypt/decrypt 往返）</div>
+        <div class="tr-cell">测试工程师</div>
+        <div class="tr-cell">T-02</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">1d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(240,96,96,.15);color:#f06060">T-08</span>Gate-1 代码 Review 与验收</div>
+        <div class="tr-cell">Tech Lead</div>
+        <div class="tr-cell">T-01~T-07</div>
+        <div class="tr-cell"><span class="pri-badge pri-P0">P0</span></div>
+        <div class="tr-cell">0.5d</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase 2 -->
+  <div class="phase-detail">
+    <div class="phase-header" style="background:rgba(255,179,71,.07);border-color:rgba(255,179,71,.2)">
+      <span style="font-size:16px">🟠</span>
+      <span style="font-weight:700">Phase 2 · 功能完善</span>
+      <span style="font-size:13px;color:var(--muted);margin-left:8px">W3-W5 · 2026-06-30 ~ 2026-07-18</span>
+      <span style="margin-left:auto;font-size:12px;color:var(--orange);font-weight:700">10 任务 / 14d</span>
+    </div>
+    <div class="phase-body" style="border-color:rgba(255,179,71,.15)">
+      <div class="task-row header">
+        <div class="tr-cell">任务名称</div>
+        <div class="tr-cell">负责人</div>
+        <div class="tr-cell">依赖</div>
+        <div class="tr-cell">优先级</div>
+        <div class="tr-cell">预估</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(255,179,71,.15);color:var(--orange)">T-09</span>DatabaseSeeder → DemoProjectSeeder（3项目+20任务）</div>
+        <div class="tr-cell">后端工程师</div>
+        <div class="tr-cell">T-08</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">2d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(255,179,71,.15);color:var(--orange)">T-10</span>GitHub Sync Schedule（every 30min，失败 retry×3）</div>
+        <div class="tr-cell">后端工程师</div>
+        <div class="tr-cell">T-08</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">3d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(255,179,71,.15);color:var(--orange)">T-11</span>Dashboard $poll(30s) 实时刷新</div>
+        <div class="tr-cell">全栈工程师</div>
+        <div class="tr-cell">T-08</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">3d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(255,179,71,.15);color:var(--orange)">T-12</span>PostgreSQL 16 环境搭建 + 全量测试验证</div>
+        <div class="tr-cell">测试工程师</div>
+        <div class="tr-cell">T-09</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">2d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(255,179,71,.15);color:var(--orange)">T-13</span>Feishu Webhook 端到端集成测试</div>
+        <div class="tr-cell">测试工程师</div>
+        <div class="tr-cell">T-02, T-07</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">1d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(255,179,71,.15);color:var(--orange)">T-14</span>GitHub Sync 单元测试（mock GitHubService）</div>
+        <div class="tr-cell">测试工程师</div>
+        <div class="tr-cell">T-10</div>
+        <div class="tr-cell"><span class="pri-badge pri-P2">P2</span></div>
+        <div class="tr-cell">1d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(255,179,71,.15);color:var(--orange)">T-15</span>ExportEngine PDF 支持（wkhtmltopdf）</div>
+        <div class="tr-cell">后端工程师</div>
+        <div class="tr-cell">T-09</div>
+        <div class="tr-cell"><span class="pri-badge pri-P2">P2</span></div>
+        <div class="tr-cell">2d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(255,179,71,.15);color:var(--orange)">T-16</span>Settings UI 补全（Webhook 加密显示/编辑）</div>
+        <div class="tr-cell">全栈工程师</div>
+        <div class="tr-cell">T-02</div>
+        <div class="tr-cell"><span class="pri-badge pri-P2">P2</span></div>
+        <div class="tr-cell">1d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(255,179,71,.15);color:var(--orange)">T-17</span>README + 部署文档完善（含 PG 环境说明）</div>
+        <div class="tr-cell">全栈工程师</div>
+        <div class="tr-cell">T-12</div>
+        <div class="tr-cell"><span class="pri-badge pri-P2">P2</span></div>
+        <div class="tr-cell">1d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(255,179,71,.15);color:var(--orange)">T-18</span>Gate-2 验收</div>
+        <div class="tr-cell">Tech Lead</div>
+        <div class="tr-cell">T-09~T-17</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">0.5d</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase 3 -->
+  <div class="phase-detail">
+    <div class="phase-header" style="background:rgba(124,106,247,.07);border-color:rgba(124,106,247,.2)">
+      <span style="font-size:16px">🟣</span>
+      <span style="font-weight:700">Phase 3 · CI/CD 与质量</span>
+      <span style="font-size:13px;color:var(--muted);margin-left:8px">W6-W8 · 2026-07-21 ~ 2026-08-08</span>
+      <span style="margin-left:auto;font-size:12px;color:var(--accent);font-weight:700">9 任务 / 13d</span>
+    </div>
+    <div class="phase-body" style="border-color:rgba(124,106,247,.15)">
+      <div class="task-row header">
+        <div class="tr-cell">任务名称</div>
+        <div class="tr-cell">负责人</div>
+        <div class="tr-cell">依赖</div>
+        <div class="tr-cell">优先级</div>
+        <div class="tr-cell">预估</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(124,106,247,.15);color:var(--accent)">T-19</span>GitHub Actions CI（test + larastan + composer audit）</div>
+        <div class="tr-cell">工程效能</div>
+        <div class="tr-cell">T-18</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">3d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(124,106,247,.15);color:var(--accent)">T-20</span>AuditLog Model + Middleware（登录/权限/删除）</div>
+        <div class="tr-cell">后端工程师</div>
+        <div class="tr-cell">T-18</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">4d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(124,106,247,.15);color:var(--accent)">T-21</span>审计日志查询 API（时间范围/操作类型筛选）</div>
+        <div class="tr-cell">后端工程师</div>
+        <div class="tr-cell">T-20</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">2d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(124,106,247,.15);color:var(--accent)">T-22</span>Dusk 测试（5场景）: 登录/新建/分配/告警/导出</div>
+        <div class="tr-cell">测试工程师</div>
+        <div class="tr-cell">T-19</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">4d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(124,106,247,.15);color:var(--accent)">T-23</span>Dependabot 配置（composer + npm）</div>
+        <div class="tr-cell">工程效能</div>
+        <div class="tr-cell">T-19</div>
+        <div class="tr-cell"><span class="pri-badge pri-P2">P2</span></div>
+        <div class="tr-cell">1d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(124,106,247,.15);color:var(--accent)">T-24</span>CodeClimate / SonarQube 代码质量门禁</div>
+        <div class="tr-cell">工程效能</div>
+        <div class="tr-cell">T-19</div>
+        <div class="tr-cell"><span class="pri-badge pri-P2">P2</span></div>
+        <div class="tr-cell">2d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(124,106,247,.15);color:var(--accent)">T-25</span>审计日志单元测试（≥6 场景）</div>
+        <div class="tr-cell">测试工程师</div>
+        <div class="tr-cell">T-20, T-21</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">2d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(124,106,247,.15);color:var(--accent)">T-26</span>性能基线建立（Telescope 慢路由清单）</div>
+        <div class="tr-cell">工程效能</div>
+        <div class="tr-cell">T-22</div>
+        <div class="tr-cell"><span class="pri-badge pri-P2">P2</span></div>
+        <div class="tr-cell">1d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(124,106,247,.15);color:var(--accent)">T-27</span>Gate-3 验收</div>
+        <div class="tr-cell">Tech Lead</div>
+        <div class="tr-cell">T-19~T-26</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">0.5d</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase 4 -->
+  <div class="phase-detail">
+    <div class="phase-header" style="background:rgba(0,206,201,.07);border-color:rgba(0,206,201,.2)">
+      <span style="font-size:16px">🔵</span>
+      <span style="font-weight:700">Phase 4 · 生产就绪</span>
+      <span style="font-size:13px;color:var(--muted);margin-left:8px">W9-W11 · 2026-08-11 ~ 2026-08-29</span>
+      <span style="margin-left:auto;font-size:12px;color:var(--teal);font-weight:700">9 任务 / 12d</span>
+    </div>
+    <div class="phase-body" style="border-color:rgba(0,206,201,.15)">
+      <div class="task-row header">
+        <div class="tr-cell">任务名称</div>
+        <div class="tr-cell">负责人</div>
+        <div class="tr-cell">依赖</div>
+        <div class="tr-cell">优先级</div>
+        <div class="tr-cell">预估</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(0,206,201,.12);color:var(--teal)">T-28</span>deploy.sh（Docker build + migrate + 健康检查）</div>
+        <div class="tr-cell">DevOps</div>
+        <div class="tr-cell">T-27</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">3d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(0,206,201,.12);color:var(--teal)">T-29</span>k6 压测脚本（100用户/P95&lt;800ms/0 5xx）</div>
+        <div class="tr-cell">测试工程师</div>
+        <div class="tr-cell">T-28</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">2d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(0,206,201,.12);color:var(--teal)">T-30</span>Sentry 错误监控接入 + 飞书告警 webhook</div>
+        <div class="tr-cell">DevOps</div>
+        <div class="tr-cell">T-28</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">2d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(0,206,201,.12);color:var(--teal)">T-31</span>灾备演练（PG 故障注入 → 恢复 &lt;5min）</div>
+        <div class="tr-cell">DevOps</div>
+        <div class="tr-cell">T-28</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">2d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(0,206,201,.12);color:var(--teal)">T-32</span>生产配置清单（Secrets 外部注入 Checklist）</div>
+        <div class="tr-cell">Tech Lead</div>
+        <div class="tr-cell">T-28</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">1d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(0,206,201,.12);color:var(--teal)">T-33</span>回滚流程演练（蓝绿切换 &lt;2min）</div>
+        <div class="tr-cell">DevOps</div>
+        <div class="tr-cell">T-28</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">1d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(0,206,201,.12);color:var(--teal)">T-34</span>日志轮转配置（logrotate + 30d 保留）</div>
+        <div class="tr-cell">DevOps</div>
+        <div class="tr-cell">T-28</div>
+        <div class="tr-cell"><span class="pri-badge pri-P2">P2</span></div>
+        <div class="tr-cell">0.5d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(0,206,201,.12);color:var(--teal)">T-35</span>用户运维手册 V1（常见故障排查 SOP）</div>
+        <div class="tr-cell">Tech Lead</div>
+        <div class="tr-cell">T-31</div>
+        <div class="tr-cell"><span class="pri-badge pri-P2">P2</span></div>
+        <div class="tr-cell">1d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(0,206,201,.12);color:var(--teal)">T-36</span>Gate-4 生产就绪验收</div>
+        <div class="tr-cell">Tech Lead</div>
+        <div class="tr-cell">T-28~T-35</div>
+        <div class="tr-cell"><span class="pri-badge pri-P0">P0</span></div>
+        <div class="tr-cell">0.5d</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase 5 -->
+  <div class="phase-detail">
+    <div class="phase-header" style="background:rgba(0,200,150,.07);border-color:rgba(0,200,150,.2)">
+      <span style="font-size:16px">🟢</span>
+      <span style="font-weight:700">Phase 5 · 技术升级</span>
+      <span style="font-size:13px;color:var(--muted);margin-left:8px">W12-W13 · 2026-09-01 ~ 2026-09-12</span>
+      <span style="margin-left:auto;font-size:12px;color:var(--green);font-weight:700">6 任务 / 13d</span>
+    </div>
+    <div class="phase-body" style="border-color:rgba(0,200,150,.15)">
+      <div class="task-row header">
+        <div class="tr-cell">任务名称</div>
+        <div class="tr-cell">负责人</div>
+        <div class="tr-cell">依赖</div>
+        <div class="tr-cell">优先级</div>
+        <div class="tr-cell">预估</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(0,200,150,.12);color:var(--green)">T-37</span>2FA TOTP（google2fa + QR码 + 备用码生成）</div>
+        <div class="tr-cell">后端工程师</div>
+        <div class="tr-cell">T-36</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">4d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(0,200,150,.12);color:var(--green)">T-38</span>Gate/Policy 体系（替代字符串 permission 比较）</div>
+        <div class="tr-cell">后端工程师</div>
+        <div class="tr-cell">T-36</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">5d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(0,200,150,.12);color:var(--green)">T-39</span>Laravel CVE-2026 补丁升级（composer update）</div>
+        <div class="tr-cell">工程效能</div>
+        <div class="tr-cell">T-36</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">2d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(0,200,150,.12);color:var(--green)">T-40</span>2FA 集成测试（注册/验证/禁用/备用码）</div>
+        <div class="tr-cell">测试工程师</div>
+        <div class="tr-cell">T-37</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">2d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(0,200,150,.12);color:var(--green)">T-41</span>Policy 单元测试（CRUD 全覆盖，≥12 测试）</div>
+        <div class="tr-cell">测试工程师</div>
+        <div class="tr-cell">T-38</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">2d</div>
+      </div>
+      <div class="task-row">
+        <div class="tr-cell"><span class="task-id" style="background:rgba(0,200,150,.12);color:var(--green)">T-42</span>最终审计报告更新 + Gate-5 收尾</div>
+        <div class="tr-cell">Tech Lead</div>
+        <div class="tr-cell">T-37~T-41</div>
+        <div class="tr-cell"><span class="pri-badge pri-P1">P1</span></div>
+        <div class="tr-cell">1d</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- Risk Register -->
+<div class="section">
+  <div class="sec-title">
+    <div class="sec-icon" style="background:rgba(240,96,96,.15)">⚠️</div>
+    <h2>风险登记册</h2>
+    <span class="sec-sub">8 项已识别风险 · 含缓冲策略</span>
+  </div>
+  <table class="risk-table">
+    <tr>
+      <th>风险描述</th>
+      <th>影响阶段</th>
+      <th>影响等级</th>
+      <th>触发概率</th>
+      <th>缓冲策略</th>
+      <th>缓冲时间</th>
+    </tr>
+    <tr>
+      <td>R1 IDOR 修复范围比预期大（发现更多越权点）</td>
+      <td>Phase 1</td>
+      <td><span class="risk-impact ri-high">高</span></td>
+      <td>30%</td>
+      <td>W1 第3天先扫描全量 findOrFail 调用，确定范围再开工</td>
+      <td>+3d</td>
+    </tr>
+    <tr>
+      <td>PostgreSQL 16 测试失败（JSONB / ilike 不兼容）</td>
+      <td>Phase 2</td>
+      <td><span class="risk-impact ri-high">高</span></td>
+      <td>40%</td>
+      <td>W3 先搭 PG 测试环境，提前发现问题；用 where('field','like') 替代 ilike</td>
+      <td>+3d</td>
+    </tr>
+    <tr>
+      <td>GitHub API 限流（60req/h）导致同步失败</td>
+      <td>Phase 2</td>
+      <td><span class="risk-impact ri-med">中</span></td>
+      <td>25%</td>
+      <td>使用 Personal Access Token，实现指数退避重试，降低同步频率</td>
+      <td>+2d</td>
+    </tr>
+    <tr>
+      <td>Dusk E2E 测试环境配置复杂（ChromeDriver 版本）</td>
+      <td>Phase 3</td>
+      <td><span class="risk-impact ri-med">中</span></td>
+      <td>50%</td>
+      <td>使用 Docker Selenium 容器确保版本一致性，W6 先出 Hello World 测试</td>
+      <td>+2d</td>
+    </tr>
+    <tr>
+      <td>压测时 PHP-FPM 进程数不足导致 5xx</td>
+      <td>Phase 4</td>
+      <td><span class="risk-impact ri-high">高</span></td>
+      <td>35%</td>
+      <td>W9 先做容量评估，Dockerfile 配置 pm.max_children=20，分阶段加压</td>
+      <td>+2d</td>
+    </tr>
+    <tr>
+      <td>2FA 接入后破坏现有 Auth 测试（session 干扰）</td>
+      <td>Phase 5</td>
+      <td><span class="risk-impact ri-med">中</span></td>
+      <td>30%</td>
+      <td>2FA 使用可选模式（非强制），测试用 withoutMiddleware(2FA)</td>
+      <td>+2d</td>
+    </tr>
+    <tr>
+      <td>Laravel 版本升级引入 Breaking Change</td>
+      <td>Phase 5</td>
+      <td><span class="risk-impact ri-med">中</span></td>
+      <td>20%</td>
+      <td>仅升级安全补丁版本（不跨大版本），CI 全量测试保护</td>
+      <td>+1d</td>
+    </tr>
+    <tr>
+      <td>关键人员请假/不可用</td>
+      <td>全程</td>
+      <td><span class="risk-impact ri-low">低</span></td>
+      <td>20%</td>
+      <td>每阶段末预留 3d 浮动缓冲，关键任务 T-Doc 确保知识传递</td>
+      <td>+3d/阶段</td>
+    </tr>
+  </table>
+</div>
+
+<div class="divider"></div>
+
+<!-- Review Cadence -->
+<div class="section">
+  <div class="sec-title">
+    <div class="sec-icon" style="background:rgba(0,200,150,.15)">🔄</div>
+    <h2>复盘节奏与追踪机制</h2>
+    <span class="sec-sub">周期性同步确保计划可动态调整</span>
+  </div>
+  <div class="cadence-grid">
+    <div class="cadence-card">
+      <div class="cc-title">
+        <span>📅 每日站会</span>
+        <span class="cc-freq" style="background:rgba(240,96,96,.12);color:#f06060">Daily</span>
+      </div>
+      <ul>
+        <li>昨天完成了什么（1句）</li>
+        <li>今天计划做什么（1句）</li>
+        <li>有无阻塞（立即升级）</li>
+        <li>时长：≤ 15 分钟</li>
+      </ul>
+    </div>
+    <div class="cadence-card">
+      <div class="cc-title">
+        <span>📊 每周进度回顾</span>
+        <span class="cc-freq" style="background:rgba(255,179,71,.12);color:var(--orange)">Weekly</span>
+      </div>
+      <ul>
+        <li>本周任务完成率（完成/总数）</li>
+        <li>甘特图进度对比（计划 vs 实际）</li>
+        <li>新增风险识别与评估</li>
+        <li>下周 Sprint 目标确认</li>
+        <li>时长：30-45 分钟</li>
+      </ul>
+    </div>
+    <div class="cadence-card">
+      <div class="cc-title">
+        <span>🏁 阶段 Gate Review</span>
+        <span class="cc-freq" style="background:rgba(124,106,247,.12);color:var(--accent)">Per Phase</span>
+      </div>
+      <ul>
+        <li>验收清单逐条 Check</li>
+        <li>测试报告输出（通过率/覆盖率）</li>
+        <li>下阶段计划确认 / 范围调整</li>
+        <li>审计问题闭合确认</li>
+        <li>时长：2 小时</li>
+      </ul>
+    </div>
+  </div>
+
+  <div style="margin-top:20px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px">
+    <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text)">📌 计划动态调整原则</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🟢 允许调整</div>
+        <ul style="list-style:none">
+          <li style="font-size:13px;color:var(--muted);padding:3px 0;display:flex;gap:8px"><span style="color:var(--green)">✓</span>阶段内任务顺序调整（不影响依赖）</li>
+          <li style="font-size:13px;color:var(--muted);padding:3px 0;display:flex;gap:8px"><span style="color:var(--green)">✓</span>P2/P3 任务推迟到下一阶段</li>
+          <li style="font-size:13px;color:var(--muted);padding:3px 0;display:flex;gap:8px"><span style="color:var(--green)">✓</span>负责人互换（技能匹配前提下）</li>
+          <li style="font-size:13px;color:var(--muted);padding:3px 0;display:flex;gap:8px"><span style="color:var(--green)">✓</span>使用预留缓冲时间消化延误</li>
+        </ul>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🔴 需要升级</div>
+        <ul style="list-style:none">
+          <li style="font-size:13px;color:var(--muted);padding:3px 0;display:flex;gap:8px"><span style="color:#f06060">✗</span>P0 任务跳过或延迟超 3 天</li>
+          <li style="font-size:13px;color:var(--muted);padding:3px 0;display:flex;gap:8px"><span style="color:#f06060">✗</span>Gate Review 未通过直接进入下阶段</li>
+          <li style="font-size:13px;color:var(--muted);padding:3px 0;display:flex;gap:8px"><span style="color:#f06060">✗</span>测试通过率低于 98%</li>
+          <li style="font-size:13px;color:var(--muted);padding:3px 0;display:flex;gap:8px"><span style="color:#f06060">✗</span>Phase 4 里程碑延期 &gt;1 周</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Footer -->
+<div style="text-align:center;padding:60px 0 40px;border-top:1px solid var(--border);margin-top:60px">
+  <div style="font-size:13px;color:var(--muted)">Project Monitor · 后续阶段详细进度计划 v1.0</div>
+  <div style="font-size:12px;color:var(--muted);margin-top:6px">生成时间：2026-06-14 22:30 · 计划周期：13 周 · 总任务：42 项</div>
+  <div style="margin-top:16px;display:inline-flex;gap:20px;font-size:12px">
+    <span style="color:var(--muted)">审计修复率：<span style="color:var(--green);font-weight:700">100%</span></span>
+    <span style="color:var(--muted)">当前测试：<span style="color:var(--green);font-weight:700">161 passed</span></span>
+    <span style="color:var(--muted)">计划上线：<span style="color:var(--teal);font-weight:700">2026-08-29</span></span>
+  </div>
+</div>
+
+</div><!-- .wrap end -->
+</body>
+</html>

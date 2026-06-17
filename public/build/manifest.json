@@ -1,0 +1,30 @@
+{
+  "_vendor-apex-B_6rmJRT.js": {
+    "file": "assets/vendor-apex-B_6rmJRT.js",
+    "name": "vendor-apex"
+  },
+  "resources/css/app.css": {
+    "file": "assets/app-CISzhvwU.css",
+    "src": "resources/css/app.css",
+    "isEntry": true
+  },
+  "resources/js/app.js": {
+    "file": "assets/app-CJCsmUqG.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true,
+    "imports": [
+      "_vendor-apex-B_6rmJRT.js"
+    ],
+    "dynamicImports": [
+      "resources/js/three-background.js",
+      "resources/js/three-background.js"
+    ]
+  },
+  "resources/js/three-background.js": {
+    "file": "assets/three-background-CdISr_Df.js",
+    "name": "three-background",
+    "src": "resources/js/three-background.js",
+    "isDynamicEntry": true
+  }
+}
