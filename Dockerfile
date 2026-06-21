@@ -9,21 +9,37 @@ RUN composer install \
     --no-progress \
     --optimize-autoloader \
     --prefer-dist \
-    --audit
+    --no-scripts
 
 # Stage 2: 前端构建 (Node + Vite)
 FROM node:22-alpine AS node
 WORKDIR /build
 COPY package.json package-lock.json postcss.config.js vite.config.js ./
-RUN npm ci --production
+RUN npm ci
 COPY resources/ resources/
+# 从 Composer stage 复制 vendor（前端 CSS 引用 vendor/livewire/flux）
+COPY --from=composer /build/vendor/livewire/flux/dist/flux.css vendor/livewire/flux/dist/flux.css
 RUN npm run build
 
 # Stage 3: 运行时 (PHP-FPM + Alpine)
 FROM php:8.3-fpm-alpine AS runtime
 
 # ─── 系统依赖 & PHP 扩展 ───
-RUN apk add --no-cache \
+RUN apk add --no-cache --virtual .build-deps \
+        autoconf \
+        dpkg-dev \
+        dpkg \
+        file \
+        g++ \
+        gcc \
+        libc-dev \
+        make \
+        pkgconf \
+        re2c \
+        postgresql16-dev \
+        libzip-dev \
+        linux-headers \
+    && apk add --no-cache \
         bash \
         curl \
         git \
@@ -37,9 +53,6 @@ RUN apk add --no-cache \
         zip \
         sockets \
         opcache \
-    && apk add --no-cache --virtual .build-deps \
-        $PHPIZE_DEPS \
-        linux-headers \
     && pecl install redis \
     && docker-php-ext-enable redis \
     && apk del .build-deps

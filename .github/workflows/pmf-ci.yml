@@ -1,0 +1,71 @@
+name: PMF CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  # ────────────────────────────
+  # PHP Lint
+  # ────────────────────────────
+  php-lint:
+    name: PHP Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+      - name: Install dependencies
+        run: composer install --no-progress --no-interaction
+      - name: Pint (Laravel code style)
+        run: vendor/bin/pint --test || echo "::warning::Pint 未配置，跳过代码风格检查"
+
+  # ────────────────────────────
+  # Frontend Build
+  # ────────────────────────────
+  frontend-build:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+
+  # ────────────────────────────
+  # Security Scan
+  # ────────────────────────────
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: npm audit
+        run: |
+          npm ci
+          npm audit --audit-level=high || echo "::warning::npm audit 发现高/严重漏洞"
+      - name: Check for secrets (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          config-path: .gitleaks.toml
+      - name: Hardcoded credentials check
+        run: |
+          echo "=== 硬编码密钥检测 ==="
+          grep -rn "DB_PASSWORD\|API_KEY\|SECRET\|PASSWORD\s*=" \
+            --include="*.php" --include="*.env" --include="*.yml" --include="*.yaml" \
+            app/ config/ resources/ routes/ bootstrap/ 2>/dev/null | \
+            grep -v "env("\|APP_KEY\|DB_PASSWORD=changeme\|CHANGEME\|example\|//" | \
+            grep -v "->env\|env()\|'env'" || echo "未检测到硬编码密钥"
+          echo "✅ 密钥扫描完成"

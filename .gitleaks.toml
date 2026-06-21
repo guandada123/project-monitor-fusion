@@ -1,0 +1,18 @@
+title = "PMF Secret Detection Configuration"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Legitimate references in test/config files"
+paths = [
+    '''(?i).*test_.*\.php$''',
+    '''(?i).*\.env\.example$''',
+    '''database/''',
+]
+regexes = [
+    '''APP_KEY\s*=\s*base64:''',
+    '''DB_PASSWORD\s*=\s*changeme''',
+    '''os\.environ\.get''',
+    '''config\(|env\(|getenv\(''',
+]
