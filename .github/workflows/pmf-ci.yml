@@ -71,9 +71,21 @@ jobs:
       - name: Hardcoded credentials check
         run: |
           echo "=== 硬编码密钥检测 ==="
-          grep -rn "DB_PASSWORD\|API_KEY\|SECRET\|PASSWORD\s*=" \
+          matches=$(grep -rn "DB_PASSWORD\|API_KEY\|SECRET\|PASSWORD\s*=" \
             --include="*.php" --include="*.env" --include="*.yml" --include="*.yaml" \
             app/ config/ resources/ routes/ bootstrap/ 2>/dev/null | \
-            grep -v "env("\|APP_KEY\|DB_PASSWORD=changeme\|CHANGEME\|example\|//" | \
-            grep -v "->env\|env()\|'env'" || echo "未检测到硬编码密钥"
-          echo "✅ 密钥扫描完成"
+            grep -v 'env(' | \
+            grep -v 'APP_KEY' | \
+            grep -v 'DB_PASSWORD=changeme' | \
+            grep -v 'CHANGEME' | \
+            grep -v 'example' | \
+            grep -v '//' | \
+            grep -v '->env' | \
+            grep -v "env()" | \
+            grep -v "'env'") || true
+          if [ -n "$matches" ]; then
+            echo "⚠️ 发现潜在密钥:"
+            echo "$matches"
+            exit 1
+          fi
+          echo "✅ 未检测到硬编码密钥"
