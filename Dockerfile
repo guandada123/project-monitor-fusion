@@ -1,6 +1,6 @@
 # ─── Project Monitor — 多阶段 Docker 构建 ───
 # Stage 1: PHP 依赖 (Composer)
-FROM composer:2.8 AS composer
+FROM composer:2.10 AS composer
 WORKDIR /build
 COPY composer.json composer.lock ./
 RUN composer install \
