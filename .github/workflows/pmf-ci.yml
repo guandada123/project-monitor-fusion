@@ -19,6 +19,8 @@ jobs:
         with:
           php-version: "8.4"
           tools: composer:v2
+      - name: Prepare Laravel storage directories
+        run: mkdir -p storage/framework/cache storage/framework/views storage/framework/sessions storage/logs
       - name: Install dependencies
         run: composer install --no-progress --no-interaction
       - name: Pint (Laravel code style)
@@ -36,7 +38,15 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-      - name: Install dependencies
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+      - name: Install PHP dependencies (needed for Vite to resolve Flux CSS)
+        run: |
+          mkdir -p storage/framework/cache storage/framework/views storage/framework/sessions storage/logs
+          composer install --no-dev --no-progress --no-interaction
+      - name: Install Node dependencies
         run: npm ci
       - name: Build
         run: npm run build
@@ -58,8 +68,6 @@ jobs:
           npm audit --audit-level=high || echo "::warning::npm audit 发现高/严重漏洞"
       - name: Check for secrets (gitleaks)
         uses: gitleaks/gitleaks-action@v2
-        with:
-          config-path: .gitleaks.toml
       - name: Hardcoded credentials check
         run: |
           echo "=== 硬编码密钥检测 ==="
