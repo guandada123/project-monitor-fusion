@@ -14,3 +14,6 @@
 .DS_Store
 Thumbs.db
 .phpunit.result.cache
+.workbuddy/
+e2e-report/
+test-results/
