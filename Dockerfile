@@ -79,6 +79,7 @@ RUN set -eux; \
     mkdir -p storage/app storage/framework/cache/data \
              storage/framework/sessions storage/framework/views \
              storage/logs storage/fonts bootstrap/cache; \
+    rm -f bootstrap/cache/packages.php bootstrap/cache/services.php; \
     chown -R www-data:www-data storage bootstrap/cache public/build; \
     chmod -R 775 storage bootstrap/cache storage/fonts; \
     php artisan storage:link --force
