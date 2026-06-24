@@ -8,7 +8,7 @@
     "require": {
         "php": "^8.2",
         "barryvdh/laravel-dompdf": "^3.1",
-        "laravel/framework": "^11.31",
+        "laravel/framework": "^12.0",
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^2.9",
         "livewire/flux": "^2.14",
@@ -76,16 +76,7 @@
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
         },
-        "audit": {
-            "ignore": {
-                "PKSA-mdq4-51ck-6kdq": "CVE-2026-48019: CRLF injection in 'email' validation rule. This project does not pass user-submitted emails into HTTP headers or mail headers. Fix requires Laravel ^12.60.0 / ^13.10.0 — major upgrade planned separately.",
-                "PKSA-3r5d-mb8f-1qw9": "CRLF injection in default email rule (duplicate of PKSA-mdq4). Fix requires Laravel ^12.60.0 — major upgrade planned separately.",
-                "PKSA-m5cs-t1y6-qpcs": "Temporary Signed URL Path Confusion. Fix requires Laravel ^12.61.1 / ^13.12.0 — major upgrade planned separately.",
-                "PKSA-8qx3-n5y5-vvnd": "Security advisory blocking Laravel 11.x upgrades — fix requires Laravel ^12 / ^13 — major upgrade planned separately.",
-                "PKSA-q46n-4fdk-zjr4": "Security advisory blocking Laravel 11.x upgrades — fix requires Laravel ^12 / ^13 — major upgrade planned separately.",
-                "PKSA-qzrn-rnz3-85w1": "Security advisory blocking Laravel 11.x upgrades — fix requires Laravel ^12 / ^13 — major upgrade planned separately."
-            }
-        }
+        "audit": {}
     },
     "minimum-stability": "stable",
     "prefer-stable": true
