@@ -6,6 +6,7 @@ use App\Models\Project;
 use App\Models\Risk;
 use App\Models\Task;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -67,11 +68,13 @@ class Dashboard extends Component
             'on_hold' => '已暂停',
         ];
 
-        $this->sourceOptions = Project::select('source')
-            ->distinct()
-            ->whereNotNull('source')
-            ->pluck('source')
-            ->toArray();
+        $this->sourceOptions = Cache::remember('dashboard:source_options', 3600, function () {
+            return Project::select('source')
+                ->distinct()
+                ->whereNotNull('source')
+                ->pluck('source')
+                ->toArray();
+        });
     }
 
     // ——— Filter change handlers ———
@@ -167,8 +170,7 @@ class Dashboard extends Component
             $allTasks = $projects->flatMap->tasks;
             $totalTasks = $allTasks->count();
             $doneTasks = $allTasks->where('status', 'done')->count();
-            $today = $now->toDateString();
-            $overdueTasks = $allTasks->filter(fn ($t) => $t->status !== 'done' && $t->due_at && $t->due_at->toDateString() < $today)->count();
+            $overdueTasks = $allTasks->filter(fn ($t) => $t->status !== 'done' && $t->due_at && $t->due_at->isBefore($now->startOfDay()))->count();
 
             $projectStats = [
                 'total_projects' => $projects->count(),
@@ -187,13 +189,13 @@ class Dashboard extends Component
                 ->groupBy('project_id')
                 ->pluck('open_count', 'project_id');
 
-            $kpiSummary = $projects->map(function ($project) use ($riskCountsByProject, $today) {
+            $kpiSummary = $projects->map(function ($project) use ($riskCountsByProject) {
                 $projectTasks = $project->tasks;
                 $total = $projectTasks->count();
                 $done = $projectTasks->where('status', 'done')->count();
-                /** @var \Illuminate\Database\Eloquent\Collection<int, Task> $notDone */
+                /** @var EloquentCollection<int, Task> $notDone */
                 $notDone = $projectTasks->where('status', '!=', 'done');
-                $overdue = $notDone->filter(fn (Task $t) => $t->due_at && $t->due_at->toDateString() < $today)->count();
+                $overdue = $notDone->filter(fn (Task $t) => $t->due_at && $t->due_at->isBefore(now()->startOfDay()))->count();
 
                 return [
                     'id' => $project->id,
@@ -321,6 +323,7 @@ class Dashboard extends Component
             ->whereIn('metric_id', $metricIds->values())
             ->where('captured_at', '>=', now()->subDays(self::TREND_OFFSET)->startOfDay())
             ->select('metric_id', 'value', DB::raw('DATE(captured_at) as date'))
+            ->limit(500)
             ->get()
             ->groupBy(fn ($r) => $r->metric_id.'_'.$r->date);
 

@@ -28,7 +28,6 @@ test('unauthenticated user sees login page on any protected route', function () 
 test('login page displays form elements', function () {
     $this->browse(function (Browser $browser) {
         $browser->visit('/login')
-            ->suppressDialogs()
             ->waitForText('登录', 10)
             ->assertPresent('input[type="email"]')
             ->assertPresent('input[type="password"]')
@@ -54,7 +53,6 @@ test('user can log in with valid credentials', function () {
     $this->browse(function (Browser $browser) {
         // First visit / which redirects to login, setting intended URL to /
         $browser->visit('/')
-            ->suppressDialogs()
             ->assertPathIs('/login')
             ->waitFor('input[name="email"]', 10)
             ->type('email', $user->email)
@@ -76,7 +74,6 @@ test('login remembers the user with remember me', function () {
         // Log out first to ensure clean session (Dusk reuses browser across tests)
         $browser->logout()
             ->visit('/')
-            ->suppressDialogs()
             ->assertPathIs('/login')
             ->waitFor('input[name="email"]', 10)
             ->type('email', $user->email)
@@ -93,7 +90,6 @@ test('login remembers the user with remember me', function () {
 test('login with invalid credentials shows error', function () {
     $this->browse(function (Browser $browser) {
         $browser->visit('/login')
-            ->suppressDialogs()
             ->waitFor('input[name="email"]', 10)
             ->type('email', 'wrong@example.com')
             ->type('password', 'wrongpassword')
@@ -109,7 +105,6 @@ test('login with invalid credentials shows error', function () {
 test('login with empty fields shows validation error', function () {
     $this->browse(function (Browser $browser) {
         $browser->visit('/login')
-            ->suppressDialogs()
             ->waitFor('button[type="submit"]', 10)
             ->click('button[type="submit"]')
             ->pause(3000)
