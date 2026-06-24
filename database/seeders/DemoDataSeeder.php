@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\Event;
 use App\Models\Integration;
 use App\Models\Metric;
 use App\Models\Project;

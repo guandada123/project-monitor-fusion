@@ -2,20 +2,22 @@
 
 namespace Database\Factories;
 
+use App\Models\Project;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
 class ProjectFactory extends Factory
 {
-    protected $model = \App\Models\Project::class;
+    protected $model = Project::class;
 
     public function definition(): array
     {
-        $name = fake()->company() . ' ' . fake()->word();
+        $name = fake()->company().' '.fake()->word();
+
         return [
             'name' => $name,
-            'slug' => Str::slug($name) . '-' . Str::random(4),
+            'slug' => Str::slug($name).'-'.Str::random(4),
             'source' => fake()->randomElement(['manual', 'github', 'gitlab']),
             'external_id' => (string) fake()->unique()->randomNumber(8),
             'owner_id' => User::factory(),

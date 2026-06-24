@@ -2,7 +2,6 @@
 
 namespace App\Livewire;
 
-use Illuminate\Notifications\DatabaseNotification;
 use Livewire\Component;
 
 class NotificationsPanel extends Component
@@ -25,8 +24,9 @@ class NotificationsPanel extends Component
 
     public function refreshUnreadCount(): void
     {
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             $this->unreadCount = 0;
+
             return;
         }
         $this->unreadCount = auth()->user()->unreadNotifications()->count();
@@ -37,7 +37,9 @@ class NotificationsPanel extends Component
      */
     public function markAsRead(string $notificationId): void
     {
-        if (!auth()->check()) return;
+        if (! auth()->check()) {
+            return;
+        }
 
         $notification = auth()->user()->notifications()
             ->where('id', $notificationId)
@@ -55,7 +57,9 @@ class NotificationsPanel extends Component
      */
     public function markAllAsRead(): void
     {
-        if (!auth()->check()) return;
+        if (! auth()->check()) {
+            return;
+        }
 
         auth()->user()->unreadNotifications->markAsRead();
         $this->refreshUnreadCount();
@@ -99,6 +103,7 @@ class NotificationsPanel extends Component
 
             $notifications = $query->latest()->limit(20)->get()->map(function ($n) {
                 $data = $n->data;
+
                 return [
                     'id' => $n->id,
                     'type' => $data['type'] ?? 'unknown',
@@ -106,7 +111,7 @@ class NotificationsPanel extends Component
                     'message' => $data['message'] ?? '',
                     'url' => $data['url'] ?? '#',
                     'time' => $n->created_at->diffForHumans(),
-                    'read' => !is_null($n->read_at),
+                    'read' => ! is_null($n->read_at),
                     'severity_color' => $data['severity_color'] ?? null,
                 ];
             });

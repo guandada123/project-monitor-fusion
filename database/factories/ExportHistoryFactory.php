@@ -2,12 +2,13 @@
 
 namespace Database\Factories;
 
+use App\Models\ExportHistory;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class ExportHistoryFactory extends Factory
 {
-    protected $model = \App\Models\ExportHistory::class;
+    protected $model = ExportHistory::class;
 
     public function definition(): array
     {

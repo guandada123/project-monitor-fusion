@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Project;
 use App\Models\Risk;
 use App\Models\Task;
-use Illuminate\Support\Facades\DB;
 
 /**
  * 日报生成服务
@@ -74,15 +73,15 @@ class DailyReportService
     {
         return Project::withCount([
             'tasks',
-            'tasks as done_count' => fn($q) => $q->where('status', 'done'),
-            'tasks as in_progress_count' => fn($q) => $q->where('status', 'in_progress'),
-            'tasks as todo_count' => fn($q) => $q->where('status', 'todo'),
+            'tasks as done_count' => fn ($q) => $q->where('status', 'done'),
+            'tasks as in_progress_count' => fn ($q) => $q->where('status', 'in_progress'),
+            'tasks as todo_count' => fn ($q) => $q->where('status', 'todo'),
         ])
             ->orderBy('status')
             ->orderBy('name')
             ->get()
-            /** @var \App\Models\Project $p */
-            ->map(fn(\App\Models\Project $p) => [
+            /** @var Project $p */
+            ->map(fn (Project $p) => [
                 'name' => $p->name,
                 'slug' => $p->slug,
                 'status' => $p->status,
@@ -108,7 +107,7 @@ class DailyReportService
             ->orderBy('last_seen_at', 'desc')
             ->limit(10)
             ->get()
-            ->map(fn(\App\Models\Risk $r) => [
+            ->map(fn (Risk $r) => [
                 'title' => $r->title,
                 'severity' => $r->severity,
                 'project_name' => ($r->project->name ?? '—'),
@@ -129,7 +128,7 @@ class DailyReportService
             ->with('project:id,name')
             ->limit(10)
             ->get()
-            ->map(fn(Task $t) => [
+            ->map(fn (Task $t) => [
                 'title' => $t->title,
                 'project' => $t->project->name ?? '—',
                 'priority' => $t->priority,
@@ -147,7 +146,7 @@ class DailyReportService
             ->with('project:id,name')
             ->limit(10)
             ->get()
-            ->map(fn(Task $t) => [
+            ->map(fn (Task $t) => [
                 'title' => $t->title,
                 'project' => $t->project->name ?? '—',
             ])
@@ -179,7 +178,7 @@ class DailyReportService
             $md .= "- 任务：{$p['done']}/{$p['total']} 已完成\n\n";
         }
 
-        if (!empty($report['risks'])) {
+        if (! empty($report['risks'])) {
             $md .= "## ⚠️ 风险预警\n\n";
             foreach ($report['risks'] as $r) {
                 $md .= "- **{$r['title']}**（{$r['severity']}）— {$r['project_name']}\n";
@@ -187,7 +186,8 @@ class DailyReportService
             $md .= "\n";
         }
 
-        $md .= "---\n*由 Project Monitor 自动生成 — " . now()->format('Y-m-d H:i') . "*\n";
+        $md .= "---\n*由 Project Monitor 自动生成 — ".now()->format('Y-m-d H:i')."*\n";
+
         return $md;
     }
 
@@ -197,6 +197,7 @@ class DailyReportService
     public function toHtml(array $report): string
     {
         $s = $report['summary'];
+
         return view('reports.daily-html', ['report' => $report, 'summary' => $s])->render();
     }
 }

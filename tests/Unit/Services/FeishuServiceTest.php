@@ -27,7 +27,7 @@ describe('constructor and configuration', function () {
         app(SettingsService::class)->set('feishu_partition_tag', '[测试]', 'notification');
         app(SettingsService::class)->set('feishu_bot_name', 'Bot', 'notification');
 
-        $service = new FeishuService();
+        $service = new FeishuService;
 
         expect($service->isConfigured())->toBeTrue();
     });
@@ -213,7 +213,7 @@ describe('buildDailyCard', function () {
 
         $card = $service->buildDailyCard($report);
 
-        $markdowns = array_filter($card['elements'], fn($el) => $el['tag'] === 'markdown');
+        $markdowns = array_filter($card['elements'], fn ($el) => $el['tag'] === 'markdown');
         $allContent = implode(' ', array_column($markdowns, 'content'));
 
         expect($allContent)->toContain('Alpha');
@@ -240,7 +240,7 @@ describe('buildDailyCard', function () {
 
         $card = $service->buildDailyCard($report);
 
-        $markdowns = array_filter($card['elements'], fn($el) => $el['tag'] === 'markdown');
+        $markdowns = array_filter($card['elements'], fn ($el) => $el['tag'] === 'markdown');
         $allContent = implode(' ', array_column($markdowns, 'content'));
 
         expect($allContent)->toContain('风险预警');
@@ -291,7 +291,7 @@ describe('buildDailyCard', function () {
 
         $card = $service->buildDailyCard($report);
 
-        $markdowns = array_filter($card['elements'], fn($el) => $el['tag'] === 'markdown');
+        $markdowns = array_filter($card['elements'], fn ($el) => $el['tag'] === 'markdown');
         $allContent = implode(' ', array_column($markdowns, 'content'));
 
         // Should only include first 5
@@ -324,7 +324,7 @@ describe('buildRiskAlertCard', function () {
         expect($card['header']['template'])->toBe('red');
         expect($card['header']['title']['content'])->toContain('风险告警');
 
-        $markdowns = array_filter($card['elements'], fn($el) => $el['tag'] === 'markdown');
+        $markdowns = array_filter($card['elements'], fn ($el) => $el['tag'] === 'markdown');
         $allContent = implode(' ', array_column($markdowns, 'content'));
 
         expect($allContent)->toContain('严重');
@@ -365,7 +365,7 @@ describe('buildRiskAlertCard', function () {
             expect($card['header']['template'])->toBe($expectedColor,
                 "Severity {$severity} should map to color {$expectedColor}");
 
-            $markdowns = array_filter($card['elements'], fn($el) => $el['tag'] === 'markdown');
+            $markdowns = array_filter($card['elements'], fn ($el) => $el['tag'] === 'markdown');
             $allContent = implode(' ', array_column($markdowns, 'content'));
 
             expect($allContent)->toContain($severityTextMap[$severity]);
@@ -451,7 +451,7 @@ describe('sendInteractiveCard with HTTP mock', function () {
     test('returns error on network exception', function () {
         Http::fake([
             'open.feishu.cn/*' => function () {
-                throw new \Exception('Connection refused');
+                throw new Exception('Connection refused');
             },
         ]);
 
@@ -593,7 +593,7 @@ describe('edge cases', function () {
     test('sendInteractiveCard catches exceptions gracefully', function () {
         Http::fake([
             'open.feishu.cn/*' => function () {
-                throw new \ErrorException('cURL error 28: Connection timed out');
+                throw new ErrorException('cURL error 28: Connection timed out');
             },
         ]);
 
@@ -610,7 +610,7 @@ describe('edge cases', function () {
     test('sendText catches exceptions gracefully', function () {
         Http::fake([
             'open.feishu.cn/*' => function () {
-                throw new \ErrorException('cURL error 7: Failed to connect');
+                throw new ErrorException('cURL error 7: Failed to connect');
             },
         ]);
 

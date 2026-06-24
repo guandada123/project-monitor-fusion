@@ -4,39 +4,48 @@ namespace App\Livewire;
 
 use App\Models\Integration;
 use App\Services\GitHubService;
-use Livewire\Component;
-use Livewire\Attributes\Locked;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Gate;
+use Livewire\Attributes\Locked;
+use Livewire\Component;
 
 /**
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Integration> $integrations
+ * @property-read Collection<int, Integration> $integrations
  */
 class IntegrationManager extends Component
 {
     public bool $showModal = false;
+
     public ?int $editingId = null;
 
     // Form fields
     public string $formType = 'github';
+
     public string $formName = '';
+
     public array $formConfig = [];
+
     public string $formStatus = 'active';
 
     // GitHub specific
     #[Locked]
     public string $ghToken = '';
+
     public string $ghOrg = '';
+
     public string $ghRepo = '';
 
     // Lark specific
     public string $larkWebhook = '';
+
     public string $larkAppId = '';
+
     #[Locked]
     public string $larkAppSecret = '';
 
     // DingTalk specific
     public string $dtWebhook = '';
+
     #[Locked]
     public string $dtSecret = '';
 
@@ -74,7 +83,7 @@ class IntegrationManager extends Component
         $this->resetForm();
         $this->formType = $type;
         $types = ['github' => 'GitHub', 'lark' => '飞书', 'dingtalk' => '钉钉'];
-        $this->formName = ($types[$type] ?? 'GitHub') . ' 集成';
+        $this->formName = ($types[$type] ?? 'GitHub').' 集成';
         $this->showModal = true;
     }
 
@@ -199,8 +208,9 @@ class IntegrationManager extends Component
             if ($result['ok']) {
                 session()->flash('message', "✅ 连接成功 — {$result['repo']} (⭐ {$result['stars']})");
             } else {
-                session()->flash('error', '连接失败: ' . ($result['error'] ?? '未知错误'));
+                session()->flash('error', '连接失败: '.($result['error'] ?? '未知错误'));
             }
+
             return;
         }
 
@@ -219,6 +229,7 @@ class IntegrationManager extends Component
 
         if ($integration->type !== 'github') {
             session()->flash('error', '仅支持 GitHub 类型的数据同步');
+
             return;
         }
 
@@ -230,9 +241,9 @@ class IntegrationManager extends Component
         $output = Artisan::output();
 
         if ($exitCode === 0) {
-            session()->flash('message', "GitHub 同步完成!\n" . $output);
+            session()->flash('message', "GitHub 同步完成!\n".$output);
         } else {
-            session()->flash('error', "同步失败:\n" . $output);
+            session()->flash('error', "同步失败:\n".$output);
         }
     }
 

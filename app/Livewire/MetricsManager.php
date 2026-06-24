@@ -10,27 +10,43 @@ use Livewire\Component;
 class MetricsManager extends Component
 {
     public string $slug;
+
     public ?Project $project = null;
 
     // 新建/编辑表单
     public bool $showForm = false;
+
     public ?int $editingId = null;
+
     public string $formName = '';
+
     public string $formKey = '';
+
     public string $formType = 'count_tasks';
+
     public array $formStatuses = [];
+
     public array $formPriorities = [];
+
     public array $formSeverities = [];
+
     public array $formDoneStatuses = ['done', 'closed', 'completed'];
+
     public array $formWipStatuses = ['in_progress', 'doing'];
+
     public string $formExpression = '';
+
     public string $formSchedule = '';
+
     public string $formLabel = '';
+
     public string $formUnit = '';
 
     // 快照历史
     public bool $showHistory = false;
+
     public ?int $historyMetricId = null;
+
     public array $historySnapshots = [];
 
     protected $queryString = [];
@@ -51,12 +67,12 @@ class MetricsManager extends Component
             'priorityOptions' => ['low', 'medium', 'high', 'critical'],
             'severityOptions' => ['low', 'medium', 'high', 'critical'],
             'metricTypes' => [
-                'count_tasks'      => '📊 任务计数',
-                'completion_rate'  => '📈 完成率',
-                'wip_count'        => '🔄 在制品',
-                'count_risks'      => '⚠️ 风险计数',
-                'cycle_days'       => '⏱ 平均周期',
-                'formula'          => '🧮 自定义公式',
+                'count_tasks' => '📊 任务计数',
+                'completion_rate' => '📈 完成率',
+                'wip_count' => '🔄 在制品',
+                'count_risks' => '⚠️ 风险计数',
+                'cycle_days' => '⏱ 平均周期',
+                'formula' => '🧮 自定义公式',
             ],
         ])->layout('layouts.app');
     }
@@ -99,27 +115,27 @@ class MetricsManager extends Component
     {
         $this->validate([
             'formName' => 'required|string|max:100',
-            'formKey'  => 'required|string|max:50|regex:/^[a-z0-9_]+$/',
+            'formKey' => 'required|string|max:50|regex:/^[a-z0-9_]+$/',
         ]);
 
         $definition = $this->buildDefinition();
 
         if ($this->editingId) {
             Metric::where('id', $this->editingId)->update([
-                'name'       => $this->formName,
-                'key'        => $this->formKey,
+                'name' => $this->formName,
+                'key' => $this->formKey,
                 'definition' => $definition,
                 'schedule_cron' => $this->formSchedule ?: null,
             ]);
             session()->flash('message', '指标已更新');
         } else {
             Metric::create([
-                'project_id'   => $this->project->id,
-                'name'         => $this->formName,
-                'key'          => $this->formKey,
-                'kind'         => 'custom',
-                'definition'   => $definition,
-                'schedule_cron'=> $this->formSchedule ?: null,
+                'project_id' => $this->project->id,
+                'name' => $this->formName,
+                'key' => $this->formKey,
+                'kind' => 'custom',
+                'definition' => $definition,
+                'schedule_cron' => $this->formSchedule ?: null,
             ]);
             session()->flash('message', '自定义指标已创建');
         }
@@ -132,6 +148,7 @@ class MetricsManager extends Component
         $metric = Metric::findOrFail($id);
         if ($metric->kind === 'system') {
             session()->flash('error', '系统指标不可删除');
+
             return;
         }
         $metric->delete();
@@ -142,14 +159,14 @@ class MetricsManager extends Component
 
     public function computeNow(): void
     {
-        $engine = new MetricEngine();
+        $engine = new MetricEngine;
         $engine->computeForProject($this->project);
         session()->flash('message', '✅ 所有指标已重新计算并存入快照');
     }
 
     public function showSnapshots(int $metricId): void
     {
-        $engine = new MetricEngine();
+        $engine = new MetricEngine;
         $this->historySnapshots = $engine->getSnapshots($metricId, 30);
         $this->historyMetricId = $metricId;
         $this->showHistory = true;
@@ -168,17 +185,21 @@ class MetricsManager extends Component
     {
         $base = ['type' => $this->formType];
 
-        if ($this->formLabel) $base['label'] = $this->formLabel;
-        if ($this->formUnit) $base['unit'] = $this->formUnit;
+        if ($this->formLabel) {
+            $base['label'] = $this->formLabel;
+        }
+        if ($this->formUnit) {
+            $base['unit'] = $this->formUnit;
+        }
 
         return match ($this->formType) {
             'count_tasks' => array_merge($base, [
-                'statuses'  => $this->formStatuses,
-                'priorities'=> $this->formPriorities,
+                'statuses' => $this->formStatuses,
+                'priorities' => $this->formPriorities,
             ]),
             'count_risks' => array_merge($base, [
-                'statuses'  => $this->formStatuses,
-                'severities'=> $this->formSeverities,
+                'statuses' => $this->formStatuses,
+                'severities' => $this->formSeverities,
             ]),
             'completion_rate' => array_merge($base, [
                 'done_statuses' => $this->formDoneStatuses,

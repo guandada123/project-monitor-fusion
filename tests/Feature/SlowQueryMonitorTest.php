@@ -2,10 +2,11 @@
 
 use App\Livewire\SlowQueryMonitor;
 use App\Models\SlowQuery;
+use App\Models\User;
 use Livewire\Livewire;
 
 beforeEach(function () {
-    $this->actingAs(\App\Models\User::factory()->admin()->create());
+    $this->actingAs(User::factory()->admin()->create());
 });
 
 describe('SlowQueryMonitor component', function () {
@@ -100,7 +101,7 @@ describe('SlowQueryMonitor component', function () {
         SlowQuery::factory()->count(3)->create(['captured_at' => now()->subHour()]);
 
         Livewire::test(SlowQueryMonitor::class)
-            ->assertSet('trendChart.periods', fn($v) => count($v) > 0);
+            ->assertSet('trendChart.periods', fn ($v) => count($v) > 0);
     });
 
     it('shows empty state', function () {

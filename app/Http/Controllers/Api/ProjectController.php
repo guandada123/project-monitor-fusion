@@ -7,6 +7,7 @@ use App\Http\Responses\ApiResponse;
 use App\Models\Project;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class ProjectController extends Controller
 {
@@ -34,7 +35,7 @@ class ProjectController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
@@ -57,16 +58,16 @@ class ProjectController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'name'        => 'required|string|max:255',
+            'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'status'      => 'nullable|string|in:active,archived,planning',
-            'source'      => 'nullable|string|max:100',
-            'start_at'    => 'nullable|date',
-            'end_at'      => 'nullable|date|after_or_equal:start_at',
+            'status' => 'nullable|string|in:active,archived,planning',
+            'source' => 'nullable|string|max:100',
+            'start_at' => 'nullable|date',
+            'end_at' => 'nullable|date|after_or_equal:start_at',
         ]);
 
         $validated['owner_id'] = $request->user()->id;
-        $validated['slug'] = \Illuminate\Support\Str::slug($validated['name']);
+        $validated['slug'] = Str::slug($validated['name']);
 
         $project = Project::create($validated);
         $project->loadCount(['tasks', 'risks']);
@@ -90,6 +91,7 @@ class ProjectController extends Controller
      * 更新项目
      *
      * @urlParam project int required 项目 ID
+     *
      * @bodyParam name string 项目名称
      * @bodyParam description string 项目描述
      * @bodyParam status string 状态
@@ -97,15 +99,15 @@ class ProjectController extends Controller
     public function update(Request $request, Project $project): JsonResponse
     {
         $validated = $request->validate([
-            'name'        => 'nullable|string|max:255',
+            'name' => 'nullable|string|max:255',
             'description' => 'nullable|string',
-            'status'      => 'nullable|string|in:active,archived,planning',
-            'start_at'    => 'nullable|date',
-            'end_at'      => 'nullable|date|after_or_equal:start_at',
+            'status' => 'nullable|string|in:active,archived,planning',
+            'start_at' => 'nullable|date',
+            'end_at' => 'nullable|date|after_or_equal:start_at',
         ]);
 
         if (isset($validated['name'])) {
-            $validated['slug'] = \Illuminate\Support\Str::slug($validated['name']);
+            $validated['slug'] = Str::slug($validated['name']);
         }
 
         $project->update($validated);
@@ -129,6 +131,7 @@ class ProjectController extends Controller
      * 更新项目状态
      *
      * @urlParam project int required 项目 ID
+     *
      * @bodyParam status string required 新状态 (active/archived/planning)
      */
     public function updateStatus(Request $request, Project $project): JsonResponse

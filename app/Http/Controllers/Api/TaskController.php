@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\ApiResponse;
 use App\Models\Task;
-use App\Models\Project;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -54,12 +53,12 @@ class TaskController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'project_id'  => 'required|exists:projects,id',
-            'title'       => 'required|string|max:255',
+            'project_id' => 'required|exists:projects,id',
+            'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'status'      => 'nullable|string|in:todo,in_progress,done,review,blocked',
-            'priority'    => 'nullable|string|in:low,medium,high,critical',
-            'estimate'    => 'nullable|numeric|min:0|max:999',
+            'status' => 'nullable|string|in:todo,in_progress,done,review,blocked',
+            'priority' => 'nullable|string|in:low,medium,high,critical',
+            'estimate' => 'nullable|numeric|min:0|max:999',
         ]);
 
         $validated['creator_id'] = $request->user()->id;
@@ -89,12 +88,12 @@ class TaskController extends Controller
     public function update(Request $request, Task $task): JsonResponse
     {
         $validated = $request->validate([
-            'title'       => 'nullable|string|max:255',
+            'title' => 'nullable|string|max:255',
             'description' => 'nullable|string',
-            'status'      => 'nullable|string|in:todo,in_progress,done,review,blocked',
-            'priority'    => 'nullable|string|in:low,medium,high,critical',
-            'estimate'    => 'nullable|numeric|min:0|max:999',
-            'spent'       => 'nullable|numeric|min:0|max:999',
+            'status' => 'nullable|string|in:todo,in_progress,done,review,blocked',
+            'priority' => 'nullable|string|in:low,medium,high,critical',
+            'estimate' => 'nullable|numeric|min:0|max:999',
+            'spent' => 'nullable|numeric|min:0|max:999',
         ]);
 
         $task->update($validated);
@@ -124,8 +123,8 @@ class TaskController extends Controller
     public function batchUpdateStatus(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'ids'    => 'required|array|min:1|max:50',
-            'ids.*'  => 'integer|exists:tasks,id',
+            'ids' => 'required|array|min:1|max:50',
+            'ids.*' => 'integer|exists:tasks,id',
             'status' => 'required|string|in:todo,in_progress,done,review,blocked',
         ]);
 
@@ -144,8 +143,8 @@ class TaskController extends Controller
     public function reorder(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'tasks'       => 'required|array|min:1|max:50',
-            'tasks.*.id'  => 'required|integer|exists:tasks,id',
+            'tasks' => 'required|array|min:1|max:50',
+            'tasks.*.id' => 'required|integer|exists:tasks,id',
             'tasks.*.sort_order' => 'required|integer|min:0',
         ]);
 

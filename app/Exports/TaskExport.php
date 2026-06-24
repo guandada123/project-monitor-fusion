@@ -12,31 +12,31 @@ class TaskExport extends BaseExport
         $query = Task::with(['project:id,name', 'assignee:id,name']);
 
         // Apply project filter
-        if (!empty($filters['project_id'])) {
+        if (! empty($filters['project_id'])) {
             $query->where('project_id', $filters['project_id']);
         }
 
         // Apply status filter
-        if (!empty($filters['status']) && $filters['status'] !== 'all') {
+        if (! empty($filters['status']) && $filters['status'] !== 'all') {
             $query->where('status', $filters['status']);
         }
 
         // Apply priority filter
-        if (!empty($filters['priority']) && $filters['priority'] !== 'all') {
+        if (! empty($filters['priority']) && $filters['priority'] !== 'all') {
             $query->where('priority', $filters['priority']);
         }
 
         // Apply assignee filter
-        if (!empty($filters['assignee_id'])) {
+        if (! empty($filters['assignee_id'])) {
             $query->where('assignee_id', $filters['assignee_id']);
         }
 
         // Apply search
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 

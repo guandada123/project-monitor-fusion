@@ -1,5 +1,7 @@
 <?php
 
+use Illuminate\Contracts\Console\Kernel;
+
 /**
  * Setup script for Dusk testing database.
  * Called once before the Dusk test suite runs.
@@ -10,7 +12,7 @@
 // Bootstrap Laravel with dusk environment
 $app = require __DIR__.'/../bootstrap/app.php';
 $app->loadEnvironmentFrom('.env.dusk.local');
-$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+$kernel = $app->make(Kernel::class);
 $kernel->bootstrap();
 
 // Create SQLite database file

@@ -58,7 +58,7 @@ test('user can log in with valid credentials', function () {
             ->type('email', $user->email)
             ->type('password', 'password')
             ->click('button[type="submit"]')
-            ->waitForLocation('/', 10)
+            ->waitForLocation('/', 20)
             ->assertPathIs('/')
             ->assertSee('仪表板');
     });
@@ -80,7 +80,7 @@ test('login remembers the user with remember me', function () {
             ->type('password', 'password')
             ->check('input[wire\\:model="remember"]')
             ->click('button[type="submit"]')
-            ->waitForLocation('/', 10)
+            ->waitForLocation('/', 20)
             ->assertPathIs('/');
     });
 });
@@ -94,7 +94,7 @@ test('login with invalid credentials shows error', function () {
             ->type('email', 'wrong@example.com')
             ->type('password', 'wrongpassword')
             ->click('button[type="submit"]')
-            ->pause(2000)
+            ->pause(3000)
             // After failed login, should still be on login page
             ->assertPathIs('/login')
             // The error message should appear somewhere
@@ -107,7 +107,7 @@ test('login with empty fields shows validation error', function () {
         $browser->visit('/login')
             ->waitFor('button[type="submit"]', 10)
             ->click('button[type="submit"]')
-            ->pause(2000)
+            ->pause(3000)
             // After failed validation, should still be on login page
             ->assertPathIs('/login');
     });

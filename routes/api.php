@@ -1,12 +1,12 @@
 <?php
 
-use App\Http\Controllers\Api\TokenController;
-use App\Http\Controllers\Api\ProjectController;
-use App\Http\Controllers\Api\TaskController;
-use App\Http\Controllers\Api\RiskController;
-use App\Http\Controllers\Api\MetricController;
-use App\Http\Controllers\Api\BoardController;
 use App\Http\Controllers\Api\AggregateController;
+use App\Http\Controllers\Api\BoardController;
+use App\Http\Controllers\Api\MetricController;
+use App\Http\Controllers\Api\ProjectController;
+use App\Http\Controllers\Api\RiskController;
+use App\Http\Controllers\Api\TaskController;
+use App\Http\Controllers\Api\TokenController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -39,41 +39,41 @@ Route::post('/tokens', [TokenController::class, 'store'])->middleware('throttle:
 // ─── Authenticated routes ───
 Route::middleware(['auth:sanctum', 'throttle:300,1'])->group(function () {
 
-    // Token management
-    Route::get('/tokens', [TokenController::class, 'index']);
-    Route::delete('/tokens/{tokenId}', [TokenController::class, 'destroy']);
+    // Token management — requires manage_settings
+    Route::get('/tokens', [TokenController::class, 'index'])->middleware('permission:manage_settings');
+    Route::delete('/tokens/{tokenId}', [TokenController::class, 'destroy'])->middleware('permission:manage_settings');
 
-    // Projects
-    Route::get('/projects', [ProjectController::class, 'index']);
-    Route::post('/projects', [ProjectController::class, 'store']);
-    Route::get('/projects/{project}', [ProjectController::class, 'show']);
-    Route::put('/projects/{project}', [ProjectController::class, 'update']);
-    Route::delete('/projects/{project}', [ProjectController::class, 'destroy']);
-    Route::patch('/projects/{project}/status', [ProjectController::class, 'updateStatus']);
+    // Projects — view_projects for reads, manage_projects for writes
+    Route::get('/projects', [ProjectController::class, 'index'])->middleware('permission:view_projects');
+    Route::post('/projects', [ProjectController::class, 'store'])->middleware('permission:manage_projects');
+    Route::get('/projects/{project}', [ProjectController::class, 'show'])->middleware('permission:view_projects');
+    Route::put('/projects/{project}', [ProjectController::class, 'update'])->middleware('permission:manage_projects');
+    Route::delete('/projects/{project}', [ProjectController::class, 'destroy'])->middleware('permission:manage_projects');
+    Route::patch('/projects/{project}/status', [ProjectController::class, 'updateStatus'])->middleware('permission:manage_projects');
 
-    // Tasks
-    Route::get('/tasks', [TaskController::class, 'index']);
-    Route::post('/tasks', [TaskController::class, 'store']);
-    Route::get('/tasks/{task}', [TaskController::class, 'show']);
-    Route::put('/tasks/{task}', [TaskController::class, 'update']);
-    Route::delete('/tasks/{task}', [TaskController::class, 'destroy']);
-    Route::patch('/tasks/batch-status', [TaskController::class, 'batchUpdateStatus']);
-    Route::put('/tasks/reorder', [TaskController::class, 'reorder']);
+    // Tasks — view_board for reads, manage_projects for writes (tasks are project work items)
+    Route::get('/tasks', [TaskController::class, 'index'])->middleware('permission:view_board');
+    Route::post('/tasks', [TaskController::class, 'store'])->middleware('permission:manage_projects');
+    Route::get('/tasks/{task}', [TaskController::class, 'show'])->middleware('permission:view_board');
+    Route::put('/tasks/{task}', [TaskController::class, 'update'])->middleware('permission:manage_projects');
+    Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->middleware('permission:manage_projects');
+    Route::patch('/tasks/batch-status', [TaskController::class, 'batchUpdateStatus'])->middleware('permission:manage_projects');
+    Route::put('/tasks/reorder', [TaskController::class, 'reorder'])->middleware('permission:manage_projects');
 
-    // Risks
-    Route::get('/risks', [RiskController::class, 'index']);
-    Route::get('/risks/{risk}', [RiskController::class, 'show']);
-    Route::patch('/risks/{risk}/status', [RiskController::class, 'updateStatus']);
+    // Risks — view_risks for reads, manage_risks for writes
+    Route::get('/risks', [RiskController::class, 'index'])->middleware('permission:view_risks');
+    Route::get('/risks/{risk}', [RiskController::class, 'show'])->middleware('permission:view_risks');
+    Route::patch('/risks/{risk}/status', [RiskController::class, 'updateStatus'])->middleware('permission:manage_risks');
 
-    // Metrics
-    Route::get('/metrics', [MetricController::class, 'index']);
-    Route::get('/metrics/snapshots', [MetricController::class, 'snapshots']);
-    Route::get('/metrics/aggregate', [MetricController::class, 'aggregate']);
+    // Metrics — all require view_metrics
+    Route::get('/metrics', [MetricController::class, 'index'])->middleware('permission:view_metrics');
+    Route::get('/metrics/snapshots', [MetricController::class, 'snapshots'])->middleware('permission:view_metrics');
+    Route::get('/metrics/aggregate', [MetricController::class, 'aggregate'])->middleware('permission:view_metrics');
 
-    // Board
-    Route::get('/board', [BoardController::class, 'index']);
-    Route::put('/board/tasks/{task}', [BoardController::class, 'updateTask']);
+    // Board — view_board for read, manage_projects for task updates
+    Route::get('/board', [BoardController::class, 'index'])->middleware('permission:view_board');
+    Route::put('/board/tasks/{task}', [BoardController::class, 'updateTask'])->middleware('permission:manage_projects');
 
-    // Aggregate
-    Route::get('/aggregate', [AggregateController::class, 'index']);
+    // Aggregate — requires view_projects
+    Route::get('/aggregate', [AggregateController::class, 'index'])->middleware('permission:view_projects');
 });

@@ -3,7 +3,6 @@
 use App\Models\Project;
 use App\Models\Risk;
 use App\Models\Task;
-use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 // ─────────────────────────────────────────────
@@ -88,8 +87,8 @@ describe('Project open_risk_count accessor', function () {
 
     test('open_risk_count uses loaded relation without extra SQL', function () {
         $project = Project::factory()
-            ->has(\App\Models\Risk::factory()->open()->count(3))
-            ->has(\App\Models\Risk::factory()->count(2)->state(['status' => 'acknowledged']))
+            ->has(Risk::factory()->open()->count(3))
+            ->has(Risk::factory()->count(2)->state(['status' => 'acknowledged']))
             ->create();
 
         $project->load('risks');
@@ -104,7 +103,7 @@ describe('Project open_risk_count accessor', function () {
 
     test('open_risk_count falls back to DB query without preload', function () {
         $project = Project::factory()
-            ->has(\App\Models\Risk::factory()->open()->count(2))
+            ->has(Risk::factory()->open()->count(2))
             ->create();
 
         DB::enableQueryLog();

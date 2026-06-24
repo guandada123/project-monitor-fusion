@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Services;
 
 use App\Models\Project;
@@ -24,22 +25,26 @@ class ProjectDiscoveryService
         $isManaged = Str::startsWith($name, 'project:')
                   || in_array('managed-project', $topics);
 
-        if (!$isManaged) return null;
+        if (! $isManaged) {
+            return null;
+        }
 
         $slug = Str::slug(str_replace('project:', '', $name));
-        if (Project::where('slug', $slug)->exists()) return null; // 已存在
+        if (Project::where('slug', $slug)->exists()) {
+            return null;
+        } // 已存在
 
         return Project::create([
-            'name'        => $name,
-            'slug'        => $slug,
-            'source'      => $source,
-            'external_id' => (string)($repo['id'] ?? ''),
-            'status'      => 'active',
-            'start_at'    => now(),
-            'meta'        => [
+            'name' => $name,
+            'slug' => $slug,
+            'source' => $source,
+            'external_id' => (string) ($repo['id'] ?? ''),
+            'status' => 'active',
+            'start_at' => now(),
+            'meta' => [
                 'description' => $repo['description'] ?? '',
-                'html_url'    => $repo['html_url'] ?? '',
-                'language'    => $repo['language'] ?? '',
+                'html_url' => $repo['html_url'] ?? '',
+                'language' => $repo['language'] ?? '',
             ],
         ]);
     }

@@ -5,6 +5,8 @@ use App\Models\Integration;
 use App\Models\Project;
 use App\Models\Task;
 use App\Services\GitHubService;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
 
 // ─────────────────────────────────────────────
@@ -82,7 +84,7 @@ describe('requireApiBase', function () {
         $method->setAccessible(true);
 
         expect(fn () => $method->invoke($service))
-            ->toThrow(\RuntimeException::class, '缺少 GitHub org/repo');
+            ->toThrow(RuntimeException::class, '缺少 GitHub org/repo');
     });
 });
 
@@ -136,7 +138,7 @@ describe('testConnection', function () {
     test('returns error on network exception', function () {
         Http::fake([
             'api.github.com/repos/test-org/test-repo' => function () {
-                throw new \Illuminate\Http\Client\ConnectionException('cURL error 6: Could not resolve host');
+                throw new ConnectionException('cURL error 6: Could not resolve host');
             },
         ]);
 
@@ -216,6 +218,7 @@ describe('data fetching methods', function () {
 
         Http::assertSent(function ($request) {
             $query = $request->url();
+
             return str_contains($query, 'state=open')
                 && str_contains($query, 'per_page=5');
         });
@@ -274,7 +277,7 @@ describe('data fetching methods', function () {
         $service = new GitHubService(['token' => 't', 'org' => 'org', 'repo' => 'repo']);
 
         expect(fn () => $service->fetchIssues())
-            ->toThrow(\RuntimeException::class, '403');
+            ->toThrow(RuntimeException::class, '403');
     });
 });
 
@@ -664,10 +667,10 @@ describe('github:sync command', function () {
     });
 
     test('command fails when no integration configured', function () {
-        $exitCode = \Illuminate\Support\Facades\Artisan::call('github:sync');
+        $exitCode = Artisan::call('github:sync');
 
         expect($exitCode)->toBe(1);
-        $output = \Illuminate\Support\Facades\Artisan::output();
+        $output = Artisan::output();
         expect($output)->toContain('未找到');
     });
 
@@ -680,10 +683,10 @@ describe('github:sync command', function () {
             ],
         ]);
 
-        $exitCode = \Illuminate\Support\Facades\Artisan::call('github:sync');
+        $exitCode = Artisan::call('github:sync');
 
         expect($exitCode)->toBe(1);
-        $output = \Illuminate\Support\Facades\Artisan::output();
+        $output = Artisan::output();
         expect($output)->toContain('未找到关联项目');
     });
 
@@ -702,13 +705,13 @@ describe('github:sync command', function () {
         ]);
         Project::factory()->create(['slug' => 'test-project', 'source' => 'github']);
 
-        $exitCode = \Illuminate\Support\Facades\Artisan::call('github:sync', [
+        $exitCode = Artisan::call('github:sync', [
             '--dry-run' => true,
             '--project' => 'test-project',
         ]);
 
         expect($exitCode)->toBe(0);
-        $output = \Illuminate\Support\Facades\Artisan::output();
+        $output = Artisan::output();
         expect($output)->toContain('DRY-RUN');
         expect($output)->toContain('#1');
         expect($output)->toContain('Test issue');
@@ -729,12 +732,12 @@ describe('github:sync command', function () {
         ]);
         Project::factory()->create(['slug' => 'sync-project', 'source' => 'github']);
 
-        $exitCode = \Illuminate\Support\Facades\Artisan::call('github:sync', [
+        $exitCode = Artisan::call('github:sync', [
             '--project' => 'sync-project',
         ]);
 
         expect($exitCode)->toBe(0);
-        $output = \Illuminate\Support\Facades\Artisan::output();
+        $output = Artisan::output();
         expect($output)->toContain('同步完成');
         expect($output)->toContain('Commits');
         expect($output)->toContain('Issues');
@@ -751,12 +754,12 @@ describe('github:sync command', function () {
         ]);
         Project::factory()->create(['slug' => 'fail-project', 'source' => 'github']);
 
-        $exitCode = \Illuminate\Support\Facades\Artisan::call('github:sync', [
+        $exitCode = Artisan::call('github:sync', [
             '--project' => 'fail-project',
         ]);
 
         expect($exitCode)->toBe(1);
-        $output = \Illuminate\Support\Facades\Artisan::output();
+        $output = Artisan::output();
         // Should have attempted 3 retries
         expect($output)->toContain('第 1/3');
         expect($output)->toContain('第 2/3');

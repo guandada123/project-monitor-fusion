@@ -2,6 +2,7 @@
 
 namespace Tests;
 
+use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
@@ -11,6 +12,6 @@ abstract class TestCase extends BaseTestCase
         parent::setUp();
 
         // Seed roles & permissions once per test so factory states work
-        $this->seed(\Database\Seeders\RolePermissionSeeder::class);
+        $this->seed(RolePermissionSeeder::class);
     }
 }

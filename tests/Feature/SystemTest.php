@@ -1,7 +1,10 @@
 <?php
 
-use App\Models\User;
 use App\Models\Project;
+use App\Models\User;
+use App\Services\SettingsService;
+use Illuminate\Support\Str;
+
 use function Pest\Laravel\get;
 
 // ─── Resources ───
@@ -31,7 +34,7 @@ test('settings shows masked webhook url', function () {
     $this->actingAs($user);
 
     // Pre-set a webhook URL in settings
-    $settings = app(\App\Services\SettingsService::class);
+    $settings = app(SettingsService::class);
     $settings->set('feishu_webhook_url', 'https://open.feishu.cn/open-apis/bot/v2/hook/abc123def456', 'notification');
 
     Livewire::test('settings')
@@ -43,7 +46,7 @@ test('settings reveal and cancel webhook', function () {
     $user = User::factory()->admin()->create();
     $this->actingAs($user);
 
-    $settings = app(\App\Services\SettingsService::class);
+    $settings = app(SettingsService::class);
     $settings->set('feishu_webhook_url', 'https://open.feishu.cn/open-apis/bot/v2/hook/abc123def456', 'notification');
 
     Livewire::test('settings')
@@ -178,7 +181,7 @@ test('notifications panel shows unread count', function () {
 
     // Create a notification for the user
     $user->notifications()->create([
-        'id' => (string) \Illuminate\Support\Str::uuid(),
+        'id' => (string) Str::uuid(),
         'type' => 'App\Notifications\RiskAlertNotification',
         'data' => ['message' => 'Test notification', 'type' => 'risk_alert', 'icon' => 'alert-triangle', 'url' => '/risks'],
     ]);
@@ -194,7 +197,7 @@ test('notifications panel mark all as read', function () {
     // Create 3 notifications
     foreach (range(1, 3) as $i) {
         $user->notifications()->create([
-            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'id' => (string) Str::uuid(),
             'type' => 'App\Notifications\RiskAlertNotification',
             'data' => ['message' => "Test {$i}", 'type' => 'risk_alert', 'icon' => 'alert-triangle', 'url' => '/risks'],
         ]);

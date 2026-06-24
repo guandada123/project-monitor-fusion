@@ -23,11 +23,12 @@ class CollectMetricsCommand extends Command
             $this->info('📐 开始采集指标快照...');
         }
 
-        $collector = new MetricCollector();
+        $collector = new MetricCollector;
 
         if ($dryRun) {
             $this->line('  实际采集时将会计算并存储所有系统指标的当前值...');
             $this->line('  metrics: 40 条系统指标待采集');
+
             return self::SUCCESS;
         }
 

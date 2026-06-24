@@ -3,24 +3,27 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\DatabaseNotificationCollection;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Cache;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
- * @property-read \Illuminate\Database\Eloquent\Collection<int,Task> $pending_tasks
- * @property-read \Illuminate\Database\Eloquent\Collection<int,Task> $overdue_tasks
- * @property-read \Illuminate\Notifications\DatabaseNotificationCollection $unreadNotifications
+ * @property-read Collection<int,Task> $pending_tasks
+ * @property-read Collection<int,Task> $overdue_tasks
+ * @property-read DatabaseNotificationCollection $unreadNotifications
  * @property-read float $workload_percent
  */
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    /** @use HasFactory<UserFactory> */
 
     /**
      * The attributes that are mass assignable.
@@ -62,17 +65,17 @@ class User extends Authenticatable
         return $this->belongsToMany(Role::class);
     }
 
-    public function ownedProjects(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function ownedProjects(): HasMany
     {
         return $this->hasMany(Project::class, 'owner_id');
     }
 
-    public function tasks(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function tasks(): HasMany
     {
         return $this->hasMany(Task::class, 'assignee_id');
     }
 
-    public function assignments(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function assignments(): HasMany
     {
         return $this->hasMany(Assignment::class);
     }
@@ -83,6 +86,7 @@ class User extends Authenticatable
         $total = $this->tasks()
             ->whereNotIn('status', ['done'])
             ->sum('estimate');
+
         return min(round($total / 40 * 100, 1), 200); // cap at 200%
     }
 
@@ -93,8 +97,7 @@ class User extends Authenticatable
      */
     public function hasRole(string $slug): bool
     {
-        return Cache::remember("user:{$this->id}:roles", 300, fn() =>
-            $this->roles->pluck('slug')
+        return Cache::remember("user:{$this->id}:roles", 300, fn () => $this->roles->pluck('slug')
         )->contains($slug);
     }
 
@@ -120,8 +123,11 @@ class User extends Authenticatable
     public function hasAnyPermission(array $slugs): bool
     {
         foreach ($slugs as $slug) {
-            if ($this->hasPermission($slug)) return true;
+            if ($this->hasPermission($slug)) {
+                return true;
+            }
         }
+
         return false;
     }
 
@@ -131,8 +137,11 @@ class User extends Authenticatable
     public function hasAllPermissions(array $slugs): bool
     {
         foreach ($slugs as $slug) {
-            if (! $this->hasPermission($slug)) return false;
+            if (! $this->hasPermission($slug)) {
+                return false;
+            }
         }
+
         return true;
     }
 

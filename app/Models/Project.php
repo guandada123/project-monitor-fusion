@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,8 +17,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property-read int    $todo_count
  * @property-read int    $done_count
  * @property-read int    $in_progress_count
- * @property-read \Carbon\Carbon|null $start_at
- * @property-read \Carbon\Carbon|null $end_at
+ * @property-read Carbon|null $start_at
+ * @property-read Carbon|null $end_at
  */
 class Project extends Model
 {
@@ -66,8 +68,11 @@ class Project extends Model
     public function completionRate(): float
     {
         $total = $this->tasks()->count();
-        if ($total === 0) return 0;
+        if ($total === 0) {
+            return 0;
+        }
         $done = $this->tasks()->whereIn('status', ['done', 'closed', 'completed'])->count();
+
         return round(($done / $total) * 100, 1);
     }
 
@@ -87,34 +92,46 @@ class Project extends Model
     {
         if ($this->relationLoaded('tasks')) {
             $total = $this->tasks->count();
-            if ($total === 0) return 0;
+            if ($total === 0) {
+                return 0;
+            }
             $done = $this->tasks->where('status', 'done')->count();
+
             return round(($done / $total) * 100, 1);
         }
         $total = $this->tasks()->count();
-        if ($total === 0) return 0;
+        if ($total === 0) {
+            return 0;
+        }
         $done = $this->tasks()->whereIn('status', ['done'])->count();
+
         return round(($done / $total) * 100, 1);
     }
 
     public function getOverdueRateAttribute(): float
     {
         if ($this->relationLoaded('tasks')) {
-            /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\Task> $notDone */
+            /** @var Collection<int, Task> $notDone */
             $notDone = $this->tasks->where('status', '!=', 'done');
             $total = $notDone->count();
-            if ($total === 0) return 0;
+            if ($total === 0) {
+                return 0;
+            }
             $today = now()->toDateString();
-            $overdue = $notDone->filter(fn (\App\Models\Task $t) => $t->due_at && $t->due_at->toDateString() < $today)->count();
+            $overdue = $notDone->filter(fn (Task $t) => $t->due_at && $t->due_at->toDateString() < $today)->count();
+
             return round(($overdue / $total) * 100, 1);
         }
         $total = $this->tasks()->where('status', '!=', 'done')->count();
-        if ($total === 0) return 0;
+        if ($total === 0) {
+            return 0;
+        }
         $overdue = $this->tasks()
             ->where('status', '!=', 'done')
             ->whereNotNull('due_at')
             ->where('due_at', '<', now()->toDateString())
             ->count();
+
         return round(($overdue / $total) * 100, 1);
     }
 
@@ -123,6 +140,7 @@ class Project extends Model
         if ($this->relationLoaded('risks')) {
             return $this->risks->where('status', 'open')->count();
         }
+
         return $this->risks()->where('status', 'open')->count();
     }
 }

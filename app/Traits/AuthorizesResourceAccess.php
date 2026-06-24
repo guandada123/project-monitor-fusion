@@ -2,13 +2,15 @@
 
 namespace App\Traits;
 
+use App\Livewire\IntegrationManager;
+
 /**
  * 资源级权限检查 Trait
  *
  * 为 Livewire 组件提供统一的资源操作权限验证能力。
  * 所有涉及 findOrFail 或数据修改的方法应在入口处调用 authorizeResourceAccess()。
  *
- * @see \App\Livewire\IntegrationManager 使用类似的私有方法模式
+ * @see IntegrationManager 使用类似的私有方法模式
  */
 trait AuthorizesResourceAccess
 {

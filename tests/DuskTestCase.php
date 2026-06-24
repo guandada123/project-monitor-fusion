@@ -2,6 +2,7 @@
 
 namespace Tests;
 
+use Database\Seeders\RolePermissionSeeder;
 use Facebook\WebDriver\Chrome\ChromeOptions;
 use Facebook\WebDriver\Remote\DesiredCapabilities;
 use Facebook\WebDriver\Remote\RemoteWebDriver;
@@ -18,7 +19,8 @@ abstract class DuskTestCase extends BaseTestCase
      * The seeder to run after each database truncation/migration.
      * Ensures roles and permissions are always available for browser tests.
      */
-    protected $seeder = \Database\Seeders\RolePermissionSeeder::class;
+    protected $seeder = RolePermissionSeeder::class;
+
     /**
      * Prepare for Dusk test execution.
      * Starts the ChromeDriver for browser automation.
@@ -51,6 +53,7 @@ abstract class DuskTestCase extends BaseTestCase
             $this->shouldStartMaximized() ? '--start-maximized' : '--window-size=1920,1080',
             '--disable-search-engine-choice-screen',
             '--disable-smooth-scrolling',
+            '--disable-popup-blocking',
         ])->unless($this->hasHeadlessDisabled(), function (Collection $items) {
             return $items->merge([
                 '--disable-gpu',

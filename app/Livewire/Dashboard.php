@@ -6,6 +6,7 @@ use App\Models\Project;
 use App\Models\Risk;
 use App\Models\Task;
 use App\Models\User;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -30,24 +31,31 @@ class Dashboard extends Component
 
     // ——— Data ———
     public array $projectStats = [];
+
     public array $kpiSummary = [];
+
     public array $riskSummary = [];
+
     public array $resourceHeatmap = [];
+
     public array $trendData = [];
+
     public array $kpiTrendData = [];
+
     public array $kpiDates = [];
 
     // ——— Filter metadata exposed to view ———
     public array $statusOptions = [];
+
     public array $sourceOptions = [];
 
     public function mount(): void
     {
         $this->statusOptions = [
-            'all'       => '全部状态',
-            'active'    => '进行中',
+            'all' => '全部状态',
+            'active' => '进行中',
             'completed' => '已完成',
-            'on_hold'   => '已暂停',
+            'on_hold' => '已暂停',
         ];
 
         $this->sourceOptions = Project::select('source')
@@ -73,11 +81,22 @@ class Dashboard extends Component
     public function getActiveFilterCountProperty(): int
     {
         $count = 0;
-        if ($this->filterStatus !== 'all') $count++;
-        if ($this->filterSource !== 'all') $count++;
-        if ($this->filterDateStart) $count++;
-        if ($this->filterDateEnd) $count++;
-        if ($this->search !== '') $count++;
+        if ($this->filterStatus !== 'all') {
+            $count++;
+        }
+        if ($this->filterSource !== 'all') {
+            $count++;
+        }
+        if ($this->filterDateStart) {
+            $count++;
+        }
+        if ($this->filterDateEnd) {
+            $count++;
+        }
+        if ($this->search !== '') {
+            $count++;
+        }
+
         return $count;
     }
 
@@ -97,13 +116,13 @@ class Dashboard extends Component
             $search = $this->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
         if ($this->filterDateStart) {
             $query->where(function ($q) {
                 $q->whereNull('end_at')
-                  ->orWhere('end_at', '>=', $this->filterDateStart);
+                    ->orWhere('end_at', '>=', $this->filterDateStart);
             });
         }
         if ($this->filterDateEnd) {
@@ -113,19 +132,19 @@ class Dashboard extends Component
         $projects = $query->get();
 
         // 2. Compute project stats
-        /** @var \Illuminate\Support\Collection $allTasks */
+        /** @var Collection $allTasks */
         $allTasks = $projects->flatMap->tasks;
         $totalTasks = $allTasks->count();
         $doneTasks = $allTasks->where('status', 'done')->count();
         $today = now()->toDateString();
-        $overdueTasks = $allTasks->filter(fn($t) => $t->status !== 'done' && $t->due_at && $t->due_at->toDateString() < $today)->count();
+        $overdueTasks = $allTasks->filter(fn ($t) => $t->status !== 'done' && $t->due_at && $t->due_at->toDateString() < $today)->count();
 
         $this->projectStats = [
-            'total_projects'  => $projects->count(),
+            'total_projects' => $projects->count(),
             'active_projects' => $projects->where('status', 'active')->count(),
-            'total_tasks'     => $totalTasks,
-            'done_tasks'      => $doneTasks,
-            'overdue_tasks'   => $overdueTasks,
+            'total_tasks' => $totalTasks,
+            'done_tasks' => $doneTasks,
+            'overdue_tasks' => $overdueTasks,
             'completion_rate' => $totalTasks > 0 ? round(($doneTasks / $totalTasks) * 100, 1) : 0,
         ];
 
@@ -141,22 +160,22 @@ class Dashboard extends Component
             $projectTasks = $project->tasks;
             $total = $projectTasks->count();
             $done = $projectTasks->where('status', 'done')->count();
-            /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\Task> $notDone */
+            /** @var \Illuminate\Database\Eloquent\Collection<int, Task> $notDone */
             $notDone = $projectTasks->where('status', '!=', 'done');
-            $overdue = $notDone->filter(fn(\App\Models\Task $t) => $t->due_at && $t->due_at->toDateString() < $today)->count();
+            $overdue = $notDone->filter(fn (Task $t) => $t->due_at && $t->due_at->toDateString() < $today)->count();
 
             return [
-                'id'              => $project->id,
-                'name'            => $project->name,
-                'slug'            => $project->slug,
-                'status'          => $project->status,
+                'id' => $project->id,
+                'name' => $project->name,
+                'slug' => $project->slug,
+                'status' => $project->status,
                 'completion_rate' => $total > 0 ? round(($done / $total) * 100, 1) : 0,
-                'overdue_rate'    => $notDone->count() > 0 ? round(($overdue / max($notDone->count(), 1)) * 100, 1) : 0,
-                'open_risks'      => $riskCountsByProject->get($project->id, 0),
-                'task_count'      => $total,
-                'source'          => $project->source,
-                'start_at'        => $project->start_at?->format('Y-m-d'),
-                'end_at'          => $project->end_at?->format('Y-m-d'),
+                'overdue_rate' => $notDone->count() > 0 ? round(($overdue / max($notDone->count(), 1)) * 100, 1) : 0,
+                'open_risks' => $riskCountsByProject->get($project->id, 0),
+                'task_count' => $total,
+                'source' => $project->source,
+                'start_at' => $project->start_at?->format('Y-m-d'),
+                'end_at' => $project->end_at?->format('Y-m-d'),
             ];
         })->toArray();
 
@@ -168,22 +187,22 @@ class Dashboard extends Component
             ->orderBy('last_seen_at', 'desc')
             ->limit(10)
             ->get()
-            ->map(fn(\App\Models\Risk $r) => [
-                'id'           => $r->id,
+            ->map(fn (Risk $r) => [
+                'id' => $r->id,
                 'project_name' => $r->project->name ?? '全局',
-                'severity'     => $r->severity,
-                'title'        => $r->title,
-                'rule_key'     => $r->rule_key,
-                'last_seen'    => ($r->last_seen_at ?? $r->created_at)->diffForHumans(),
+                'severity' => $r->severity,
+                'title' => $r->title,
+                'rule_key' => $r->rule_key,
+                'last_seen' => ($r->last_seen_at ?? $r->created_at)->diffForHumans(),
             ])->toArray();
 
         // 5. Resource heatmap (scoped to filtered projects)
-        $projectUserIds = User::whereHas('tasks', fn($q) => $q->whereIn('project_id', $projectIds))
+        $projectUserIds = User::whereHas('tasks', fn ($q) => $q->whereIn('project_id', $projectIds))
             ->pluck('id');
 
         $allUsers = User::whereIn('id', $projectUserIds)->withCount([
-            'tasks as pending_tasks' => fn($q) => $q->whereIn('project_id', $projectIds)->pending(),
-            'tasks as overdue_tasks' => fn($q) => $q->whereIn('project_id', $projectIds)->pending()->overdue(),
+            'tasks as pending_tasks' => fn ($q) => $q->whereIn('project_id', $projectIds)->pending(),
+            'tasks as overdue_tasks' => fn ($q) => $q->whereIn('project_id', $projectIds)->pending()->overdue(),
         ])->get();
 
         $estimateSums = Task::selectRaw('assignee_id, COALESCE(SUM(estimate), 0) as total_estimate')
@@ -195,11 +214,12 @@ class Dashboard extends Component
 
         $this->resourceHeatmap = $allUsers->map(function ($user) use ($estimateSums) {
             $estimateHours = (float) ($estimateSums->get($user->id, 0));
+
             return [
-                'id'            => $user->id,
-                'name'          => $user->name,
-                'workload'      => min(round($estimateHours / 40 * 100, 1), 200),
-                'active_tasks'  => $user->pending_tasks,
+                'id' => $user->id,
+                'name' => $user->name,
+                'workload' => min(round($estimateHours / 40 * 100, 1), 200),
+                'active_tasks' => $user->pending_tasks,
                 'overdue_tasks' => $user->overdue_tasks,
             ];
         })->toArray();
@@ -233,12 +253,13 @@ class Dashboard extends Component
         for ($i = 6; $i >= 0; $i--) {
             $date = now()->subDays($i)->toDateString();
             $days[] = [
-                'date'      => now()->subDays($i)->format('m/d'),
+                'date' => now()->subDays($i)->format('m/d'),
                 'completed' => (int) ($completedByDay[$date] ?? 0),
-                'created'   => (int) ($createdByDay[$date] ?? 0),
-                'risks'     => (int) ($risksByDay[$date] ?? 0),
+                'created' => (int) ($createdByDay[$date] ?? 0),
+                'risks' => (int) ($risksByDay[$date] ?? 0),
             ];
         }
+
         return $days;
     }
 
@@ -255,18 +276,18 @@ class Dashboard extends Component
             ->where('captured_at', '>=', now()->subDays(6)->startOfDay())
             ->select('metric_id', 'value', DB::raw('DATE(captured_at) as date'))
             ->get()
-            ->groupBy(fn ($r) => $r->metric_id . '_' . $r->date);
+            ->groupBy(fn ($r) => $r->metric_id.'_'.$r->date);
 
         $dates = [];
         $series = [
             'completion' => [],
-            'overdue'    => [],
-            'risks'      => [],
+            'overdue' => [],
+            'risks' => [],
         ];
         $keyMap = [
             'completion_rate' => 'completion',
-            'overdue_ratio'   => 'overdue',
-            'unclosed_risks'  => 'risks',
+            'overdue_ratio' => 'overdue',
+            'unclosed_risks' => 'risks',
         ];
 
         for ($i = 6; $i >= 0; $i--) {
@@ -274,7 +295,7 @@ class Dashboard extends Component
             $dates[] = now()->subDays($i)->format('m/d');
 
             foreach ($keyMap as $metricKey => $seriesKey) {
-                $id   = $metricIds[$metricKey] ?? 0;
+                $id = $metricIds[$metricKey] ?? 0;
                 $snap = $snapshots->get("{$id}_{$day}")?->first();
                 $series[$seriesKey][] = $snap ? round((float) $snap->value, 1) : null;
             }

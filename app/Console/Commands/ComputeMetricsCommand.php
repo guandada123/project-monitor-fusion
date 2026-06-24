@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Project;
 use App\Services\MetricEngine;
 use Illuminate\Console\Command;
 
@@ -16,13 +17,15 @@ class ComputeMetricsCommand extends Command
     public function handle(MetricEngine $engine): int
     {
         if ($this->option('project')) {
-            $project = \App\Models\Project::where('slug', $this->option('project'))->first();
-            if (!$project) {
-                $this->error('Project not found: ' . $this->option('project'));
+            $project = Project::where('slug', $this->option('project'))->first();
+            if (! $project) {
+                $this->error('Project not found: '.$this->option('project'));
+
                 return Command::FAILURE;
             }
             $engine->computeForProject($project);
             $this->info("✅ Metrics computed for {$project->name}");
+
             return Command::SUCCESS;
         }
 
@@ -30,6 +33,7 @@ class ComputeMetricsCommand extends Command
             $results = $engine->computeAll();
             $count = count($results);
             $this->info("✅ Metrics computed for {$count} projects");
+
             return Command::SUCCESS;
         }
 
@@ -37,6 +41,7 @@ class ComputeMetricsCommand extends Command
         $results = $engine->computeAll();
         $count = count($results);
         $this->info("✅ Metrics computed for {$count} projects");
+
         return Command::SUCCESS;
     }
 }

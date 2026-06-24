@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -59,7 +60,10 @@ class ExportHistory extends Model
 
     public function getDurationAttribute(): ?string
     {
-        if (!$this->completed_at) return null;
-        return $this->created_at->diffForHumans($this->completed_at, \Carbon\CarbonInterface::DIFF_ABSOLUTE);
+        if (! $this->completed_at) {
+            return null;
+        }
+
+        return $this->created_at->diffForHumans($this->completed_at, CarbonInterface::DIFF_ABSOLUTE);
     }
 }

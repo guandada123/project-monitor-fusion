@@ -12,31 +12,31 @@ class RiskExport extends BaseExport
         $query = Risk::with(['project:id,name']);
 
         // Apply status filter
-        if (!empty($filters['status']) && $filters['status'] !== 'all') {
+        if (! empty($filters['status']) && $filters['status'] !== 'all') {
             $query->where('status', $filters['status']);
         }
 
         // Apply severity filter
-        if (!empty($filters['severity']) && $filters['severity'] !== 'all') {
+        if (! empty($filters['severity']) && $filters['severity'] !== 'all') {
             $query->where('severity', $filters['severity']);
         }
 
         // Apply project filter
-        if (!empty($filters['project_id'])) {
+        if (! empty($filters['project_id'])) {
             $query->where('project_id', $filters['project_id']);
         }
 
         // Apply rule filter
-        if (!empty($filters['rule_key']) && $filters['rule_key'] !== 'all') {
+        if (! empty($filters['rule_key']) && $filters['rule_key'] !== 'all') {
             $query->where('rule_key', $filters['rule_key']);
         }
 
         // Apply search
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('detail', 'like', "%{$search}%");
+                    ->orWhere('detail', 'like', "%{$search}%");
             });
         }
 

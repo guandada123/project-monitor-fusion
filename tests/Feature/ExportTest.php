@@ -2,13 +2,14 @@
 
 use App\Exports\ExportEngine;
 use App\Exports\ProjectExport;
-use App\Exports\TaskExport;
 use App\Exports\RiskExport;
-use App\Models\User;
-use App\Models\Project;
-use App\Models\Task;
-use App\Models\Risk;
+use App\Exports\TaskExport;
 use App\Models\ExportHistory;
+use App\Models\Project;
+use App\Models\Risk;
+use App\Models\Task;
+use App\Models\User;
+
 use function Pest\Laravel\actingAs;
 
 // ─── ExportEngine Service ───
@@ -157,20 +158,20 @@ describe('ExportEngine', function () {
         $engine = app(ExportEngine::class);
 
         $engine->export('invalid_type', 'csv');
-    })->throws(\InvalidArgumentException::class);
+    })->throws(InvalidArgumentException::class);
 
     it('throws exception for invalid format', function () {
         $engine = app(ExportEngine::class);
 
         $engine->export('project', 'invalid');
-    })->throws(\InvalidArgumentException::class);
+    })->throws(InvalidArgumentException::class);
 
     it('records failed export in history', function () {
         $engine = app(ExportEngine::class);
 
         try {
             $engine->export('project', 'invalid');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -216,7 +217,7 @@ describe('ExportPanel Livewire', function () {
     });
 
     it('can open panel', function () {
-        \Livewire::test('export-panel')
+        Livewire::test('export-panel')
             ->assertSet('showPanel', false)
             ->call('openPanel')
             ->assertSet('showPanel', true)
@@ -224,19 +225,19 @@ describe('ExportPanel Livewire', function () {
     });
 
     it('can open panel with specific entity type', function () {
-        \Livewire::test('export-panel')
+        Livewire::test('export-panel')
             ->call('openPanel', 'risk')
             ->assertSet('entityType', 'risk');
     });
 
     it('ignores invalid entity type when opening', function () {
-        \Livewire::test('export-panel')
+        Livewire::test('export-panel')
             ->call('openPanel', 'invalid')
             ->assertSet('entityType', 'project');
     });
 
     it('can close panel', function () {
-        \Livewire::test('export-panel')
+        Livewire::test('export-panel')
             ->call('openPanel')
             ->assertSet('showPanel', true)
             ->call('closePanel')
@@ -245,7 +246,7 @@ describe('ExportPanel Livewire', function () {
     });
 
     it('switching entity type loads different columns', function () {
-        \Livewire::test('export-panel')
+        Livewire::test('export-panel')
             ->call('openPanel')
             ->assertSet('entityType', 'project')
             ->set('entityType', 'task')
@@ -256,7 +257,7 @@ describe('ExportPanel Livewire', function () {
     });
 
     it('can toggle column selection', function () {
-        \Livewire::test('export-panel')
+        Livewire::test('export-panel')
             ->call('openPanel')
             ->set('selectedColumns.name', false)
             ->assertSet('selectedColumns.name', false)
@@ -265,7 +266,7 @@ describe('ExportPanel Livewire', function () {
     });
 
     it('can select all columns', function () {
-        \Livewire::test('export-panel')
+        Livewire::test('export-panel')
             ->call('openPanel')
             ->set('selectedColumns.name', false)
             ->call('toggleAllColumns', true)
@@ -273,7 +274,7 @@ describe('ExportPanel Livewire', function () {
     });
 
     it('can deselect all columns', function () {
-        \Livewire::test('export-panel')
+        Livewire::test('export-panel')
             ->call('openPanel')
             ->call('toggleAllColumns', false)
             ->assertSet('selectedColumns.name', false);
@@ -282,7 +283,7 @@ describe('ExportPanel Livewire', function () {
     it('can start export for projects', function () {
         Project::factory()->count(3)->create();
 
-        \Livewire::test('export-panel')
+        Livewire::test('export-panel')
             ->call('openPanel')
             ->call('startExport')
             ->assertSet('step', 'done')
@@ -298,7 +299,7 @@ describe('ExportPanel Livewire', function () {
         $project = Project::factory()->create();
         Task::factory()->count(2)->create(['project_id' => $project->id]);
 
-        \Livewire::test('export-panel')
+        Livewire::test('export-panel')
             ->call('openPanel')
             ->set('entityType', 'task')
             ->call('startExport')
@@ -311,7 +312,7 @@ describe('ExportPanel Livewire', function () {
         $project = Project::factory()->create();
         Risk::factory()->count(4)->create(['project_id' => $project->id]);
 
-        \Livewire::test('export-panel')
+        Livewire::test('export-panel')
             ->call('openPanel')
             ->set('entityType', 'risk')
             ->call('startExport')
@@ -321,7 +322,7 @@ describe('ExportPanel Livewire', function () {
     });
 
     it('shows error when no columns selected', function () {
-        \Livewire::test('export-panel')
+        Livewire::test('export-panel')
             ->call('openPanel')
             ->call('toggleAllColumns', false)
             ->call('startExport')
@@ -332,7 +333,7 @@ describe('ExportPanel Livewire', function () {
     it('can reset export after completion', function () {
         Project::factory()->count(2)->create();
 
-        \Livewire::test('export-panel')
+        Livewire::test('export-panel')
             ->call('openPanel')
             ->call('startExport')
             ->assertSet('step', 'done')
@@ -346,7 +347,7 @@ describe('ExportPanel Livewire', function () {
         $user = auth()->user();
         ExportHistory::factory()->count(3)->create(['user_id' => $user->id]);
 
-        \Livewire::test('export-panel')
+        Livewire::test('export-panel')
             ->call('openPanel')
             ->assertSet('history', function ($history) {
                 return count($history) === 3;
@@ -354,7 +355,7 @@ describe('ExportPanel Livewire', function () {
     });
 
     it('shows empty history for first-time user', function () {
-        \Livewire::test('export-panel')
+        Livewire::test('export-panel')
             ->call('openPanel')
             ->assertSet('history', []);
     });
@@ -363,7 +364,7 @@ describe('ExportPanel Livewire', function () {
         Project::factory()->count(2)->create();
         $user = auth()->user();
 
-        \Livewire::test('export-panel')
+        Livewire::test('export-panel')
             ->call('openPanel')
             ->call('startExport');
 
@@ -372,7 +373,7 @@ describe('ExportPanel Livewire', function () {
     });
 
     it('can switch between csv and xlsx format', function () {
-        \Livewire::test('export-panel')
+        Livewire::test('export-panel')
             ->call('openPanel')
             ->assertSet('format', 'xlsx')
             ->set('format', 'csv')
@@ -382,7 +383,7 @@ describe('ExportPanel Livewire', function () {
     it('can download exported file', function () {
         Project::factory()->count(1)->create();
 
-        \Livewire::test('export-panel')
+        Livewire::test('export-panel')
             ->call('openPanel')
             ->call('startExport')
             ->assertSet('step', 'done')

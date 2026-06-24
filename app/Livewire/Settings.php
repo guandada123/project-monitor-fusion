@@ -12,18 +12,25 @@ class Settings extends Component
 {
     // Project auto-discovery settings
     public $namingRule = 'project:*';
+
     public $defaultTemplate = 'default';
 
     // Lark/Feishu notification settings
     public $feishuDailyReport = true;
+
     public $feishuRiskAlert = true;
+
     public $feishuDailyTime = '08:30';
+
     public $feishuWebhookUrl = '';
+
     public $feishuPartitionTag = '[项目监控]';
+
     public $feishuBotName = 'Project Monitor';
 
     // UI state
     public $saved = false;
+
     public $editingWebhook = false;
 
     protected $rules = [
@@ -63,10 +70,10 @@ class Settings extends Component
         if ($lastSlash !== false) {
             $prefix = substr($url, 0, $lastSlash + 1);
 
-            return $prefix . '****' . $last4;
+            return $prefix.'****'.$last4;
         }
 
-        return '****' . $last4;
+        return '****'.$last4;
     }
 
     /**
@@ -93,9 +100,10 @@ class Settings extends Component
     {
         $this->saveNotifications($settings);
 
-        $feishu = new FeishuService();
-        if (!$feishu->isConfigured()) {
+        $feishu = new FeishuService;
+        if (! $feishu->isConfigured()) {
             session()->flash('push_result', ['ok' => false, 'error' => '请先配置飞书 Webhook URL']);
+
             return;
         }
 

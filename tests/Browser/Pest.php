@@ -1,5 +1,7 @@
 <?php
 
+use Tests\Browser\BrowserTestCase;
+
 /*
 |--------------------------------------------------------------------------
 | Browser Test Case
@@ -12,5 +14,5 @@
 */
 
 uses(
-    Tests\Browser\BrowserTestCase::class,
+    BrowserTestCase::class,
 )->in('Browser');

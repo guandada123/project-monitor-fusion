@@ -94,6 +94,7 @@ class RiskDetector
         }
 
         $results['total_detected'] = $results['new'] + $results['updated'];
+
         return $results;
     }
 
@@ -186,6 +187,7 @@ class RiskDetector
                         'occurrence_count' => $existing->occurrence_count + 1,
                         'evidence' => $evidence,
                     ]);
+
                     return ['action' => 'update', 'risk_id' => $existing->id];
                 }
 
@@ -194,6 +196,7 @@ class RiskDetector
                     'occurrence_count' => $existing->occurrence_count + 1,
                     'evidence' => $evidence,
                 ]);
+
                 return ['action' => 'update', 'risk_id' => $existing->id];
             }
 
@@ -225,6 +228,7 @@ class RiskDetector
                 'status' => 'resolved',
                 'closed_at' => now(),
             ]);
+
             return ['action' => 'resolve', 'risk_id' => $existing->id];
         }
 

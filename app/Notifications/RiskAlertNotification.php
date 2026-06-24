@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\Risk;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Str;
 
 class RiskAlertNotification extends Notification
 {
@@ -39,7 +40,7 @@ class RiskAlertNotification extends Notification
             'rule_key' => $this->risk->rule_key,
             'project_id' => $this->risk->project_id,
             'project_name' => ($this->risk->project->name ?? '通用'),
-            'detail' => \Illuminate\Support\Str::limit($this->risk->detail ?? '', 120),
+            'detail' => Str::limit($this->risk->detail ?? '', 120),
             'url' => '/risks',
             'icon' => 'alert-triangle',
             'message' => $this->action === 'created'

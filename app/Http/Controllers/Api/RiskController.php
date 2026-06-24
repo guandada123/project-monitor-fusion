@@ -56,14 +56,15 @@ class RiskController extends Controller
      * 更新风险状态
      *
      * @urlParam risk int required 风险 ID
+     *
      * @bodyParam status string required 新状态 (open/resolved/mitigated/closed)
      * @bodyParam resolution string 解决方案说明
      */
     public function updateStatus(Request $request, Risk $risk): JsonResponse
     {
         $validated = $request->validate([
-            'status'      => 'required|string|in:open,resolved,mitigated,closed',
-            'resolution'  => 'nullable|string|max:1000',
+            'status' => 'required|string|in:open,resolved,mitigated,closed',
+            'resolution' => 'nullable|string|max:1000',
         ]);
 
         $risk->update($validated);

@@ -1,7 +1,13 @@
 <?php
 
+use App\Models\Role;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\DuskTestCase;
+use Tests\TestCase;
+
 uses(
-    Tests\DuskTestCase::class,
+    DuskTestCase::class,
     // Illuminate\Foundation\Testing\DatabaseMigrations::class,
 )->in('Browser');
 
@@ -17,8 +23,8 @@ uses(
 */
 
 uses(
-    Tests\TestCase::class,
-    Illuminate\Foundation\Testing\RefreshDatabase::class,
+    TestCase::class,
+    RefreshDatabase::class,
 )->in('Feature', 'Unit');
 
 /*
@@ -46,14 +52,14 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function createUser(?string $roleSlug = null, array $attrs = []): \App\Models\User
+function createUser(?string $roleSlug = null, array $attrs = []): User
 {
-    $user = \App\Models\User::factory()->create($attrs);
+    $user = User::factory()->create($attrs);
 
-    if ($roleSlug && class_exists(\App\Models\Role::class)) {
-        $role = \App\Models\Role::where('slug', $roleSlug)->first();
+    if ($roleSlug && class_exists(Role::class)) {
+        $role = Role::where('slug', $roleSlug)->first();
         if (! $role) {
-            $role = \App\Models\Role::factory()->create(['slug' => $roleSlug, 'name' => ucfirst($roleSlug)]);
+            $role = Role::factory()->create(['slug' => $roleSlug, 'name' => ucfirst($roleSlug)]);
         }
         $user->roles()->attach($role);
         $user->clearPermissionCache();
@@ -62,9 +68,10 @@ function createUser(?string $roleSlug = null, array $attrs = []): \App\Models\Us
     return $user;
 }
 
-function actingAsUser(?string $roleSlug = null, array $attrs = []): \App\Models\User
+function actingAsUser(?string $roleSlug = null, array $attrs = []): User
 {
     $user = createUser($roleSlug, $attrs);
     test()->actingAs($user);
+
     return $user;
 }

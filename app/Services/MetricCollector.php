@@ -7,7 +7,6 @@ use App\Models\MetricSnapshot;
 use App\Models\Project;
 use App\Models\Risk;
 use App\Models\Task;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -86,6 +85,7 @@ class MetricCollector
             if (str_ends_with($key, $suffix)) {
                 $slug = substr($key, 0, -strlen($suffix));
                 $project = Project::where('slug', $slug)->first();
+
                 return [$project?->id, $bk];
             }
         }
@@ -100,7 +100,7 @@ class MetricCollector
     {
         // Try JSONLogic definition first
         $def = $metric->definition ?? [];
-        if (!empty($def) && isset($def['logic'])) {
+        if (! empty($def) && isset($def['logic'])) {
             // Fall through to builtin for now
         }
 
@@ -111,7 +111,7 @@ class MetricCollector
         // Prefer parsed project ID from key, fallback to metric's project_id
         $scopeId = $parsedProjectId ?? $projectId;
 
-        if (!$baseKey) {
+        if (! $baseKey) {
             return null;
         }
 
@@ -124,15 +124,15 @@ class MetricCollector
     protected function computeBuiltin(string $baseKey, ?int $projectId): mixed
     {
         return match ($baseKey) {
-            'completion_rate'      => $this->calcCompletionRate($projectId),
-            'overdue_ratio'        => $this->calcOverdueRatio($projectId),
-            'burndown_deviation'   => $this->calcBurndownDeviation($projectId),
-            'avg_workload'         => $this->calcAvgWorkload($projectId),
-            'wip_count'            => $this->calcWipCount($projectId),
-            'avg_lead_time'        => $this->calcAvgLeadTime($projectId),
-            'defect_rate'          => $this->calcDefectRate($projectId),
-            'unclosed_risks'       => $this->calcUnclosedRisks($projectId),
-            default                => null,
+            'completion_rate' => $this->calcCompletionRate($projectId),
+            'overdue_ratio' => $this->calcOverdueRatio($projectId),
+            'burndown_deviation' => $this->calcBurndownDeviation($projectId),
+            'avg_workload' => $this->calcAvgWorkload($projectId),
+            'wip_count' => $this->calcWipCount($projectId),
+            'avg_lead_time' => $this->calcAvgLeadTime($projectId),
+            'defect_rate' => $this->calcDefectRate($projectId),
+            'unclosed_risks' => $this->calcUnclosedRisks($projectId),
+            default => null,
         };
     }
 
@@ -144,12 +144,17 @@ class MetricCollector
     protected function calcCompletionRate(?int $projectId): float
     {
         $q = Task::query();
-        if ($projectId) $q->where('project_id', $projectId);
+        if ($projectId) {
+            $q->where('project_id', $projectId);
+        }
 
         $total = $q->count();
-        if ($total === 0) return 0;
+        if ($total === 0) {
+            return 0;
+        }
 
         $done = (clone $q)->where('status', 'done')->count();
+
         return round(($done / $total) * 100, 1);
     }
 
@@ -159,10 +164,14 @@ class MetricCollector
     protected function calcOverdueRatio(?int $projectId): float
     {
         $q = Task::query();
-        if ($projectId) $q->where('project_id', $projectId);
+        if ($projectId) {
+            $q->where('project_id', $projectId);
+        }
 
         $total = $q->count();
-        if ($total === 0) return 0;
+        if ($total === 0) {
+            return 0;
+        }
 
         $overdue = (clone $q)
             ->where('status', '!=', 'done')
@@ -179,17 +188,23 @@ class MetricCollector
     protected function calcBurndownDeviation(?int $projectId): float
     {
         $q = Task::query();
-        if ($projectId) $q->where('project_id', $projectId);
+        if ($projectId) {
+            $q->where('project_id', $projectId);
+        }
 
         $total = $q->count();
-        if ($total === 0) return 0;
+        if ($total === 0) {
+            return 0;
+        }
 
         $done = (clone $q)->where('status', 'done')->count();
         $actualRate = $done / $total;
 
         // Expected progress based on time passed
         $pq = Project::query();
-        if ($projectId) $pq->where('id', $projectId);
+        if ($projectId) {
+            $pq->where('id', $projectId);
+        }
 
         $project = $pq->whereIn('status', ['active', 'pending'])->first();
 
@@ -210,17 +225,22 @@ class MetricCollector
     protected function calcAvgWorkload(?int $projectId): float
     {
         $q = Task::where('status', 'in_progress');
-        if ($projectId) $q->where('project_id', $projectId);
+        if ($projectId) {
+            $q->where('project_id', $projectId);
+        }
         $inProgress = $q->count();
 
         // Count unique assignees for in_progress tasks
         $assignees = Task::where('status', 'in_progress')
             ->whereNotNull('assignee_id')
-            ->when($projectId, fn($q) => $q->where('project_id', $projectId))
+            ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
             ->distinct('assignee_id')
             ->count('assignee_id');
 
-        if ($assignees === 0) return 0;
+        if ($assignees === 0) {
+            return 0;
+        }
+
         return round($inProgress / $assignees, 1);
     }
 
@@ -230,7 +250,10 @@ class MetricCollector
     protected function calcWipCount(?int $projectId): int
     {
         $q = Task::where('status', 'in_progress');
-        if ($projectId) $q->where('project_id', $projectId);
+        if ($projectId) {
+            $q->where('project_id', $projectId);
+        }
+
         return $q->count();
     }
 
@@ -242,12 +265,17 @@ class MetricCollector
         $q = Task::where('status', 'done')
             ->whereNotNull('completed_at')
             ->whereNotNull('created_at');
-        if ($projectId) $q->where('project_id', $projectId);
+        if ($projectId) {
+            $q->where('project_id', $projectId);
+        }
 
         $tasks = $q->get(['created_at', 'completed_at']);
-        if ($tasks->isEmpty()) return 0;
+        if ($tasks->isEmpty()) {
+            return 0;
+        }
 
-        $totalHours = $tasks->sum(fn($t) => $t->created_at->diffInHours($t->completed_at));
+        $totalHours = $tasks->sum(fn ($t) => $t->created_at->diffInHours($t->completed_at));
+
         return round($totalHours / $tasks->count() / 24, 1); // convert to days
     }
 
@@ -257,14 +285,21 @@ class MetricCollector
     protected function calcDefectRate(?int $projectId): float
     {
         $q = Risk::where('status', 'open');
-        if ($projectId) $q->where('project_id', $projectId);
+        if ($projectId) {
+            $q->where('project_id', $projectId);
+        }
         $risks = $q->count();
 
         $tq = Task::query();
-        if ($projectId) $tq->where('project_id', $projectId);
+        if ($projectId) {
+            $tq->where('project_id', $projectId);
+        }
         $tasks = $tq->count();
 
-        if ($tasks === 0) return 0;
+        if ($tasks === 0) {
+            return 0;
+        }
+
         return round(($risks / $tasks) * 100, 2);
     }
 
@@ -274,7 +309,10 @@ class MetricCollector
     protected function calcUnclosedRisks(?int $projectId): int
     {
         $q = Risk::where('status', 'open');
-        if ($projectId) $q->where('project_id', $projectId);
+        if ($projectId) {
+            $q->where('project_id', $projectId);
+        }
+
         return $q->count();
     }
 }

@@ -13,9 +13,13 @@ use Illuminate\Support\Facades\Log;
 class FeishuService
 {
     protected string $webhookUrl;
+
     protected string $partitionTag;
+
     protected string $botName;
+
     protected bool $dailyReport;
+
     protected bool $riskAlert;
 
     public function __construct(?array $settings = null)
@@ -31,7 +35,7 @@ class FeishuService
 
     public function isConfigured(): bool
     {
-        return !empty($this->webhookUrl);
+        return ! empty($this->webhookUrl);
     }
 
     public function shouldSendDaily(): bool
@@ -49,7 +53,7 @@ class FeishuService
      */
     public function sendInteractiveCard(array $card): array
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             return ['ok' => false, 'error' => '未配置飞书 Webhook'];
         }
 
@@ -68,6 +72,7 @@ class FeishuService
                 if (($body['code'] ?? -1) === 0) {
                     return ['ok' => true];
                 }
+
                 return ['ok' => false, 'error' => $body['msg'] ?? '飞书返回错误'];
             }
 
@@ -79,6 +84,7 @@ class FeishuService
             return ['ok' => false, 'error' => "HTTP {$resp->status()}"];
         } catch (\Throwable $e) {
             Log::error('Feishu webhook exception', ['error' => $e->getMessage()]);
+
             return ['ok' => false, 'error' => $e->getMessage()];
         }
     }
@@ -88,7 +94,7 @@ class FeishuService
      */
     public function sendText(string $content): array
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             return ['ok' => false, 'error' => '未配置飞书 Webhook'];
         }
 
@@ -106,12 +112,14 @@ class FeishuService
 
             if ($resp->successful()) {
                 $body = $resp->json();
+
                 return ['ok' => ($body['code'] ?? -1) === 0];
             }
 
             return ['ok' => false, 'error' => "HTTP {$resp->status()}"];
         } catch (\Throwable $e) {
             Log::error('Feishu text push failed', ['error' => $e->getMessage()]);
+
             return ['ok' => false, 'error' => $e->getMessage()];
         }
     }
@@ -148,9 +156,9 @@ class FeishuService
         ];
 
         // Risk alerts
-        if (!empty($report['risks'])) {
+        if (! empty($report['risks'])) {
             $elements[] = ['tag' => 'hr'];
-            $riskLines = ["⚠️ **风险预警**"];
+            $riskLines = ['⚠️ **风险预警**'];
             foreach (array_slice($report['risks'], 0, 5) as $r) {
                 $sevEmoji = ['critical' => '🔴', 'high' => '🟠', 'medium' => '🟡', 'low' => '🟢'][$r['severity']] ?? '⚪';
                 $riskLines[] = "{$sevEmoji} **{$r['title']}** — {$r['project_name']}";
@@ -159,14 +167,14 @@ class FeishuService
         }
 
         // Per-project detail
-        if (!empty($report['projects'])) {
+        if (! empty($report['projects'])) {
             $elements[] = ['tag' => 'hr'];
-            $projLines = ["📋 **项目详情**"];
+            $projLines = ['📋 **项目详情**'];
             $idx = 1;
             foreach ($report['projects'] as $p) {
                 $statusEmoji = ['active' => '🟢', 'pending' => '🔵', 'completed' => '✅', 'archived' => '⚫'][$p['status']] ?? '⚪';
                 $projLines[] = sprintf(
-                    "%d. %s **%s** 进度 %.0f%%  (完成 %d/%d)",
+                    '%d. %s **%s** 进度 %.0f%%  (完成 %d/%d)',
                     $idx++,
                     $statusEmoji,
                     $p['name'],
@@ -183,7 +191,7 @@ class FeishuService
         $elements[] = [
             'tag' => 'note',
             'elements' => [
-                ['tag' => 'plain_text', 'content' => "🤖 由 {$this->botName} 自动生成 · " . now()->format('H:i')],
+                ['tag' => 'plain_text', 'content' => "🤖 由 {$this->botName} 自动生成 · ".now()->format('H:i')],
             ],
         ];
 
@@ -218,7 +226,7 @@ class FeishuService
                 ['tag' => 'markdown', 'content' => "**详情：** {$risk['detail']}"],
                 ['tag' => 'hr'],
                 ['tag' => 'note', 'elements' => [
-                    ['tag' => 'plain_text', 'content' => "检测规则：{$risk['rule_key']} · 首次发现：" . ($risk['first_seen_at'] ?? '—')],
+                    ['tag' => 'plain_text', 'content' => "检测规则：{$risk['rule_key']} · 首次发现：".($risk['first_seen_at'] ?? '—')],
                 ]],
             ],
         ];

@@ -22,9 +22,9 @@ class TokenController extends Controller
     public function store(Request $request): JsonResponse
     {
         $request->validate([
-            'email'    => 'required|email',
+            'email' => 'required|email',
             'password' => 'required|string',
-            'name'     => 'required|string|max:255',
+            'name' => 'required|string|max:255',
         ]);
 
         $user = User::where('email', $request->email)->first();
@@ -41,11 +41,11 @@ class TokenController extends Controller
         $token = $user->createToken($request->name);
 
         return ApiResponse::created([
-            'token'      => $token->plainTextToken,
+            'token' => $token->plainTextToken,
             'token_name' => $request->name,
-            'user'       => [
-                'id'    => $user->id,
-                'name'  => $user->name,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
                 'email' => $user->email,
             ],
         ], 'Token 创建成功');

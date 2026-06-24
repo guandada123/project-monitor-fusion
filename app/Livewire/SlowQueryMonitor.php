@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\SlowQuery;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -40,7 +41,9 @@ class SlowQueryMonitor extends Component
     // ——— Data ———
 
     public array $stats = [];
+
     public array $trendChart = [];
+
     public array $connectionOptions = [];
 
     // ——— Query detail expand ———
@@ -61,14 +64,48 @@ class SlowQueryMonitor extends Component
 
     // ——— Filter change handlers ———
 
-    public function updatedFilterRange(): void       { $this->resetPage(); $this->loadStats(); $this->loadTrend(); }
-    public function updatedFilterMinDuration(): void { $this->resetPage(); $this->loadStats(); $this->loadTrend(); }
-    public function updatedFilterType(): void        { $this->resetPage(); $this->loadStats(); $this->loadTrend(); }
-    public function updatedFilterConnection(): void  { $this->resetPage(); $this->loadStats(); $this->loadTrend(); }
-    public function updatedSearch(): void            { $this->resetPage(); }
+    public function updatedFilterRange(): void
+    {
+        $this->resetPage();
+        $this->loadStats();
+        $this->loadTrend();
+    }
 
-    public function updatedSortField(): void         { $this->resetPage(); }
-    public function updatedSortDirection(): void     { $this->resetPage(); }
+    public function updatedFilterMinDuration(): void
+    {
+        $this->resetPage();
+        $this->loadStats();
+        $this->loadTrend();
+    }
+
+    public function updatedFilterType(): void
+    {
+        $this->resetPage();
+        $this->loadStats();
+        $this->loadTrend();
+    }
+
+    public function updatedFilterConnection(): void
+    {
+        $this->resetPage();
+        $this->loadStats();
+        $this->loadTrend();
+    }
+
+    public function updatedSearch(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedSortField(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedSortDirection(): void
+    {
+        $this->resetPage();
+    }
 
     public function toggleSort(string $field): void
     {
@@ -101,40 +138,51 @@ class SlowQueryMonitor extends Component
     public function getActiveFilterCountProperty(): int
     {
         $count = 0;
-        if ($this->filterRange !== '24h') $count++;
-        if ($this->filterMinDuration !== 500) $count++;
-        if ($this->filterType !== 'all') $count++;
-        if ($this->filterConnection !== '') $count++;
-        if ($this->search !== '') $count++;
+        if ($this->filterRange !== '24h') {
+            $count++;
+        }
+        if ($this->filterMinDuration !== 500) {
+            $count++;
+        }
+        if ($this->filterType !== 'all') {
+            $count++;
+        }
+        if ($this->filterConnection !== '') {
+            $count++;
+        }
+        if ($this->search !== '') {
+            $count++;
+        }
+
         return $count;
     }
 
     public function getRangeLabelProperty(): string
     {
         return match ($this->filterRange) {
-            '1h'    => '过去 1 小时',
-            '6h'    => '过去 6 小时',
-            '24h'   => '过去 24 小时',
-            '7d'    => '过去 7 天',
-            '30d'   => '过去 30 天',
-            'all'   => '全部时间',
+            '1h' => '过去 1 小时',
+            '6h' => '过去 6 小时',
+            '24h' => '过去 24 小时',
+            '7d' => '过去 7 天',
+            '30d' => '过去 30 天',
+            'all' => '全部时间',
             default => $this->filterRange,
         };
     }
 
     // ——— Query builder ———
 
-    protected function buildQuery(): \Illuminate\Database\Eloquent\Builder
+    protected function buildQuery(): Builder
     {
         $query = SlowQuery::query();
 
         // Time range
         $query->when($this->filterRange !== 'all', function ($q) {
             $hours = match ($this->filterRange) {
-                '1h'  => 1,
-                '6h'  => 6,
+                '1h' => 1,
+                '6h' => 6,
                 '24h' => 24,
-                '7d'  => 168,
+                '7d' => 168,
                 '30d' => 720,
                 default => 24,
             };
@@ -142,11 +190,11 @@ class SlowQueryMonitor extends Component
         });
 
         // Type filter
-        $query->when($this->filterType === 'slow', fn($q) => $q->where('is_slow', true))
-              ->when($this->filterType === 'critical', fn($q) => $q->where('is_critical', true));
+        $query->when($this->filterType === 'slow', fn ($q) => $q->where('is_slow', true))
+            ->when($this->filterType === 'critical', fn ($q) => $q->where('is_critical', true));
 
         // Connection filter
-        $query->when($this->filterConnection !== '', fn($q) => $q->where('connection_name', $this->filterConnection));
+        $query->when($this->filterConnection !== '', fn ($q) => $q->where('connection_name', $this->filterConnection));
 
         // Min duration
         if ($this->filterMinDuration > 0) {
@@ -158,7 +206,7 @@ class SlowQueryMonitor extends Component
             $search = $this->search;
             $q->where(function ($sub) use ($search) {
                 $sub->where('query', 'like', "%{$search}%")
-                     ->orWhere('caller', 'like', "%{$search}%");
+                    ->orWhere('caller', 'like', "%{$search}%");
             });
         });
 
@@ -179,9 +227,9 @@ class SlowQueryMonitor extends Component
         ])->first();
 
         $this->stats = [
-            'total'          => (int) ($stats->total ?? 0),
-            'avg_time'       => (float) ($stats->avg_time ?? 0),
-            'max_time'       => (float) ($stats->max_time ?? 0),
+            'total' => (int) ($stats->total ?? 0),
+            'avg_time' => (float) ($stats->avg_time ?? 0),
+            'max_time' => (float) ($stats->max_time ?? 0),
             'critical_count' => (int) ($stats->critical_count ?? 0),
         ];
     }
@@ -206,7 +254,7 @@ class SlowQueryMonitor extends Component
 
         $rows = (clone $query)
             ->select([
-                DB::raw($groupExpr . ' as period'),
+                DB::raw($groupExpr.' as period'),
                 DB::raw('COUNT(*) as cnt'),
                 DB::raw('COALESCE(ROUND(AVG(time), 1), 0) as avg_t'),
                 DB::raw('SUM(CASE WHEN is_critical = true THEN 1 ELSE 0 END) as critical_cnt'),
@@ -216,9 +264,9 @@ class SlowQueryMonitor extends Component
             ->get();
 
         $this->trendChart = [
-            'periods'        => $rows->pluck('period')->toArray(),
-            'counts'         => $rows->pluck('cnt')->toArray(),
-            'avgTimes'       => $rows->pluck('avg_t')->toArray(),
+            'periods' => $rows->pluck('period')->toArray(),
+            'counts' => $rows->pluck('cnt')->toArray(),
+            'avgTimes' => $rows->pluck('avg_t')->toArray(),
             'criticalCounts' => $rows->pluck('critical_cnt')->toArray(),
         ];
     }

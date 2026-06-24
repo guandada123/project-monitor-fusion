@@ -13,21 +13,21 @@ class ProjectExport extends BaseExport
             ->withCount(['tasks as task_count', 'risks as risk_count']);
 
         // Apply status filter
-        if (!empty($filters['status']) && $filters['status'] !== 'all') {
+        if (! empty($filters['status']) && $filters['status'] !== 'all') {
             $query->where('status', $filters['status']);
         }
 
         // Apply source filter
-        if (!empty($filters['source']) && $filters['source'] !== 'all') {
+        if (! empty($filters['source']) && $filters['source'] !== 'all') {
             $query->where('source', $filters['source']);
         }
 
         // Apply search
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 

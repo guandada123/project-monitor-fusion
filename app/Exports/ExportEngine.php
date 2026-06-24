@@ -6,10 +6,11 @@ use App\Models\ExportHistory;
 use App\Models\Project;
 use App\Models\Risk;
 use App\Models\Task;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Barryvdh\DomPDF\Facade\Pdf;
 use OpenSpout\Common\Entity\Row;
 use OpenSpout\Writer\CSV\Writer as CsvWriter;
 use OpenSpout\Writer\XLSX\Writer as XlsxWriter;
@@ -47,7 +48,7 @@ class ExportEngine
 
         // Resolve exporter
         $exporterClass = $this->exporterMap[$entityType] ?? null;
-        if (!$exporterClass) {
+        if (! $exporterClass) {
             throw new \InvalidArgumentException("不支持的导出实体类型: {$entityType}");
         }
 
@@ -124,12 +125,13 @@ class ExportEngine
     public function getColumnsFor(string $entityType): array
     {
         $exporterClass = $this->exporterMap[$entityType] ?? null;
-        if (!$exporterClass) {
+        if (! $exporterClass) {
             return [];
         }
 
         /** @var BaseExport $exporter */
         $exporter = app($exporterClass);
+
         return $exporter->availableColumns();
     }
 
@@ -153,7 +155,7 @@ class ExportEngine
 
         $fullPath = Storage::disk('local')->path($filePath);
 
-        $writer = new CsvWriter();
+        $writer = new CsvWriter;
         $writer->openToFile($fullPath);
 
         // Header row
@@ -179,7 +181,7 @@ class ExportEngine
 
         $fullPath = Storage::disk('local')->path($filePath);
 
-        $writer = new XlsxWriter();
+        $writer = new XlsxWriter;
         $writer->openToFile($fullPath);
 
         // Header row
@@ -200,7 +202,7 @@ class ExportEngine
     }
 
     /**
-     * @param Collection<int, Project|Task|Risk> $data
+     * @param  Collection<int, Project|Task|Risk>  $data
      */
     protected function writePdf(string $filePath, string $entityType, Collection $data, array $columns): void
     {
@@ -269,6 +271,7 @@ class ExportEngine
                 'on_hold' => '已暂停',
                 default => $escaped,
             };
+
             return "<span class=\"status-badge {$class}\">{$label}</span>";
         }
 
@@ -286,6 +289,7 @@ class ExportEngine
                 'closed' => '已关闭',
                 default => $escaped,
             };
+
             return "<span class=\"status-badge {$class}\">{$label}</span>";
         }
 
@@ -307,6 +311,7 @@ class ExportEngine
                 'blocked' => '阻塞',
                 default => $escaped,
             };
+
             return "<span class=\"status-badge {$class}\">{$label}</span>";
         }
 
@@ -320,6 +325,7 @@ class ExportEngine
                 'low' => '低',
                 default => $escaped,
             };
+
             return "<span class=\"status-badge {$class}\">{$label}</span>";
         }
 
@@ -333,12 +339,14 @@ class ExportEngine
                 'low' => '低',
                 default => $escaped,
             };
+
             return "<span class=\"status-badge {$class}\">{$label}</span>";
         }
 
         // Boolean values
         if ($escaped === '是' || $escaped === '否') {
             $color = $escaped === '是' ? '#10b981' : '#94a3b8';
+
             return "<span style=\"color: {$color}; font-weight: 600;\">{$escaped}</span>";
         }
 
@@ -346,7 +354,7 @@ class ExportEngine
     }
 
     /**
-     * @param Collection<int, Project|Task|Risk> $data
+     * @param  Collection<int, Project|Task|Risk>  $data
      */
     protected function buildPdfSummary(string $entityType, Collection $data): array
     {
@@ -354,10 +362,10 @@ class ExportEngine
 
         if ($entityType === 'project') {
             $total = $data->count();
-            $active = $data->filter(fn($p) => $p->status === 'active')->count();
-            $completed = $data->filter(fn($p) => $p->status === 'completed')->count();
-            $totalTasks = $data->sum(fn($p) => method_exists($p, 'tasks') ? $p->tasks->count() : ($p->task_count ?? 0));
-            $totalRisks = $data->sum(fn($p) => method_exists($p, 'risks') ? $p->risks->count() : ($p->risk_count ?? 0));
+            $active = $data->filter(fn ($p) => $p->status === 'active')->count();
+            $completed = $data->filter(fn ($p) => $p->status === 'completed')->count();
+            $totalTasks = $data->sum(fn ($p) => method_exists($p, 'tasks') ? $p->tasks->count() : ($p->task_count ?? 0));
+            $totalRisks = $data->sum(fn ($p) => method_exists($p, 'risks') ? $p->risks->count() : ($p->risk_count ?? 0));
 
             $summary[] = ['label' => '项目总数', 'value' => $total];
             $summary[] = ['label' => '进行中', 'value' => $active];
@@ -367,15 +375,15 @@ class ExportEngine
         } elseif ($entityType === 'task') {
             $total = $data->count();
             $done = $data->where('status', 'done')->count();
-            $overdue = $data->filter(fn($t) => $t->is_overdue ?? false)->count();
-            $totalEstimate = $data->sum(fn($t) => $t->estimate ?? 0);
-            $totalSpent = $data->sum(fn($t) => $t->spent ?? 0);
+            $overdue = $data->filter(fn ($t) => $t->is_overdue ?? false)->count();
+            $totalEstimate = $data->sum(fn ($t) => $t->estimate ?? 0);
+            $totalSpent = $data->sum(fn ($t) => $t->spent ?? 0);
 
             $summary[] = ['label' => '任务总数', 'value' => $total];
             $summary[] = ['label' => '已完成', 'value' => $done];
             $summary[] = ['label' => '逾期', 'value' => $overdue];
-            $summary[] = ['label' => '预估工时', 'value' => $totalEstimate . 'h'];
-            $summary[] = ['label' => '实际工时', 'value' => $totalSpent . 'h'];
+            $summary[] = ['label' => '预估工时', 'value' => $totalEstimate.'h'];
+            $summary[] = ['label' => '实际工时', 'value' => $totalSpent.'h'];
         } elseif ($entityType === 'risk') {
             $total = $data->count();
             $open = $data->where('status', 'open')->count();
@@ -398,24 +406,35 @@ class ExportEngine
             $keys = explode('.', $key);
             $value = $item;
             foreach ($keys as $segment) {
-                if (is_null($value)) return '';
+                if (is_null($value)) {
+                    return '';
+                }
                 $value = is_object($value) ? ($value->{$segment} ?? null) : ($value[$segment] ?? null);
             }
+
             return $this->formatValue($value);
         }
 
         $value = is_object($item) ? ($item->{$key} ?? null) : ($item[$key] ?? null);
+
         return $this->formatValue($value);
     }
 
     protected function formatValue($value): mixed
     {
-        if (is_null($value)) return '';
-        if ($value instanceof \Carbon\Carbon || $value instanceof \DateTime) {
+        if (is_null($value)) {
+            return '';
+        }
+        if ($value instanceof Carbon || $value instanceof \DateTime) {
             return $value->format('Y-m-d H:i');
         }
-        if (is_bool($value)) return $value ? '是' : '否';
-        if (is_array($value)) return json_encode($value, JSON_UNESCAPED_UNICODE);
+        if (is_bool($value)) {
+            return $value ? '是' : '否';
+        }
+        if (is_array($value)) {
+            return json_encode($value, JSON_UNESCAPED_UNICODE);
+        }
+
         return (string) $value;
     }
 
@@ -427,7 +446,8 @@ class ExportEngine
             $bytes /= 1024;
             $i++;
         }
-        return round($bytes, 1) . ' ' . $units[$i];
+
+        return round($bytes, 1).' '.$units[$i];
     }
 
     /**

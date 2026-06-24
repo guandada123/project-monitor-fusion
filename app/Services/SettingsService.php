@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Crypt;
 final class SettingsService
 {
     private const CACHE_KEY = 'settings_all';
+
     private const CACHE_TTL = 3600; // 1 小时
 
     /**
@@ -51,6 +52,7 @@ final class SettingsService
     public function getString(string $key, string $default = ''): string
     {
         $value = $this->get($key, $default);
+
         return is_string($value) ? $value : (string) $value;
     }
 
@@ -63,6 +65,7 @@ final class SettingsService
         if (is_bool($value)) {
             return $value;
         }
+
         return in_array((string) $value, ['true', '1', 'yes'], true);
     }
 
@@ -155,7 +158,7 @@ final class SettingsService
 
     private function decryptIfEncrypted(string $value): string
     {
-        if (!str_starts_with($value, self::ENC_PREFIX)) {
+        if (! str_starts_with($value, self::ENC_PREFIX)) {
             return $value;
         }
 
@@ -168,7 +171,7 @@ final class SettingsService
 
     private function encryptValue(string $value): string
     {
-        return self::ENC_PREFIX . Crypt::encryptString($value);
+        return self::ENC_PREFIX.Crypt::encryptString($value);
     }
 
     private function shouldEncrypt(string $key): bool
@@ -221,9 +224,9 @@ final class SettingsService
     private function inferGroup(string $key): string
     {
         $map = [
-            'naming_rule'       => 'general',
-            'default_template'  => 'general',
-            'feishu_'           => 'notification',
+            'naming_rule' => 'general',
+            'default_template' => 'general',
+            'feishu_' => 'notification',
         ];
 
         foreach ($map as $prefix => $group) {

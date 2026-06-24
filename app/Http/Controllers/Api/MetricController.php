@@ -8,6 +8,7 @@ use App\Models\Metric;
 use App\Models\MetricSnapshot;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 
 class MetricController extends Controller
 {
@@ -44,7 +45,7 @@ class MetricController extends Controller
         $request->validate([
             'metric_id' => 'required|integer|exists:metrics,id',
             'date_from' => 'nullable|date',
-            'date_to'   => 'nullable|date|after_or_equal:date_from',
+            'date_to' => 'nullable|date|after_or_equal:date_from',
         ]);
 
         $query = MetricSnapshot::where('metric_id', $request->metric_id);
@@ -78,15 +79,15 @@ class MetricController extends Controller
 
         $metrics = $query->with('latestSnapshot')->get();
 
-        /** @var \Illuminate\Support\Collection<int, array> $aggregated */
+        /** @var Collection<int, array> $aggregated */
         $aggregated = $metrics->map(function ($metric) {
-            /** @var \App\Models\Metric $metric */
+            /** @var Metric $metric */
             $latest = $metric->getRelation('latestSnapshot');
 
             return [
-                'id'          => $metric->id,
-                'name'        => $metric->name,
-                'project_id'  => $metric->project_id,
+                'id' => $metric->id,
+                'name' => $metric->name,
+                'project_id' => $metric->project_id,
                 'latest_value' => $latest?->value,
                 'latest_recorded_at' => $latest?->created_at,
             ];

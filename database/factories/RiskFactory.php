@@ -3,15 +3,17 @@
 namespace Database\Factories;
 
 use App\Models\Project;
+use App\Models\Risk;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class RiskFactory extends Factory
 {
-    protected $model = \App\Models\Risk::class;
+    protected $model = Risk::class;
 
     public function definition(): array
     {
         $severity = fake()->randomElement(['low', 'medium', 'high', 'critical']);
+
         return [
             'project_id' => Project::factory(),
             'severity' => $severity,
