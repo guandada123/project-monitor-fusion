@@ -120,7 +120,8 @@ test('user can log out', function () {
 
     $this->browse(function (Browser $browser) use ($user) {
         // Login via loginAs
-        $browser->visit('/dusk/login/' . $user->id)->waitForLocation('/', 10)
+        $browser->loginAs($user)
+            ->visit('/')
             ->assertPathIs('/')
             ->assertSee('仪表板');
 
@@ -138,7 +139,8 @@ test('after logout user cannot access protected pages', function () {
 
     $this->browse(function (Browser $browser) use ($user) {
         // Login via loginAs
-        $browser->visit('/dusk/login/' . $user->id)->waitForLocation('/', 10)
+        $browser->loginAs($user)
+            ->visit('/')
             ->assertPathIs('/')
             ->assertSee('仪表板');
 

@@ -142,3 +142,13 @@ Route::get('/dusk/login/{userId}', function (int $userId, Request $request) {
 
     return redirect('/');
 })->middleware('web')->name('dusk.login');
+
+// Dusk loginAs() 兼容路由（带下划线前缀，与 Dusk 内置调用一致）
+Route::get('/_dusk/login/{userId}', function (int $userId, Request $request) {
+    if ($request->has('guard')) {
+        Auth::guard($request->guard)->loginUsingId($userId);
+    } else {
+        Auth::loginUsingId($userId);
+    }
+    return redirect('/');
+})->middleware('web');

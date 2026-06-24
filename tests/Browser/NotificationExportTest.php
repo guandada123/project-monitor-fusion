@@ -9,7 +9,8 @@ test('sidebar navigation works between pages', function () {
     $this->browse(function (Browser $browser) {
         $user = User::factory()->admin()->create();
 
-        $browser->visit('/dusk/login/' . $user->id)->waitForLocation('/', 10)
+        $browser->loginAs($user)
+            ->visit('/')
             ->assertPathIs('/');
 
         // Navigate through sidebar links
@@ -37,7 +38,8 @@ test('global search input is present on dashboard', function () {
     $this->browse(function (Browser $browser) {
         $user = User::factory()->admin()->create();
 
-        $browser->visit('/dusk/login/' . $user->id)->waitForLocation('/', 10)
+        $browser->loginAs($user)
+            ->visit('/')
             ->assertPathIs('/');
 
         // Global search should have an input field
@@ -51,7 +53,8 @@ test('theme toggle buttons are present', function () {
     $this->browse(function (Browser $browser) {
         $user = User::factory()->admin()->create();
 
-        $browser->visit('/dusk/login/' . $user->id)->waitForLocation('/', 10)
+        $browser->loginAs($user)
+            ->visit('/')
             ->assertPathIs('/');
 
         // Theme toggle buttons should be present in the header
@@ -65,7 +68,8 @@ test('theme toggle switches appearance', function () {
     $this->browse(function (Browser $browser) {
         $user = User::factory()->admin()->create();
 
-        $browser->visit('/dusk/login/' . $user->id)->waitForLocation('/', 10)
+        $browser->loginAs($user)
+            ->visit('/')
             ->assertPathIs('/');
 
         // Click dark mode button
@@ -81,7 +85,8 @@ test('notification icon is present in header', function () {
     $this->browse(function (Browser $browser) {
         $user = User::factory()->admin()->create();
 
-        $browser->visit('/dusk/login/' . $user->id)->waitForLocation('/', 10)
+        $browser->loginAs($user)
+            ->visit('/')
             ->assertPathIs('/');
 
         // Notification bell/icon should be present
@@ -95,7 +100,8 @@ test('export button is present on dashboard', function () {
     $this->browse(function (Browser $browser) {
         $user = User::factory()->admin()->create();
 
-        $browser->visit('/dusk/login/' . $user->id)->waitForLocation('/', 10)
+        $browser->loginAs($user)
+            ->visit('/')
             ->assertPathIs('/');
 
         // The export FAB button should be visible at bottom-right
@@ -109,7 +115,8 @@ test('mobile menu toggle is present on small screens', function () {
     $this->browse(function (Browser $browser) {
         $user = User::factory()->admin()->create();
 
-        $browser->visit('/dusk/login/' . $user->id)->waitForLocation('/', 10)
+        $browser->loginAs($user)
+            ->visit('/')
             ->assertPathIs('/');
 
         // The mobile menu button should be present (hamburger icon)
@@ -125,7 +132,8 @@ test('user name and email are shown in sidebar', function () {
             'name' => '测试用户',
         ]);
 
-        $browser->visit('/dusk/login/' . $user->id)->waitForLocation('/', 10)
+        $browser->loginAs($user)
+            ->visit('/')
             ->assertPathIs('/');
 
         // User info should appear in sidebar footer
