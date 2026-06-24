@@ -50,7 +50,7 @@ test('user can log in with valid credentials', function () {
         'password' => bcrypt('password'),
     ]);
 
-    $this->browse(function (Browser $browser) {
+    $this->browse(function (Browser $browser) use ($user) {
         // First visit / which redirects to login, setting intended URL to /
         $browser->visit('/')
             ->assertPathIs('/login')
