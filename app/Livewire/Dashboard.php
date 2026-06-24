@@ -14,6 +14,11 @@ use Livewire\Component;
 
 class Dashboard extends Component
 {
+    // ——— 常量 ———
+    /** 趋势数据回溯天数（含今天） */
+    private const DEFAULT_TREND_DAYS = 7;
+
+    private const int TREND_OFFSET = self::DEFAULT_TREND_DAYS - 1; // 6
     // ——— Filter state (URL-persisted via Livewire 3 #[Url]) ———
     #[Url(as: 'status', history: true)]
     public string $filterStatus = 'all';
@@ -272,7 +277,7 @@ class Dashboard extends Component
 
     protected function buildTrendData(): array
     {
-        $startDate = now()->subDays(6)->startOfDay();
+        $startDate = now()->subDays(self::TREND_OFFSET)->startOfDay();
 
         $completedByDay = Task::selectRaw('DATE(completed_at) as d, COUNT(*) as cnt')
             ->where('completed_at', '>=', $startDate)
@@ -291,7 +296,7 @@ class Dashboard extends Component
             ->pluck('cnt', 'd');
 
         $days = [];
-        for ($i = 6; $i >= 0; $i--) {
+        for ($i = self::TREND_OFFSET; $i >= 0; $i--) {
             $date = now()->subDays($i)->toDateString();
             $days[] = [
                 'date' => now()->subDays($i)->format('m/d'),
@@ -314,7 +319,7 @@ class Dashboard extends Component
 
         $snapshots = DB::table('metric_snapshots')
             ->whereIn('metric_id', $metricIds->values())
-            ->where('captured_at', '>=', now()->subDays(6)->startOfDay())
+            ->where('captured_at', '>=', now()->subDays(self::TREND_OFFSET)->startOfDay())
             ->select('metric_id', 'value', DB::raw('DATE(captured_at) as date'))
             ->get()
             ->groupBy(fn ($r) => $r->metric_id.'_'.$r->date);
@@ -331,7 +336,7 @@ class Dashboard extends Component
             'unclosed_risks' => 'risks',
         ];
 
-        for ($i = 6; $i >= 0; $i--) {
+        for ($i = self::TREND_OFFSET; $i >= 0; $i--) {
             $day = now()->subDays($i)->toDateString();
             $dates[] = now()->subDays($i)->format('m/d');
 

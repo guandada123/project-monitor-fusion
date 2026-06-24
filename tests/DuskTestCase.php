@@ -53,9 +53,9 @@ abstract class DuskTestCase extends BaseTestCase
             $this->shouldStartMaximized() ? '--start-maximized' : '--window-size=1920,1080',
             '--disable-search-engine-choice-screen',
             '--disable-smooth-scrolling',
-            '--disable-popup-blocking',
             '--no-sandbox',
             '--disable-extensions',
+            '--disable-notifications',
         ])->unless($this->hasHeadlessDisabled(), function (Collection $items) {
             return $items->merge([
                 '--disable-gpu',
@@ -65,9 +65,14 @@ abstract class DuskTestCase extends BaseTestCase
 
         return RemoteWebDriver::create(
             $_ENV['DUSK_DRIVER_URL'] ?? env('DUSK_DRIVER_URL') ?? 'http://localhost:9515',
-            DesiredCapabilities::chrome()->setCapability(
-                ChromeOptions::CAPABILITY, $options
-            )
+            DesiredCapabilities::chrome()
+                ->setCapability(
+                    ChromeOptions::CAPABILITY, $options
+                )
+                ->setCapability(
+                    'unhandledPromptBehavior',
+                    ['default' => 'dismiss']
+                )
         );
     }
 }
