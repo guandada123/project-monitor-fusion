@@ -137,6 +137,8 @@ jobs:
         run: |
           cp .env.example .env
           php artisan key:generate
+          # Clear cached config so APP_ENV=dusk takes effect for Dusk middleware
+          php artisan optimize:clear
           sed -i 's/DB_HOST=127.0.0.1/DB_HOST=localhost/' .env
           sed -i 's/DB_USERNAME=guan/DB_USERNAME=postgres/' .env
           sed -i 's/DB_PASSWORD=$/DB_PASSWORD=postgres/' .env
@@ -144,7 +146,8 @@ jobs:
           sed -i 's/APP_DEBUG=true/APP_DEBUG=false/' .env
           sed -i 's/CACHE_STORE=file/CACHE_STORE=array/' .env
           sed -i 's/LOG_LEVEL=debug/LOG_LEVEL=error/' .env
-          sed -i 's/SESSION_DRIVER=file/SESSION_DRIVER=array/' .env
+          # Keep SESSION_DRIVER=file so session persists between requests
+          # (array driver would break loginAs() across page navigations)
       - name: Run database migrations & seed
         run: php artisan migrate --seed
       - name: Start dev server
@@ -155,6 +158,10 @@ jobs:
             curl -s -o /dev/null http://localhost:8000 && echo "Server ready" && break
             sleep 1
           done
+      - name: Verify Dusk environment
+        run: |
+          grep APP_ENV .env
+          curl -s http://localhost:8000/up 2>/dev/null | head -20
       - name: Run Dusk tests
         run: php artisan dusk
       - name: Upload Dusk failure screenshots
