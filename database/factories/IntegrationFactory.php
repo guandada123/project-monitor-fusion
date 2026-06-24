@@ -23,6 +23,7 @@ class IntegrationFactory extends Factory
             'last_sync_at' => fake()->optional(0.7)->dateTimeBetween('-3 days', 'now'),
             'sync_state' => ['last_event_id' => (string) fake()->randomNumber(8)],
             'error_message' => null,
+            'created_by' => \App\Models\User::factory(),
         ];
     }
 

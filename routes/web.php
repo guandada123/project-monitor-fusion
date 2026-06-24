@@ -132,23 +132,25 @@ Route::post('/logout', LogoutController::class)
     ->middleware('auth')
     ->name('logout');
 
-// Dusk 浏览器测试登录路由
-Route::get('/dusk/login/{userId}', function (int $userId, Request $request) {
-    if ($request->has('guard')) {
-        Auth::guard($request->guard)->loginUsingId($userId);
-    } else {
-        Auth::loginUsingId($userId);
-    }
+// Dusk 浏览器测试登录路由（仅在非生产环境注册）
+if (! app()->environment('production')) {
+    Route::get('/dusk/login/{userId}', function (int $userId, Request $request) {
+        if ($request->has('guard')) {
+            Auth::guard($request->guard)->loginUsingId($userId);
+        } else {
+            Auth::loginUsingId($userId);
+        }
 
-    return redirect('/');
-})->middleware('web')->name('dusk.login');
+        return redirect('/');
+    })->middleware('web')->name('dusk.login');
 
-// Dusk loginAs() 兼容路由（带下划线前缀，与 Dusk 内置调用一致）
-Route::get('/_dusk/login/{userId}', function (int $userId, Request $request) {
-    if ($request->has('guard')) {
-        Auth::guard($request->guard)->loginUsingId($userId);
-    } else {
-        Auth::loginUsingId($userId);
-    }
-    return redirect('/');
-})->middleware('web');
+    // Dusk loginAs() 兼容路由（带下划线前缀，与 Dusk 内置调用一致）
+    Route::get('/_dusk/login/{userId}', function (int $userId, Request $request) {
+        if ($request->has('guard')) {
+            Auth::guard($request->guard)->loginUsingId($userId);
+        } else {
+            Auth::loginUsingId($userId);
+        }
+        return redirect('/');
+    })->middleware('web');
+}
