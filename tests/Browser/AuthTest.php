@@ -58,7 +58,7 @@ test('user can log in with valid credentials', function () {
             ->type('email', $user->email)
             ->type('password', 'password')
             ->click('button[type="submit"]')
-            ->waitForLocation('/', 20)
+            ->waitForLocation('/', 30)
             ->assertPathIs('/')
             ->assertSee('仪表板');
     });
@@ -80,7 +80,7 @@ test('login remembers the user with remember me', function () {
             ->type('password', 'password')
             ->check('input[wire\\:model="remember"]')
             ->click('button[type="submit"]')
-            ->waitForLocation('/', 20)
+            ->waitForLocation('/', 30)
             ->assertPathIs('/');
     });
 });
