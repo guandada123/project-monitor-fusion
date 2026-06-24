@@ -134,11 +134,10 @@ class Dashboard extends Component
         // 预提取方法引用，供闭包内使用（PHP 闭包中 $this 可能不可自动绑定）
         $buildTrend = fn () => $this->buildTrendData();
         $buildKpi = fn () => $this->buildKpiTrend();
-        $now = now();
 
-        $cached = Cache::remember($cacheKey, 60, function () use ($buildTrend, $buildKpi, $now) {
-            // 1. Build filtered project query
-            $query = Project::with(['tasks', 'owner']);
+        $cached = Cache::remember($cacheKey, 60, function () use ($buildTrend, $buildKpi) {
+            // 1. Build filtered project query — eager load owner (tasks loaded via DB aggregation instead)
+            $query = Project::with(['owner']);
 
             if ($this->filterStatus !== 'all') {
                 $query->where('status', $this->filterStatus);
@@ -165,12 +164,21 @@ class Dashboard extends Component
 
             $projects = $query->get();
 
-            // 2. Compute project stats
-            /** @var Collection $allTasks */
-            $allTasks = $projects->flatMap->tasks;
-            $totalTasks = $allTasks->count();
-            $doneTasks = $allTasks->where('status', 'done')->count();
-            $overdueTasks = $allTasks->filter(fn ($t) => $t->status !== 'done' && $t->due_at && $t->due_at->isBefore($now->startOfDay()))->count();
+            // 2. Compute project stats — use DB aggregations instead of Collection filtering
+            $projectIds = $projects->pluck('id');
+
+            $taskStats = Task::selectRaw("
+                    COUNT(*) as total,
+                    SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done,
+                    SUM(CASE WHEN status != 'done' AND due_at IS NOT NULL AND due_at < ? THEN 1 ELSE 0 END) as overdue
+                ")
+                ->whereIn('project_id', $projectIds)
+                ->addBinding(now()->startOfDay(), 'select')
+                ->first();
+
+            $totalTasks = (int) ($taskStats->total ?? 0);
+            $doneTasks = (int) ($taskStats->done ?? 0);
+            $overdueTasks = (int) ($taskStats->overdue ?? 0);
 
             $projectStats = [
                 'total_projects' => $projects->count(),
@@ -182,20 +190,31 @@ class Dashboard extends Component
             ];
 
             // 3. KPI summary (project cards)
-            $projectIds = $projects->pluck('id');
             $riskCountsByProject = Risk::selectRaw('project_id, COUNT(*) as open_count')
                 ->whereIn('project_id', $projectIds)
                 ->where('status', 'open')
                 ->groupBy('project_id')
                 ->pluck('open_count', 'project_id');
 
-            $kpiSummary = $projects->map(function ($project) use ($riskCountsByProject) {
-                $projectTasks = $project->tasks;
-                $total = $projectTasks->count();
-                $done = $projectTasks->where('status', 'done')->count();
-                /** @var EloquentCollection<int, Task> $notDone */
-                $notDone = $projectTasks->where('status', '!=', 'done');
-                $overdue = $notDone->filter(fn (Task $t) => $t->due_at && $t->due_at->isBefore(now()->startOfDay()))->count();
+            // Per-project task stats in a single query
+            $perProjectTaskStats = Task::selectRaw("
+                    project_id,
+                    COUNT(*) as total,
+                    SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done,
+                    SUM(CASE WHEN status != 'done' AND due_at IS NOT NULL AND due_at < ? THEN 1 ELSE 0 END) as overdue
+                ")
+                ->whereIn('project_id', $projectIds)
+                ->groupBy('project_id')
+                ->addBinding(now()->startOfDay(), 'select')
+                ->get()
+                ->keyBy('project_id');
+
+            $kpiSummary = $projects->map(function ($project) use ($riskCountsByProject, $perProjectTaskStats) {
+                $stats = $perProjectTaskStats->get($project->id);
+                $total = (int) ($stats->total ?? 0);
+                $done = (int) ($stats->done ?? 0);
+                $overdue = (int) ($stats->overdue ?? 0);
+                $notDone = $total - $done;
 
                 return [
                     'id' => $project->id,
@@ -203,7 +222,7 @@ class Dashboard extends Component
                     'slug' => $project->slug,
                     'status' => $project->status,
                     'completion_rate' => $total > 0 ? round(($done / $total) * 100, 1) : 0,
-                    'overdue_rate' => $notDone->count() > 0 ? round(($overdue / max($notDone->count(), 1)) * 100, 1) : 0,
+                    'overdue_rate' => $notDone > 0 ? round(($overdue / max($notDone, 1)) * 100, 1) : 0,
                     'open_risks' => $riskCountsByProject->get($project->id, 0),
                     'task_count' => $total,
                     'source' => $project->source,

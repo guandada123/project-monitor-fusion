@@ -41,8 +41,14 @@ class AggregateView extends Component
 
     public function render()
     {
-        $query = Project::with(['tasks', 'risks' => function ($q) {
-            $q->whereIn('status', ['open', 'acknowledged']);
+        $query = Project::withCount([
+            'tasks',
+            'tasks as completed_tasks_count' => fn ($q) => $q->where('status', 'done'),
+            'risks',
+            'risks as critical_risks_count' => fn ($q) => $q->where('severity', 'critical'),
+            'risks as high_risks_count' => fn ($q) => $q->where('severity', 'high'),
+        ])->with(['risks' => function ($q) {
+            $q->whereIn('status', ['open', 'acknowledged'])->select('id', 'project_id', 'severity');
         }]);
 
         if ($this->search !== '') {
@@ -53,32 +59,32 @@ class AggregateView extends Component
             });
         }
 
-        $projects = $query->get();
+        $projects = $query->limit(200)->get();
 
         // Compute aggregate stats
         $totalProjects = $projects->count();
-        $totalTasks = $projects->sum(fn ($p) => $p->tasks->count());
-        $completedTasks = $projects->sum(fn ($p) => $p->tasks->where('status', 'done')->count());
-        $totalRisks = $projects->sum(fn ($p) => $p->risks->count());
-        $criticalRisks = $projects->sum(fn ($p) => $p->risks->where('severity', 'critical')->count());
+        $totalTasks = $projects->sum('tasks_count');
+        $completedTasks = $projects->sum('completed_tasks_count');
+        $totalRisks = $projects->sum('risks_count');
+        $criticalRisks = $projects->sum('critical_risks_count');
         $avgCompletion = $totalProjects > 0
             ? round($projects->avg(fn ($p) => $p->completion_rate), 1)
             : 0;
 
         // Enrich project data for the view
         $enrichedProjects = $projects->map(function ($project) {
-            $riskCount = $project->risks->count();
+            $riskCount = $project->risks_count;
 
             return (object) [
                 'slug' => $project->slug,
                 'name' => $project->name,
                 'status' => $project->status,
                 'source' => $project->source,
-                'tasks_count' => $project->tasks->count(),
-                'completed_tasks' => $project->tasks->where('status', 'done')->count(),
+                'tasks_count' => $project->tasks_count,
+                'completed_tasks' => $project->completed_tasks_count,
                 'risks_count' => $riskCount,
-                'critical_risks' => $project->risks->where('severity', 'critical')->count(),
-                'high_risks' => $project->risks->where('severity', 'high')->count(),
+                'critical_risks' => $project->critical_risks_count,
+                'high_risks' => $project->high_risks_count,
                 'completion_rate' => $project->completion_rate,
                 'health' => $this->computeHealth($riskCount, $project->completion_rate),
                 'created_at' => $project->created_at,
