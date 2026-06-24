@@ -10,8 +10,7 @@ test('dashboard loads with key elements', function () {
     $this->browse(function (Browser $browser) {
         $user = User::factory()->admin()->create();
 
-        $browser->loginAs($user)
-            ->visit('/')
+        $browser->visit('/dusk/login/' . $user->id)->waitForLocation('/', 10)
             ->assertPathIs('/')
             ->assertSee('仪表板')
             ->assertSee('Project Monitor');
@@ -22,8 +21,7 @@ test('dashboard shows sidebar navigation links', function () {
     $this->browse(function (Browser $browser) {
         $user = User::factory()->admin()->create();
 
-        $browser->loginAs($user)
-            ->visit('/')
+        $browser->visit('/dusk/login/' . $user->id)->waitForLocation('/', 10)
             ->assertPathIs('/')
             ->assertSeeLink('仪表板')
             ->assertSeeLink('项目列表')
@@ -39,7 +37,7 @@ test('project list page loads with no projects', function () {
     $this->browse(function (Browser $browser) {
         $user = User::factory()->admin()->create();
 
-        $browser->loginAs($user)
+        $browser->visit('/dusk/login/' . $user->id)->waitForLocation('/', 10)
             ->visit('/projects')
             ->assertPathIs('/projects')
             ->assertSee('项目列表');
@@ -55,7 +53,7 @@ test('project list shows existing projects', function () {
             'owner_id' => $user->id,
         ]);
 
-        $browser->loginAs($user)
+        $browser->visit('/dusk/login/' . $user->id)->waitForLocation('/', 10)
             ->visit('/projects')
             ->assertPathIs('/projects')
             ->assertSee('项目列表');
@@ -71,7 +69,7 @@ test('project search filters work', function () {
             'name' => 'Z-测试项目-搜索',
         ]);
 
-        $browser->loginAs($user)
+        $browser->visit('/dusk/login/' . $user->id)->waitForLocation('/', 10)
             ->visit('/projects')
             ->assertPathIs('/projects')
             ->assertSee('项目列表');
@@ -89,7 +87,7 @@ test('project detail page loads via slug', function () {
             'name' => '详细项目',
         ]);
 
-        $browser->loginAs($user)
+        $browser->visit('/dusk/login/' . $user->id)->waitForLocation('/', 10)
             ->visit("/projects/{$project->slug}")
             ->assertPathIs("/projects/{$project->slug}")
             ->waitForText($project->name, 10)

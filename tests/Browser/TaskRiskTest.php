@@ -12,7 +12,7 @@ test('task board page loads', function () {
     $this->browse(function (Browser $browser) {
         $user = User::factory()->admin()->create();
 
-        $browser->loginAs($user)
+        $browser->visit('/dusk/login/' . $user->id)->waitForLocation('/', 10)
             ->visit('/board')
             ->assertPathIs('/board')
             ->assertSee('看板');
@@ -34,7 +34,7 @@ test('task board shows projects and tasks', function () {
             'title' => '看板任务一',
         ]);
 
-        $browser->loginAs($user)
+        $browser->visit('/dusk/login/' . $user->id)->waitForLocation('/', 10)
             ->visit('/board')
             ->assertPathIs('/board')
             ->assertSee('看板');
@@ -47,7 +47,7 @@ test('risk manager page loads', function () {
     $this->browse(function (Browser $browser) {
         $user = User::factory()->admin()->create();
 
-        $browser->loginAs($user)
+        $browser->visit('/dusk/login/' . $user->id)->waitForLocation('/', 10)
             ->visit('/risks')
             ->assertPathIs('/risks')
             ->assertSee('风险中心');
@@ -69,7 +69,7 @@ test('risk manager shows existing risks', function () {
             'severity' => 'high',
         ]);
 
-        $browser->loginAs($user)
+        $browser->visit('/dusk/login/' . $user->id)->waitForLocation('/', 10)
             ->visit('/risks')
             ->assertPathIs('/risks')
             ->assertSee('风险中心');
@@ -82,7 +82,7 @@ test('metrics builder page loads', function () {
     $this->browse(function (Browser $browser) {
         $user = User::factory()->admin()->create();
 
-        $browser->loginAs($user)
+        $browser->visit('/dusk/login/' . $user->id)->waitForLocation('/', 10)
             ->visit('/metrics')
             ->assertPathIs('/metrics')
             ->assertSee('指标');
@@ -93,7 +93,7 @@ test('report center page loads', function () {
     $this->browse(function (Browser $browser) {
         $user = User::factory()->admin()->create();
 
-        $browser->loginAs($user)
+        $browser->visit('/dusk/login/' . $user->id)->waitForLocation('/', 10)
             ->visit('/reports')
             ->assertPathIs('/reports')
             ->assertSee('报表');
@@ -104,7 +104,7 @@ test('settings page loads', function () {
     $this->browse(function (Browser $browser) {
         $user = User::factory()->admin()->create();
 
-        $browser->loginAs($user)
+        $browser->visit('/dusk/login/' . $user->id)->waitForLocation('/', 10)
             ->visit('/settings')
             ->assertPathIs('/settings')
             ->assertSee('设置');

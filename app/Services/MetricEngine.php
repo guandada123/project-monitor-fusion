@@ -7,6 +7,7 @@ use App\Models\MetricSnapshot;
 use App\Models\Project;
 use App\Models\Risk;
 use App\Models\Task;
+use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
 
 /**
  * 指标计算引擎 — 根据 definition JSON 计算自定义指标值
@@ -21,6 +22,7 @@ use App\Models\Task;
  */
 class MetricEngine
 {
+    private ?ExpressionLanguage $expressionLanguage = null;
     /**
      * 计算单个指标并返回结果。
      */
@@ -191,6 +193,23 @@ class MetricEngine
         ];
     }
 
+    private function getExpressionLanguage(): ExpressionLanguage
+    {
+        if ($this->expressionLanguage === null) {
+            $language = new ExpressionLanguage();
+
+            // 注册 mod(a, b) 函数 — 兼容之前的 % 取模运算符
+            $language->register('mod',
+                fn ($a, $b) => sprintf('(%s %% %s)', $a, $b),
+                fn (array $arguments, $a, $b) => $a % $b,
+            );
+
+            $this->expressionLanguage = $language;
+        }
+
+        return $this->expressionLanguage;
+    }
+
     private function formula(Project $project, array $def): array
     {
         // 支持简单公式：{metric_key} 替换为原子结果
@@ -204,19 +223,27 @@ class MetricEngine
             $vars[$key] = $result['value'] ?? 0;
         }
 
-        // 简单算术替换 — 安全执行
-        $evalExpr = $expression;
+        // {key} → value 替换（向后兼容）
+        $parsedExpr = $expression;
         foreach ($vars as $k => $v) {
-            $evalExpr = str_replace('{'.$k.'}', (string) $v, $evalExpr);
+            $parsedExpr = str_replace('{'.$k.'}', (string) $v, $parsedExpr);
         }
 
-        // 仅允许数字/运算符/括号/空格
-        if (! preg_match('/^[\d\s+\-*\/().%]+$/', $evalExpr)) {
-            return ['value' => 0, 'label' => $def['label'] ?? '公式结果', 'unit' => '', 'error' => '非法公式'];
+        // 将简单 % 取模自动转换为 mod() 函数调用（ExpressionLanguage 不支持 % 运算符）
+        $parsedExpr = preg_replace(
+            '/(\d+(?:\.\d+)?)\s*%\s*(\d+(?:\.\d+)?)/',
+            'mod($1, $2)',
+            $parsedExpr,
+        );
+
+        // 检查是否有未转换的 %（复杂表达式场景，引导用户改用 mod()）
+        if (str_contains($parsedExpr, '%')) {
+            return ['value' => 0, 'label' => $def['label'] ?? '公式结果', 'unit' => '', 'error' => '公式包含不兼容的 % 运算符，请改用 mod(a, b) 函数'];
         }
 
         try {
-            $value = round((float) eval("return {$evalExpr};"), 2);
+            $language = $this->getExpressionLanguage();
+            $value = round((float) $language->evaluate($parsedExpr), 2);
         } catch (\Throwable) {
             return ['value' => 0, 'label' => $def['label'] ?? '公式结果', 'unit' => '', 'error' => '计算错误'];
         }

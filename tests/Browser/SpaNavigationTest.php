@@ -28,8 +28,7 @@ beforeEach(function () use (&$spaDbReset) {
  */
 function loginViaForm(Browser $browser, User $user): void
 {
-    $browser->loginAs($user)
-        ->visit('/')
+    $browser->visit('/dusk/login/' . $user->id)->waitForLocation('/', 10)
         ->assertPathIs('/');
 }
 
