@@ -127,6 +127,8 @@ jobs:
         run: mkdir -p storage/framework/cache storage/framework/views storage/framework/sessions storage/logs
       - name: Install PHP dependencies
         run: composer install --no-progress --no-interaction
+      - name: Install ChromeDriver
+        run: php artisan dusk:chrome-driver
       - name: Configure environment
         run: |
           cp .env.example .env
