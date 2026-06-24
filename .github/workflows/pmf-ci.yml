@@ -68,8 +68,8 @@ jobs:
           npm audit --audit-level=high || echo "::warning::npm audit 发现高/严重漏洞"
       - name: Check for secrets (gitleaks)
         uses: gitleaks/gitleaks-action@v2
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Hardcoded credentials check
         run: |
           echo "=== 硬编码密钥检测 ==="

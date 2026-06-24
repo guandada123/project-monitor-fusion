@@ -54,6 +54,8 @@ abstract class DuskTestCase extends BaseTestCase
             '--disable-search-engine-choice-screen',
             '--disable-smooth-scrolling',
             '--disable-popup-blocking',
+            '--no-sandbox',
+            '--disable-extensions',
         ])->unless($this->hasHeadlessDisabled(), function (Collection $items) {
             return $items->merge([
                 '--disable-gpu',
