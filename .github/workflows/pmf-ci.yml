@@ -140,7 +140,7 @@ jobs:
           sed -i 's/DB_HOST=127.0.0.1/DB_HOST=localhost/' .env
           sed -i 's/DB_USERNAME=guan/DB_USERNAME=postgres/' .env
           sed -i 's/DB_PASSWORD=$/DB_PASSWORD=postgres/' .env
-          sed -i 's/APP_ENV=local/APP_ENV=testing/' .env
+          sed -i 's/APP_ENV=local/APP_ENV=dusk/' .env
           sed -i 's/APP_DEBUG=true/APP_DEBUG=false/' .env
           sed -i 's/CACHE_STORE=file/CACHE_STORE=array/' .env
           sed -i 's/LOG_LEVEL=debug/LOG_LEVEL=error/' .env
