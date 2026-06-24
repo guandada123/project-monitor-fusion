@@ -216,6 +216,16 @@ class MetricEngine
         $expression = $def['expression'] ?? '0';
         $subMetrics = $def['metrics'] ?? [];
 
+        // === 表达式安全性校验 ===
+        // ExpressionLanguage 允许调用已注册函数，但需要防止恶意表达式
+        if (strlen($expression) > 1000) {
+            return ['value' => 0, 'label' => $def['label'] ?? '公式结果', 'unit' => '', 'error' => '表达式过长'];
+        }
+        // 只允许数字、运算符、变量占位符、已注册函数
+        if (preg_match('/[^0-9+\-*\/().,%\s{}_a-zA-Z]/', $expression)) {
+            return ['value' => 0, 'label' => $def['label'] ?? '公式结果', 'unit' => '', 'error' => '表达式包含非法字符'];
+        }
+
         $vars = [];
         foreach ($subMetrics as $key => $subDef) {
             $subMetric = new Metric(['definition' => $subDef]);

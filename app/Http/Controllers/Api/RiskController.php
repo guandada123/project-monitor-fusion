@@ -47,7 +47,7 @@ class RiskController extends Controller
      */
     public function show(Risk $risk): JsonResponse
     {
-        $risk->load(['project', 'suggestions']);
+        $risk->load(['project']);
 
         return ApiResponse::success($risk);
     }

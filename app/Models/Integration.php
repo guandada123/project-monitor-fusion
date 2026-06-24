@@ -17,7 +17,7 @@ class Integration extends Model
     ];
 
     protected $casts = [
-        'config' => 'array',
+        'config' => 'encrypted:array',
         'sync_state' => 'array',
         'last_sync_at' => 'datetime',
     ];

@@ -98,6 +98,6 @@ class Task extends Model
     {
         return $this->status !== 'done'
             && $this->due_at
-            && $this->due_at->isPast();
+            && $this->due_at->toDateString() < now()->toDateString();
     }
 }
