@@ -7,16 +7,19 @@ use App\Models\Integration;
 use App\Models\Project;
 use App\Models\Task;
 use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Str;
 
 class GitHubService
 {
     protected string $token;
+
     protected string $org;
+
     protected string $repo;
+
     protected string $baseUrl;
+
     protected ?string $apiBase = null;
 
     public function __construct(array|Integration $config)
@@ -37,7 +40,7 @@ class GitHubService
             [$this->org, $this->repo] = explode('/', $this->repo, 2);
         }
 
-        $this->baseUrl = "https://api.github.com";
+        $this->baseUrl = 'https://api.github.com';
         if ($this->org && $this->repo) {
             $this->apiBase = "{$this->baseUrl}/repos/{$this->org}/{$this->repo}";
         }
@@ -57,6 +60,7 @@ class GitHubService
             $resp = $this->client()->get($apiBase);
             if ($resp->successful()) {
                 $data = $resp->json();
+
                 return [
                     'ok' => true,
                     'repo' => $data['full_name'] ?? "{$this->org}/{$this->repo}",
@@ -64,9 +68,10 @@ class GitHubService
                     'updated' => $data['updated_at'] ?? null,
                 ];
             }
+
             return ['ok' => false, 'error' => "HTTP {$resp->status()}: {$resp->body()}"];
         } catch (ConnectionException $e) {
-            return ['ok' => false, 'error' => '网络连接失败: ' . $e->getMessage()];
+            return ['ok' => false, 'error' => '网络连接失败: '.$e->getMessage()];
         } catch (\Throwable $e) {
             return ['ok' => false, 'error' => $e->getMessage()];
         }
@@ -76,16 +81,19 @@ class GitHubService
 
     public function fetchCommits(string $branch = '', int $perPage = 30): array
     {
-        $url = $this->requireApiBase() . '/commits';
+        $url = $this->requireApiBase().'/commits';
         $params = ['per_page' => $perPage];
-        if ($branch) $params['sha'] = $branch;
+        if ($branch) {
+            $params['sha'] = $branch;
+        }
 
         return $this->getPaginated($url, $params);
     }
 
     public function fetchPullRequests(string $state = 'all', int $perPage = 20): array
     {
-        $url = $this->requireApiBase() . '/pulls';
+        $url = $this->requireApiBase().'/pulls';
+
         return $this->getPaginated($url, [
             'state' => $state,
             'per_page' => $perPage,
@@ -96,7 +104,8 @@ class GitHubService
 
     public function fetchIssues(string $state = 'all', int $perPage = 30): array
     {
-        $url = $this->requireApiBase() . '/issues';
+        $url = $this->requireApiBase().'/issues';
+
         return $this->getPaginated($url, [
             'state' => $state,
             'per_page' => $perPage,
@@ -108,7 +117,8 @@ class GitHubService
 
     public function fetchContributors(int $perPage = 20): array
     {
-        $url = $this->requireApiBase() . '/contributors';
+        $url = $this->requireApiBase().'/contributors';
+
         return $this->getPaginated($url, ['per_page' => $perPage]);
     }
 
@@ -125,7 +135,9 @@ class GitHubService
             // Sync recent issues (excluding PRs — GitHub API returns PRs as issues)
             $issues = $this->fetchIssues('all', 30);
             foreach ($issues as $issue) {
-                if (!empty($issue['pull_request'])) continue; // skip PRs
+                if (! empty($issue['pull_request'])) {
+                    continue;
+                } // skip PRs
                 $stats['issues'] += $this->upsertIssue($project, $issue);
             }
 
@@ -176,6 +188,7 @@ class GitHubService
                     'gh_updated' => $ghIssue['updated_at'] ?? null,
                 ]),
             ]);
+
             return 0; // updated
         }
 
@@ -242,20 +255,24 @@ class GitHubService
 
         if ($task) {
             $task->update($data);
+
             return 0;
         }
 
         Task::create($data);
+
         return 1;
     }
 
     protected function upsertCommitEvent(Project $project, array $commit): int
     {
         $sha = $commit['sha'] ?? '';
-        $fingerprint = 'github-commit-' . $sha;
+        $fingerprint = 'github-commit-'.$sha;
 
         $exists = Event::where('fingerprint', $fingerprint)->exists();
-        if ($exists) return 0;
+        if ($exists) {
+            return 0;
+        }
 
         Event::create([
             'project_id' => $project->id,
@@ -280,20 +297,22 @@ class GitHubService
 
     // ─── Helpers ──────────────────────────────────────────────────────
 
-    protected function client(): \Illuminate\Http\Client\PendingRequest
+    protected function client(): PendingRequest
     {
         $client = Http::timeout(15)->withUserAgent('project-monitor/1.0');
         if ($this->token) {
             $client = $client->withToken($this->token);
         }
+
         return $client;
     }
 
     protected function requireApiBase(): string
     {
-        if (!$this->apiBase) {
+        if (! $this->apiBase) {
             throw new \RuntimeException('缺少 GitHub org/repo 配置。请在集成设置中填写组织名和仓库名。');
         }
+
         return $this->apiBase;
     }
 
@@ -301,7 +320,7 @@ class GitHubService
     {
         $resp = $this->client()->get($url, $params);
 
-        if (!$resp->successful()) {
+        if (! $resp->successful()) {
             throw new \RuntimeException("GitHub API error: HTTP {$resp->status()} — {$resp->body()}");
         }
 
@@ -311,9 +330,16 @@ class GitHubService
     protected function detectPriority(array $labels): string
     {
         $lowerLabels = array_map('strtolower', $labels);
-        if (array_intersect($lowerLabels, ['critical', 'p0', 'blocker', 'emergency'])) return 'critical';
-        if (array_intersect($lowerLabels, ['high', 'p1', 'important'])) return 'high';
-        if (array_intersect($lowerLabels, ['low', 'p3', 'minor', 'nice-to-have'])) return 'low';
+        if (array_intersect($lowerLabels, ['critical', 'p0', 'blocker', 'emergency'])) {
+            return 'critical';
+        }
+        if (array_intersect($lowerLabels, ['high', 'p1', 'important'])) {
+            return 'high';
+        }
+        if (array_intersect($lowerLabels, ['low', 'p3', 'minor', 'nice-to-have'])) {
+            return 'low';
+        }
+
         return 'medium';
     }
 }

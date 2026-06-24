@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\Event;
 use App\Models\Integration;
 use App\Models\Metric;
 use App\Models\Project;
@@ -196,6 +195,7 @@ class DemoDataSeeder extends Seeder
             'name' => 'Livewire (公开仓库)',
             'config' => ['org' => 'livewire', 'repo' => 'livewire', 'token' => ''],
             'status' => 'active',
+            'created_by' => 1,
         ]);
 
         Integration::create([
@@ -203,6 +203,7 @@ class DemoDataSeeder extends Seeder
             'name' => '飞书群推送',
             'config' => ['chat_id' => 'oc_9ee5303497f5e0e71666b610d6bdc346'],
             'status' => 'active',
+            'created_by' => 1,
         ]);
     }
 }

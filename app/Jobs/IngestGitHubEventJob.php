@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Jobs;
 
 use App\Services\ProjectDiscoveryService;
@@ -31,18 +32,19 @@ class IngestGitHubEventJob implements ShouldQueue
 
         if ($exists) {
             Log::info('IngestGitHubEvent: duplicate skipped', ['delivery' => $this->deliveryId]);
+
             return;
         }
 
         \DB::table('events')->insert([
-            'source'      => 'github',
+            'source' => 'github',
             'external_id' => $this->deliveryId,
-            'event_type'  => $this->event,
+            'event_type' => $this->event,
             'occurred_at' => now(),
-            'payload'     => json_encode($this->payload),
-            'processed_at'=> now(),
-            'created_at'  => now(),
-            'updated_at'  => now(),
+            'payload' => json_encode($this->payload),
+            'processed_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         // 自动发现

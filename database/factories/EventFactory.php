@@ -2,12 +2,13 @@
 
 namespace Database\Factories;
 
+use App\Models\Event;
 use App\Models\Project;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class EventFactory extends Factory
 {
-    protected $model = \App\Models\Event::class;
+    protected $model = Event::class;
 
     public function definition(): array
     {
@@ -68,7 +69,7 @@ class EventFactory extends Factory
     {
         return $this->state(fn (array $attrs) => [
             'source' => $source,
-            'event_type' => $source . '.' . fake()->randomElement([
+            'event_type' => $source.'.'.fake()->randomElement([
                 'created', 'updated', 'deleted', 'synced',
             ]),
         ]);

@@ -2,12 +2,14 @@
 
 namespace Database\Factories;
 
+use App\Models\Role;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\User>
+ * @extends Factory<User>
  */
 class UserFactory extends Factory
 {
@@ -49,7 +51,7 @@ class UserFactory extends Factory
     public function admin(): static
     {
         return $this->afterCreating(function ($user) {
-            $role = \App\Models\Role::where('slug', 'admin')->first();
+            $role = Role::where('slug', 'admin')->first();
             if ($role) {
                 $user->roles()->attach($role);
                 $user->clearPermissionCache();
@@ -64,7 +66,7 @@ class UserFactory extends Factory
     public function viewer(): static
     {
         return $this->afterCreating(function ($user) {
-            $role = \App\Models\Role::where('slug', 'viewer')->first();
+            $role = Role::where('slug', 'viewer')->first();
             if ($role) {
                 $user->roles()->attach($role);
                 $user->clearPermissionCache();

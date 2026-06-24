@@ -48,6 +48,7 @@ class GlobalSearch extends Component
             $this->counts = [];
             $this->show = false;
             $this->searching = false;
+
             return;
         }
 
@@ -66,7 +67,7 @@ class GlobalSearch extends Component
     protected function performSearch(): void
     {
         $q = trim($this->query);
-        $like = '%' . $q . '%';
+        $like = '%'.$q.'%';
 
         // 搜索项目
         $projects = Project::where('name', 'like', $like)
@@ -75,7 +76,7 @@ class GlobalSearch extends Component
             ->select('id', 'name', 'slug', 'status', 'description')
             ->limit(5)
             ->get()
-            ->map(fn($p) => [
+            ->map(fn ($p) => [
                 'id' => $p->id,
                 'type' => 'project',
                 'title' => $p->name,
@@ -92,7 +93,7 @@ class GlobalSearch extends Component
             ->select('id', 'project_id', 'title', 'status', 'priority', 'due_at')
             ->limit(5)
             ->get()
-            ->map(fn(\App\Models\Task $t) => [
+            ->map(fn (Task $t) => [
                 'id' => $t->id,
                 'type' => 'task',
                 'title' => $t->title,
@@ -109,7 +110,7 @@ class GlobalSearch extends Component
             ->select('id', 'project_id', 'title', 'severity', 'status', 'rule_key')
             ->limit(5)
             ->get()
-            ->map(fn(\App\Models\Risk $r) => [
+            ->map(fn (Risk $r) => [
                 'id' => $r->id,
                 'type' => 'risk',
                 'title' => $r->title,
@@ -139,7 +140,9 @@ class GlobalSearch extends Component
      */
     public function selectResult(int $index): void
     {
-        if (!isset($this->results[$index])) return;
+        if (! isset($this->results[$index])) {
+            return;
+        }
 
         $result = $this->results[$index];
         $this->resetSearch();
@@ -153,7 +156,9 @@ class GlobalSearch extends Component
     public function selectNext(): void
     {
         $count = count($this->results);
-        if ($count === 0) return;
+        if ($count === 0) {
+            return;
+        }
 
         $this->selectedIndex = ($this->selectedIndex + 1) % $count;
     }
@@ -164,7 +169,9 @@ class GlobalSearch extends Component
     public function selectPrev(): void
     {
         $count = count($this->results);
-        if ($count === 0) return;
+        if ($count === 0) {
+            return;
+        }
 
         $this->selectedIndex = ($this->selectedIndex - 1 + $count) % $count;
     }

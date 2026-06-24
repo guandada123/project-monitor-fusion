@@ -11,17 +11,17 @@ use Livewire\WithPagination;
 
 class RiskManager extends Component
 {
-    use WithPagination, AuthorizesResourceAccess;
+    use AuthorizesResourceAccess, WithPagination;
 
     protected $rules = [
-        'statusFilter'   => 'in:all,open,acknowledged,closed',
+        'statusFilter' => 'in:all,open,acknowledged,closed',
         'severityFilter' => 'in:all,critical,high,medium,low',
-        'projectFilter'  => 'regex:/^(all|\d+)$/',
-        'ruleFilter'     => 'nullable|string|max:100',
-        'search'         => 'nullable|string|max:255',
-        'dismissReason'  => 'nullable|string|max:500',
-        'selectedIds'    => 'array',
-        'selectedIds.*'  => 'integer|exists:risks,id',
+        'projectFilter' => 'regex:/^(all|\d+)$/',
+        'ruleFilter' => 'nullable|string|max:100',
+        'search' => 'nullable|string|max:255',
+        'dismissReason' => 'nullable|string|max:500',
+        'selectedIds' => 'array',
+        'selectedIds.*' => 'integer|exists:risks,id',
     ];
 
     /** @var string 筛选：all / open / acknowledged / closed */
@@ -157,7 +157,9 @@ class RiskManager extends Component
     {
         $this->authorizeResourceAccess('manage_risks');
 
-        if (!$this->dismissingId) return;
+        if (! $this->dismissingId) {
+            return;
+        }
         $this->validate(['dismissReason' => 'nullable|string|max:500']);
 
         $risk = Risk::findOrFail($this->dismissingId);
@@ -197,7 +199,7 @@ class RiskManager extends Component
     {
         $this->authorizeResourceAccess('manage_risks');
         $this->validate([
-            'selectedIds'   => 'required|array',
+            'selectedIds' => 'required|array',
             'selectedIds.*' => 'integer|exists:risks,id',
         ]);
         $risks = Risk::whereIn('id', $this->selectedIds)->whereNull('suggestion')->get();
@@ -219,7 +221,7 @@ class RiskManager extends Component
     {
         $this->authorizeResourceAccess('manage_risks');
         $this->validate([
-            'selectedIds'   => 'required|array',
+            'selectedIds' => 'required|array',
             'selectedIds.*' => 'integer|exists:risks,id',
         ]);
         Risk::whereIn('id', $this->selectedIds)
@@ -269,7 +271,7 @@ class RiskManager extends Component
             $search = trim($this->search);
             $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('detail', 'like', "%{$search}%");
+                    ->orWhere('detail', 'like', "%{$search}%");
             });
         }
 

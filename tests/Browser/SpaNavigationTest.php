@@ -41,7 +41,7 @@ function loginViaForm(Browser $browser, User $user): void
  */
 function assertSpaPath(Browser $browser, string $path, int $seconds = 5): Browser
 {
-    $path = '/' . ltrim($path, '/');
+    $path = '/'.ltrim($path, '/');
 
     return $browser
         ->waitUntil("window.location.pathname === '$path'", $seconds)

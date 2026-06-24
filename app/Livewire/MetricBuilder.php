@@ -5,25 +5,32 @@ namespace App\Livewire;
 use App\Models\Metric;
 use App\Models\Project;
 use App\Traits\AuthorizesResourceAccess;
+use Illuminate\Database\Eloquent\Collection;
 use Livewire\Component;
 
 /**
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Metric> $metrics
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Project> $projects
+ * @property-read Collection<int, Metric> $metrics
+ * @property-read Collection<int, Project> $projects
  */
 class MetricBuilder extends Component
 {
     use AuthorizesResourceAccess;
 
     public bool $showModal = false;
+
     public ?int $editingId = null;
 
     // Form
     public string $formKey = '';
+
     public string $formName = '';
+
     public string $formKind = 'custom';
+
     public ?int $formProjectId = null;
+
     public string $formDefinition = '';
+
     public string $formScheduleCron = '0 8 * * *'; // Daily at 8am
 
     // Filter
@@ -77,7 +84,8 @@ class MetricBuilder extends Component
         // Validate JSON definition
         $definition = json_decode($this->formDefinition, true);
         if (json_last_error() !== JSON_ERROR_NONE) {
-            $this->addError('formDefinition', 'JSON 格式无效: ' . json_last_error_msg());
+            $this->addError('formDefinition', 'JSON 格式无效: '.json_last_error_msg());
+
             return;
         }
 
@@ -114,6 +122,7 @@ class MetricBuilder extends Component
         $metric = Metric::findOrFail($id);
         if ($metric->kind === 'system') {
             session()->flash('error', '系统指标不可删除');
+
             return;
         }
         $metric->delete();
@@ -135,7 +144,7 @@ class MetricBuilder extends Component
     public function getMetricsProperty()
     {
         return Metric::with('project')
-            ->when($this->filterKind, fn($q) => $q->where('kind', $this->filterKind))
+            ->when($this->filterKind, fn ($q) => $q->where('kind', $this->filterKind))
             ->orderBy('kind')
             ->orderBy('name')
             ->get();

@@ -1,8 +1,9 @@
 <?php
 
-use App\Models\User;
-use App\Models\Project;
 use App\Models\Metric;
+use App\Models\Project;
+use App\Models\User;
+
 use function Pest\Laravel\get;
 
 test('metrics page loads', function () {

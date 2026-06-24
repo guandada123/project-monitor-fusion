@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Exports\ExportEngine;
 use App\Models\ExportHistory;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
 
 class ExportPanel extends Component
@@ -129,6 +130,7 @@ class ExportPanel extends Component
 
         if (empty($columns)) {
             $this->errorMessage = '请至少选择一列进行导出';
+
             return;
         }
 
@@ -150,7 +152,7 @@ class ExportPanel extends Component
             // Flash success for toast
             session()->flash('message', "导出完成：共 {$history->record_count} 条记录");
         } catch (\Exception $e) {
-            $this->errorMessage = '导出失败：' . $e->getMessage();
+            $this->errorMessage = '导出失败：'.$e->getMessage();
             $this->step = 'select';
         }
     }
@@ -162,12 +164,13 @@ class ExportPanel extends Component
     {
         $history = ExportHistory::findOrFail($historyId);
 
-        if (!$history->file_path || !\Illuminate\Support\Facades\Storage::disk('local')->exists($history->file_path)) {
+        if (! $history->file_path || ! Storage::disk('local')->exists($history->file_path)) {
             $this->errorMessage = '导出文件不存在或已被清理';
+
             return;
         }
 
-        $this->dispatch('download-export', url: \Illuminate\Support\Facades\Storage::disk('local')->url($history->file_path));
+        $this->dispatch('download-export', url: Storage::disk('local')->url($history->file_path));
     }
 
     /**

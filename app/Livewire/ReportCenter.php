@@ -5,22 +5,30 @@ namespace App\Livewire;
 use App\Models\Project;
 use App\Models\Risk;
 use App\Models\Task;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 use Livewire\Component;
 
 /**
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Project> $projects
+ * @property-read Collection<int, Project> $projects
  */
 class ReportCenter extends Component
 {
     public string $reportType = 'weekly';
+
     public string $period = 'current';
+
     public array $selectedProjects = [];
+
     public bool $includeRisks = true;
+
     public bool $includeTasks = true;
+
     public bool $includeResources = true;
 
     public array $reportData = [];
+
     public bool $reportGenerated = false;
 
     public function mount()
@@ -74,9 +82,9 @@ class ReportCenter extends Component
                     'in_progress' => $tasks->where('status', 'in_progress')->count(),
                     'review' => $tasks->where('status', 'review')->count(),
                     'done' => $tasks->where('status', 'done')->count(),
-                    'overdue' => $tasks->filter(fn(\App\Models\Task $t) => $t->due_at && $t->due_at->isPast() && $t->status !== 'done')->count(),
+                    'overdue' => $tasks->filter(fn (Task $t) => $t->due_at && $t->due_at->isPast() && $t->status !== 'done')->count(),
                 ],
-                'risks' => $risks->map(fn($r) => [
+                'risks' => $risks->map(fn ($r) => [
                     'title' => $r->title,
                     'severity' => $r->severity,
                     'status' => $r->status,
@@ -94,7 +102,7 @@ class ReportCenter extends Component
         // Team workload
         $data['workload'] = [];
         if ($this->includeResources) {
-            $users = \App\Models\User::withCount(['tasks' => fn($q) => $q->whereNotIn('status', ['done'])])->get();
+            $users = User::withCount(['tasks' => fn ($q) => $q->whereNotIn('status', ['done'])])->get();
             foreach ($users as $user) {
                 $data['workload'][] = [
                     'name' => $user->name,
@@ -118,6 +126,7 @@ class ReportCenter extends Component
                 $start = $now->copy()->startOfWeek();
                 $end = $now;
             }
+
             return [$start, $end];
         } else {
             if ($this->period === 'last') {
@@ -127,18 +136,19 @@ class ReportCenter extends Component
                 $start = $now->copy()->startOfMonth();
                 $end = $now;
             }
+
             return [$start, $end];
         }
     }
 
     public function exportMarkdown()
     {
-        if (!$this->reportGenerated) {
+        if (! $this->reportGenerated) {
             $this->generate();
         }
 
         $md = $this->renderMarkdown();
-        $filename = Str::slug($this->reportData['title']) . '-' . now()->format('Ymd') . '.md';
+        $filename = Str::slug($this->reportData['title']).'-'.now()->format('Ymd').'.md';
 
         return response()->streamDownload(function () use ($md) {
             echo $md;
@@ -147,12 +157,12 @@ class ReportCenter extends Component
 
     public function exportHtml()
     {
-        if (!$this->reportGenerated) {
+        if (! $this->reportGenerated) {
             $this->generate();
         }
 
         $html = $this->renderHtml();
-        $filename = Str::slug($this->reportData['title']) . '-' . now()->format('Ymd') . '.html';
+        $filename = Str::slug($this->reportData['title']).'-'.now()->format('Ymd').'.html';
 
         return response()->streamDownload(function () use ($html) {
             echo $html;
@@ -173,8 +183,8 @@ class ReportCenter extends Component
         $lines[] = '';
         $lines[] = '## 概览';
         $lines[] = '';
-        $lines[] = "| 指标 | 数值 |";
-        $lines[] = "|------|------|";
+        $lines[] = '| 指标 | 数值 |';
+        $lines[] = '|------|------|';
         $lines[] = "| 项目数 | {$d['summary']['total_projects']} |";
         $lines[] = "| 任务总数 | {$d['summary']['total_tasks']} |";
         $lines[] = "| 已完成 | {$d['summary']['completed_tasks']} |";
@@ -183,7 +193,7 @@ class ReportCenter extends Component
         $lines[] = "| 严重风险 | {$d['summary']['severe_risks']} |";
         $lines[] = '';
 
-        if (!empty($d['projects'])) {
+        if (! empty($d['projects'])) {
             $lines[] = '## 项目详情';
             $lines[] = '';
             foreach ($d['projects'] as $p) {
@@ -191,8 +201,8 @@ class ReportCenter extends Component
                 $lines[] = '';
                 $lines[] = "- 状态: {$p['status']} · 进度: {$p['progress']}% · 负责人: {$p['owner']}";
                 $lines[] = "- 任务: 总计 {$p['task_stats']['total']} | 待办 {$p['task_stats']['todo']} | 进行中 {$p['task_stats']['in_progress']} | 已完成 {$p['task_stats']['done']} | 延期 {$p['task_stats']['overdue']}";
-                if (!empty($p['risks'])) {
-                    $lines[] = "- 风险:";
+                if (! empty($p['risks'])) {
+                    $lines[] = '- 风险:';
                     foreach ($p['risks'] as $r) {
                         $sev = ['low' => '🟢', 'medium' => '🟡', 'high' => '🟠', 'severe' => '🔴'][$r['severity']] ?? '⚪';
                         $lines[] = "  - {$sev} {$r['title']} ({$r['status']})";
@@ -202,11 +212,11 @@ class ReportCenter extends Component
             }
         }
 
-        if (!empty($d['workload'])) {
+        if (! empty($d['workload'])) {
             $lines[] = '## 团队负载';
             $lines[] = '';
-            $lines[] = "| 成员 | 活跃任务 | 负载率 |";
-            $lines[] = "|------|----------|--------|";
+            $lines[] = '| 成员 | 活跃任务 | 负载率 |';
+            $lines[] = '|------|----------|--------|';
             foreach ($d['workload'] as $w) {
                 $lines[] = "| {$w['name']} | {$w['active_tasks']} | {$w['workload_pct']}% |";
             }
@@ -221,6 +231,7 @@ class ReportCenter extends Component
         $md = $this->renderMarkdown();
         // Simple markdown to HTML conversion using Parsedown if available, or basic regex
         $html = nl2br(htmlspecialchars($md));
+
         return "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\"><title>Project Monitor Report</title>
 <style>body{font-family:system-ui,-apple-system,sans-serif;max-width:800px;margin:0 auto;padding:2rem;line-height:1.6;color:#1a1a1a;}
 h1{font-size:2rem;margin-bottom:.5rem;}h2{font-size:1.4rem;margin-top:2rem;border-bottom:2px solid #e2e8f0;padding-bottom:.5rem;}

@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Responses\ApiResponse;
 use App\Models\Project;
 use App\Models\Risk;
 use App\Models\Task;
@@ -26,9 +25,9 @@ test('api token can be created via email and password', function () {
     ]);
 
     $response = $this->postJson('/api/tokens', [
-        'email'    => $user->email,
+        'email' => $user->email,
         'password' => 'password',
-        'name'     => 'Test Token',
+        'name' => 'Test Token',
     ]);
 
     $response->assertCreated()
@@ -52,9 +51,9 @@ test('api token creation fails with wrong password', function () {
     ]);
 
     $response = $this->postJson('/api/tokens', [
-        'email'    => $user->email,
+        'email' => $user->email,
         'password' => 'wrong_password',
-        'name'     => 'Bad Token',
+        'name' => 'Bad Token',
     ]);
 
     $response->assertUnprocessable();
@@ -83,7 +82,7 @@ test('api token can be revoked', function () {
     $token = $user->createToken('Revocable');
 
     $response = $this->withToken($token->plainTextToken)
-        ->deleteJson('/api/tokens/' . $token->accessToken->id);
+        ->deleteJson('/api/tokens/'.$token->accessToken->id);
 
     $response->assertOk()
         ->assertJson(['message' => 'Token 已撤销']);
@@ -111,9 +110,9 @@ test('api create project with valid data', function () {
 
     $response = $this->withToken($token->plainTextToken)
         ->postJson('/api/projects', [
-            'name'        => 'API Test Project',
+            'name' => 'API Test Project',
             'description' => 'Created via API',
-            'status'      => 'active',
+            'status' => 'active',
         ]);
 
     $response->assertCreated()
@@ -171,7 +170,7 @@ test('api list tasks with filters', function () {
     Task::factory()->count(5)->create(['project_id' => $project->id]);
 
     $response = $this->withToken($token->plainTextToken)
-        ->getJson('/api/tasks?project_id=' . $project->id);
+        ->getJson('/api/tasks?project_id='.$project->id);
 
     $response->assertOk()
         ->assertJsonCount(5, 'data.data');
@@ -185,8 +184,8 @@ test('api create task with valid data', function () {
     $response = $this->withToken($token->plainTextToken)
         ->postJson('/api/tasks', [
             'project_id' => $project->id,
-            'title'      => 'API Task',
-            'priority'   => 'high',
+            'title' => 'API Task',
+            'priority' => 'high',
         ]);
 
     $response->assertCreated()
@@ -201,7 +200,7 @@ test('api batch update task status', function () {
 
     $response = $this->withToken($token->plainTextToken)
         ->patchJson('/api/tasks/batch-status', [
-            'ids'    => $tasks->pluck('id')->toArray(),
+            'ids' => $tasks->pluck('id')->toArray(),
             'status' => 'done',
         ]);
 
@@ -218,7 +217,7 @@ test('api list risks with filters', function () {
     Risk::factory()->count(3)->create(['project_id' => $project->id, 'severity' => 'high']);
 
     $response = $this->withToken($token->plainTextToken)
-        ->getJson('/api/risks?project_id=' . $project->id);
+        ->getJson('/api/risks?project_id='.$project->id);
 
     $response->assertOk()
         ->assertJsonCount(3, 'data.data');
@@ -260,7 +259,7 @@ test('api board returns grouped tasks', function () {
     Task::factory()->count(1)->create(['project_id' => $project->id, 'status' => 'done']);
 
     $response = $this->withToken($token->plainTextToken)
-        ->getJson('/api/board?project_id=' . $project->id);
+        ->getJson('/api/board?project_id='.$project->id);
 
     $response->assertOk()
         ->assertJsonCount(2, 'data.columns.todo')

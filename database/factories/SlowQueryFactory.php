@@ -23,35 +23,35 @@ class SlowQueryFactory extends Factory
         ];
 
         return [
-            'query'           => $this->faker->randomElement($queries),
-            'bindings'        => $this->faker->randomElements(['1', '2', '3', 'active', 'done', '2026-06-14 10:00:00'], 2),
-            'time'            => $this->faker->randomFloat(2, 100, 3000),
+            'query' => $this->faker->randomElement($queries),
+            'bindings' => $this->faker->randomElements(['1', '2', '3', 'active', 'done', '2026-06-14 10:00:00'], 2),
+            'time' => $this->faker->randomFloat(2, 100, 3000),
             'connection_name' => $this->faker->randomElement(['pgsql', 'mysql', 'sqlite']),
-            'caller'          => '/app/' . $this->faker->randomElement(['Http/Controllers', 'Models', 'Services', 'Livewire']) . '/' .
-                                $this->faker->word() . '.php:' . $this->faker->numberBetween(10, 200),
-            'request_uri'     => '/' . $this->faker->randomElement(['projects', 'tasks', 'risks', 'dashboard', 'reports']),
-            'request_method'  => 'GET',
-            'user_id'         => null,
-            'is_slow'         => $this->faker->boolean(80),
-            'is_critical'     => $this->faker->boolean(20),
-            'captured_at'     => $this->faker->dateTimeBetween('-7 days', 'now'),
+            'caller' => '/app/'.$this->faker->randomElement(['Http/Controllers', 'Models', 'Services', 'Livewire']).'/'.
+                                $this->faker->word().'.php:'.$this->faker->numberBetween(10, 200),
+            'request_uri' => '/'.$this->faker->randomElement(['projects', 'tasks', 'risks', 'dashboard', 'reports']),
+            'request_method' => 'GET',
+            'user_id' => null,
+            'is_slow' => $this->faker->boolean(80),
+            'is_critical' => $this->faker->boolean(20),
+            'captured_at' => $this->faker->dateTimeBetween('-7 days', 'now'),
         ];
     }
 
     public function slow(): static
     {
-        return $this->state(fn(array $attrs) => [
-            'time'        => $this->faker->randomFloat(2, 500, 999),
-            'is_slow'     => true,
+        return $this->state(fn (array $attrs) => [
+            'time' => $this->faker->randomFloat(2, 500, 999),
+            'is_slow' => true,
             'is_critical' => false,
         ]);
     }
 
     public function critical(): static
     {
-        return $this->state(fn(array $attrs) => [
-            'time'        => $this->faker->randomFloat(2, 1000, 5000),
-            'is_slow'     => true,
+        return $this->state(fn (array $attrs) => [
+            'time' => $this->faker->randomFloat(2, 1000, 5000),
+            'is_slow' => true,
             'is_critical' => true,
         ]);
     }

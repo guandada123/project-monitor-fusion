@@ -33,11 +33,11 @@ class BoardController extends Controller
         return ApiResponse::success([
             'columns' => $board,
             'statuses' => [
-                'todo'        => '待办',
+                'todo' => '待办',
                 'in_progress' => '进行中',
-                'review'      => '审核中',
-                'done'        => '已完成',
-                'blocked'     => '已阻塞',
+                'review' => '审核中',
+                'done' => '已完成',
+                'blocked' => '已阻塞',
             ],
         ]);
     }
@@ -46,13 +46,14 @@ class BoardController extends Controller
      * 更新看板任务（拖拽更新状态/排序）
      *
      * @urlParam task int required 任务 ID
+     *
      * @bodyParam status string target status (todo/in_progress/review/done/blocked)
      * @bodyParam sort_order int 排序值
      */
     public function updateTask(Request $request, Task $task): JsonResponse
     {
         $validated = $request->validate([
-            'status'     => 'nullable|string|in:todo,in_progress,review,done,blocked',
+            'status' => 'nullable|string|in:todo,in_progress,review,done,blocked',
             'sort_order' => 'nullable|integer|min:0',
         ]);
 

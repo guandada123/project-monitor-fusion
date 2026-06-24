@@ -2,22 +2,22 @@
 
 use App\Models\SlowQuery;
 use App\Services\SlowQueryMonitor;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 // ─── SlowQuery Model ───
 
 describe('SlowQuery model', function () {
     it('can create a slow query record', function () {
         $sq = SlowQuery::create([
-            'query'           => 'SELECT * FROM projects WHERE id = ?',
-            'bindings'        => [1],
-            'time'            => 523.45,
+            'query' => 'SELECT * FROM projects WHERE id = ?',
+            'bindings' => [1],
+            'time' => 523.45,
             'connection_name' => 'pgsql',
-            'caller'          => '/app/Http/Controllers/ProjectController.php:42',
-            'is_slow'         => true,
-            'is_critical'     => false,
-            'captured_at'     => now(),
+            'caller' => '/app/Http/Controllers/ProjectController.php:42',
+            'is_slow' => true,
+            'is_critical' => false,
+            'captured_at' => now(),
         ]);
 
         expect($sq->id)->toBeNumeric();
@@ -69,10 +69,10 @@ describe('SlowQueryMonitor', function () {
     it('persists slow queries to database', function () {
         // Simulate a DB::listen callback
         $mockQuery = (object) [
-            'sql'             => 'SELECT COUNT(*) FROM projects',
-            'bindings'        => [],
-            'time'            => 523,
-            'connectionName'  => 'pgsql',
+            'sql' => 'SELECT COUNT(*) FROM projects',
+            'bindings' => [],
+            'time' => 523,
+            'connectionName' => 'pgsql',
         ];
 
         // Manually trigger the monitor's boot callback
@@ -90,5 +90,5 @@ it('factory generates valid slow query', function () {
 
     expect($sq->query)->not->toBeEmpty();
     expect($sq->time)->toBeGreaterThanOrEqual(100);
-    expect($sq->captured_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class);
+    expect($sq->captured_at)->toBeInstanceOf(Carbon::class);
 });

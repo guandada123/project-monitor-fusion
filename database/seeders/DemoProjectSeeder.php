@@ -24,8 +24,8 @@ class DemoProjectSeeder extends Seeder
         $demoAdmin = User::firstOrCreate(
             ['email' => 'admin@demo.com'],
             [
-                'name'              => '演示管理员',
-                'password'          => bcrypt('demo1234'),
+                'name' => '演示管理员',
+                'password' => bcrypt('demo1234'),
                 'email_verified_at' => now(),
             ]
         );
@@ -36,8 +36,8 @@ class DemoProjectSeeder extends Seeder
         $manager1 = User::firstOrCreate(
             ['email' => 'zhangsan@demo.com'],
             [
-                'name'              => '张三（项目经理）',
-                'password'          => bcrypt('demo1234'),
+                'name' => '张三（项目经理）',
+                'password' => bcrypt('demo1234'),
                 'email_verified_at' => now(),
             ]
         );
@@ -48,8 +48,8 @@ class DemoProjectSeeder extends Seeder
         $manager2 = User::firstOrCreate(
             ['email' => 'lisi@demo.com'],
             [
-                'name'              => '李四（研发经理）',
-                'password'          => bcrypt('demo1234'),
+                'name' => '李四（研发经理）',
+                'password' => bcrypt('demo1234'),
                 'email_verified_at' => now(),
             ]
         );
@@ -60,8 +60,8 @@ class DemoProjectSeeder extends Seeder
         $viewer = User::firstOrCreate(
             ['email' => 'wangwu@demo.com'],
             [
-                'name'              => '王五（观察者）',
-                'password'          => bcrypt('demo1234'),
+                'name' => '王五（观察者）',
+                'password' => bcrypt('demo1234'),
                 'email_verified_at' => now(),
             ]
         );
@@ -75,43 +75,43 @@ class DemoProjectSeeder extends Seeder
 
         $projectsData = [
             [
-                'name'        => '电商平台重构 v3.0',
-                'slug'        => 'ecommerce-v3',
-                'source'      => 'manual',
-                'status'      => 'active',
+                'name' => '电商平台重构 v3.0',
+                'slug' => 'ecommerce-v3',
+                'source' => 'manual',
+                'status' => 'active',
                 'description' => '基于微服务架构重构现有电商平台，包括订单系统、支付网关、商品服务三个核心模块的重写。目标是将单体应用拆分为 6 个独立服务。',
-                'start_at'    => now()->subDays(30),
-                'end_at'      => now()->addDays(60),
-                'owner_id'    => $manager1->id,
-                'meta'        => ['priority' => 'high', 'team_size' => 8, 'stack' => 'Laravel+Vue+PostgreSQL'],
-                'tags'        => ['重构', '微服务', '电商'],
-                'config'      => ['github_repo' => 'org/ecommerce-v3', 'slack_channel' => '#proj-ecom'],
+                'start_at' => now()->subDays(30),
+                'end_at' => now()->addDays(60),
+                'owner_id' => $manager1->id,
+                'meta' => ['priority' => 'high', 'team_size' => 8, 'stack' => 'Laravel+Vue+PostgreSQL'],
+                'tags' => ['重构', '微服务', '电商'],
+                'config' => ['github_repo' => 'org/ecommerce-v3', 'slack_channel' => '#proj-ecom'],
             ],
             [
-                'name'        => '内部数据分析平台',
-                'slug'        => 'analytics-platform',
-                'source'      => 'github',
-                'status'      => 'active',
+                'name' => '内部数据分析平台',
+                'slug' => 'analytics-platform',
+                'source' => 'github',
+                'status' => 'active',
                 'description' => '为公司搭建统一的数据分析平台，支持实时 BI 报表、自定义看板和自动化报告推送。对接销售、运营、财务三个数据源。',
-                'start_at'    => now()->subDays(14),
-                'end_at'      => now()->addDays(90),
-                'owner_id'    => $manager2->id,
-                'meta'        => ['priority' => 'medium', 'team_size' => 5, 'stack' => 'Python+FastAPI+React'],
-                'tags'        => ['数据分析', 'BI', '看板'],
-                'config'      => ['github_repo' => 'org/analytics-platform'],
+                'start_at' => now()->subDays(14),
+                'end_at' => now()->addDays(90),
+                'owner_id' => $manager2->id,
+                'meta' => ['priority' => 'medium', 'team_size' => 5, 'stack' => 'Python+FastAPI+React'],
+                'tags' => ['数据分析', 'BI', '看板'],
+                'config' => ['github_repo' => 'org/analytics-platform'],
             ],
             [
-                'name'        => '运维监控告警系统',
-                'slug'        => 'ops-monitor',
-                'source'      => 'manual',
-                'status'      => 'planning',
+                'name' => '运维监控告警系统',
+                'slug' => 'ops-monitor',
+                'source' => 'manual',
+                'status' => 'planning',
                 'description' => '统一监控告警平台，聚合服务器、容器、数据库、网络设备的监控指标，支持多级告警策略和飞书/钉钉/邮件多渠道推送。',
-                'start_at'    => now()->addDays(7),
-                'end_at'      => now()->addDays(120),
-                'owner_id'    => $demoAdmin->id,
-                'meta'        => ['priority' => 'low', 'team_size' => 3, 'stack' => 'Go+Prometheus+Grafana'],
-                'tags'        => ['运维', '监控', '告警'],
-                'config'      => ['slack_channel' => '#proj-ops'],
+                'start_at' => now()->addDays(7),
+                'end_at' => now()->addDays(120),
+                'owner_id' => $demoAdmin->id,
+                'meta' => ['priority' => 'low', 'team_size' => 3, 'stack' => 'Go+Prometheus+Grafana'],
+                'tags' => ['运维', '监控', '告警'],
+                'config' => ['slack_channel' => '#proj-ops'],
             ],
         ];
 
@@ -151,7 +151,7 @@ class DemoProjectSeeder extends Seeder
             ['title' => '告警规则引擎设计', 'status' => 'todo',              'priority' => 'high',   'estimate' => 5.0, 'spent' => 0, 'assignee_id' => null,            'start_at' => now()->addDays(20), 'due_at' => now()->addDays(45),  'tags' => ['架构']],
             ['title' => '飞书/钉钉多渠道推送适配', 'status' => 'todo',       'priority' => 'medium', 'estimate' => 3.0, 'spent' => 0, 'assignee_id' => null,            'start_at' => now()->addDays(35), 'due_at' => now()->addDays(60),  'tags' => ['集成']],
             ['title' => 'Grafana Dashboard 模版制作', 'status' => 'todo',   'priority' => 'medium', 'estimate' => 4.0, 'spent' => 0, 'assignee_id' => null,            'start_at' => now()->addDays(45), 'due_at' => now()->addDays(70),  'tags' => ['可视化']],
-            ['title' => 'POC 演示环境搭建', 'status' => 'todo',              'priority' => 'critical','estimate' => 3.0, 'spent' => 0, 'assignee_id' => $demoAdmin->id, 'start_at' => now()->addDays(7),  'due_at' => now()->addDays(21),  'tags' => ['DevOps']],
+            ['title' => 'POC 演示环境搭建', 'status' => 'todo',              'priority' => 'critical', 'estimate' => 3.0, 'spent' => 0, 'assignee_id' => $demoAdmin->id, 'start_at' => now()->addDays(7),  'due_at' => now()->addDays(21),  'tags' => ['DevOps']],
         ];
 
         $taskMap = [
@@ -174,9 +174,9 @@ class DemoProjectSeeder extends Seeder
         foreach ($createdTasks as $task) {
             if ($task->assignee_id) {
                 Assignment::create([
-                    'task_id'           => $task->id,
-                    'user_id'           => $task->assignee_id,
-                    'role'              => $assignmentRoles[array_rand($assignmentRoles)],
+                    'task_id' => $task->id,
+                    'user_id' => $task->assignee_id,
+                    'role' => $assignmentRoles[array_rand($assignmentRoles)],
                     'allocation_percent' => rand(30, 100),
                 ]);
             }
@@ -197,51 +197,51 @@ class DemoProjectSeeder extends Seeder
         $risksData = [
             [
                 'project_id' => $projects[0]->id,
-                'severity'   => 'critical',
-                'rule_key'   => 'deadline_slip',
-                'title'      => '支付网关对接依赖第三方审批，可能延期 2 周',
-                'detail'     => '微信支付和支付宝的商户号审批流程预计需要 10-15 个工作日，当前尚未提交申请。如果继续延迟，将阻塞 API 对接任务。',
-                'status'     => 'open',
+                'severity' => 'critical',
+                'rule_key' => 'deadline_slip',
+                'title' => '支付网关对接依赖第三方审批，可能延期 2 周',
+                'detail' => '微信支付和支付宝的商户号审批流程预计需要 10-15 个工作日，当前尚未提交申请。如果继续延迟，将阻塞 API 对接任务。',
+                'status' => 'open',
                 'occurrence_count' => 1,
                 'suggestion' => '立即提交商户号申请，同时准备沙箱环境先行联调',
             ],
             [
                 'project_id' => $projects[0]->id,
-                'severity'   => 'high',
-                'rule_key'   => 'resource_bottleneck',
-                'title'      => '订单服务数据库连接池不足',
-                'detail'     => '当前连接池配置最大 50 连接，预计拆分后 QPS 增长 3 倍，需提前扩容或引入连接池中间件。',
-                'status'     => 'open',
+                'severity' => 'high',
+                'rule_key' => 'resource_bottleneck',
+                'title' => '订单服务数据库连接池不足',
+                'detail' => '当前连接池配置最大 50 连接，预计拆分后 QPS 增长 3 倍，需提前扩容或引入连接池中间件。',
+                'status' => 'open',
                 'occurrence_count' => 2,
                 'suggestion' => '增加连接池到 100，评估是否需要 PgBouncer 中间件',
             ],
             [
                 'project_id' => $projects[0]->id,
-                'severity'   => 'medium',
-                'rule_key'   => 'tech_debt',
-                'title'      => '旧系统数据迁移方案未确定',
-                'detail'     => '电商平台现有 200 万订单记录，停服迁移预计需要 4 小时窗口，业务方尚未批复。',
-                'status'     => 'open',
+                'severity' => 'medium',
+                'rule_key' => 'tech_debt',
+                'title' => '旧系统数据迁移方案未确定',
+                'detail' => '电商平台现有 200 万订单记录，停服迁移预计需要 4 小时窗口，业务方尚未批复。',
+                'status' => 'open',
                 'occurrence_count' => 1,
                 'suggestion' => '制定灰度迁移方案，先迁移 30% 流量观察 1 周',
             ],
             [
                 'project_id' => $projects[1]->id,
-                'severity'   => 'high',
-                'rule_key'   => 'data_quality',
-                'title'      => '销售数据源存在字段定义不一致',
-                'detail'     => 'CRM 系统与 ERP 系统中"订单金额"字段定义不同（含税/不含税），ETL 管道需做数据清洗映射。',
-                'status'     => 'acknowledged',
+                'severity' => 'high',
+                'rule_key' => 'data_quality',
+                'title' => '销售数据源存在字段定义不一致',
+                'detail' => 'CRM 系统与 ERP 系统中"订单金额"字段定义不同（含税/不含税），ETL 管道需做数据清洗映射。',
+                'status' => 'acknowledged',
                 'occurrence_count' => 3,
                 'suggestion' => '与业务方确认统一字段定义，ETL 中加入转换层',
             ],
             [
                 'project_id' => $projects[2]->id,
-                'severity'   => 'medium',
-                'rule_key'   => 'scope_creep',
-                'title'      => '监控指标范围不断扩展，超出 MVP 边界',
-                'detail'     => '初始计划覆盖 30 个指标，现已扩展至 60+，影响项目排期。需冻结 MVP 范围。',
-                'status'     => 'open',
+                'severity' => 'medium',
+                'rule_key' => 'scope_creep',
+                'title' => '监控指标范围不断扩展，超出 MVP 边界',
+                'detail' => '初始计划覆盖 30 个指标，现已扩展至 60+，影响项目排期。需冻结 MVP 范围。',
+                'status' => 'open',
                 'occurrence_count' => 1,
                 'suggestion' => '组织范围冻结会议，MVP 后剩余指标放入 V2',
             ],
@@ -250,7 +250,7 @@ class DemoProjectSeeder extends Seeder
         foreach ($risksData as $r) {
             Risk::create(array_merge($r, [
                 'first_seen_at' => now()->subDays(rand(5, 20)),
-                'last_seen_at'  => now()->subDays(rand(0, 3)),
+                'last_seen_at' => now()->subDays(rand(0, 3)),
             ]));
         }
 
@@ -269,12 +269,12 @@ class DemoProjectSeeder extends Seeder
 
         foreach ($projects as $project) {
             foreach ($defaultMetrics as $m) {
-                $prefixedKey = $project->slug . '-' . $m['key'];
+                $prefixedKey = $project->slug.'-'.$m['key'];
                 $metric = Metric::firstOrCreate([
                     'key' => $prefixedKey,
                 ], array_merge($m, [
                     'project_id' => $project->id,
-                    'key'        => $prefixedKey,
+                    'key' => $prefixedKey,
                     'current_value' => round(mt_rand(50, 100) + mt_rand(0, 99) / 100, 2),
                     'last_computed_at' => now()->subHours(rand(1, 12)),
                 ]));
@@ -282,8 +282,8 @@ class DemoProjectSeeder extends Seeder
                 // 7 天历史快照
                 for ($d = 7; $d >= 0; $d--) {
                     MetricSnapshot::create([
-                        'metric_id'   => $metric->id,
-                        'value'       => round(mt_rand(40, 100) + mt_rand(0, 99) / 100, 2),
+                        'metric_id' => $metric->id,
+                        'value' => round(mt_rand(40, 100) + mt_rand(0, 99) / 100, 2),
                         'captured_at' => now()->subDays($d)->setTime(rand(8, 18), rand(0, 59)),
                     ]);
                 }

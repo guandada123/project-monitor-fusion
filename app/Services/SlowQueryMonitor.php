@@ -51,11 +51,11 @@ class SlowQueryMonitor
 
         // 1. 记录日志
         $context = [
-            'sql'       => $query->sql,
-            'bindings'  => $bindings,
+            'sql' => $query->sql,
+            'bindings' => $bindings,
             'duration_ms' => $query->time,
             'connection' => $query->connectionName,
-            'caller'    => $caller,
+            'caller' => $caller,
         ];
 
         Log::warning(
@@ -66,17 +66,17 @@ class SlowQueryMonitor
         // 2. 持久化到数据库
         try {
             SlowQuery::create([
-                'query'           => $query->sql,
-                'bindings'        => $bindings,
-                'time'            => $query->time,
+                'query' => $query->sql,
+                'bindings' => $bindings,
+                'time' => $query->time,
                 'connection_name' => $query->connectionName,
-                'caller'          => $caller,
-                'request_uri'     => Request::path(),
-                'request_method'  => Request::method(),
-                'user_id'         => auth()->id(),
-                'is_slow'         => $isSlow,
-                'is_critical'     => $isCritical,
-                'captured_at'     => now(),
+                'caller' => $caller,
+                'request_uri' => Request::path(),
+                'request_method' => Request::method(),
+                'user_id' => auth()->id(),
+                'is_slow' => $isSlow,
+                'is_critical' => $isCritical,
+                'captured_at' => now(),
             ]);
         } catch (\Throwable $e) {
             Log::error('慢查询持久化失败', ['error' => $e->getMessage()]);
@@ -95,7 +95,7 @@ class SlowQueryMonitor
     {
         try {
             $feishu = app(FeishuService::class);
-            if (!$feishu->isConfigured()) {
+            if (! $feishu->isConfigured()) {
                 return;
             }
 
@@ -120,10 +120,11 @@ class SlowQueryMonitor
     {
         $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 30);
         foreach ($trace as $frame) {
-            if (isset($frame['file']) && !str_contains($frame['file'], '/vendor/')) {
+            if (isset($frame['file']) && ! str_contains($frame['file'], '/vendor/')) {
                 return sprintf('%s:%d', $frame['file'], $frame['line']);
             }
         }
+
         return null;
     }
 
@@ -133,7 +134,7 @@ class SlowQueryMonitor
     protected function truncateSql(string $sql, int $maxLen = 500): string
     {
         return mb_strlen($sql) > $maxLen
-            ? mb_substr($sql, 0, $maxLen) . '...'
+            ? mb_substr($sql, 0, $maxLen).'...'
             : $sql;
     }
 }

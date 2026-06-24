@@ -5,9 +5,9 @@ namespace App\Services;
 use App\Models\Metric;
 use App\Models\MetricSnapshot;
 use App\Models\Project;
-use App\Models\Task;
 use App\Models\Risk;
-use Carbon\Carbon;
+use App\Models\Task;
+use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
 
 /**
  * 指标计算引擎 — 根据 definition JSON 计算自定义指标值
@@ -22,6 +22,7 @@ use Carbon\Carbon;
  */
 class MetricEngine
 {
+    private ?ExpressionLanguage $expressionLanguage = null;
     /**
      * 计算单个指标并返回结果。
      */
@@ -30,13 +31,13 @@ class MetricEngine
         $def = $metric->definition ?: [];
 
         return match ($def['type'] ?? 'count_tasks') {
-            'count_tasks'      => $this->countTasks($project, $def),
-            'count_risks'      => $this->countRisks($project, $def),
-            'completion_rate'  => $this->completionRate($project, $def),
-            'wip_count'        => $this->wipCount($project, $def),
-            'cycle_days'       => $this->cycleDays($project, $def),
-            'formula'          => $this->formula($project, $def),
-            default            => $this->countTasks($project, $def),
+            'count_tasks' => $this->countTasks($project, $def),
+            'count_risks' => $this->countRisks($project, $def),
+            'completion_rate' => $this->completionRate($project, $def),
+            'wip_count' => $this->wipCount($project, $def),
+            'cycle_days' => $this->cycleDays($project, $def),
+            'formula' => $this->formula($project, $def),
+            default => $this->countTasks($project, $def),
         };
     }
 
@@ -53,15 +54,15 @@ class MetricEngine
 
             // 写入快照
             MetricSnapshot::create([
-                'metric_id'   => $metric->id,
+                'metric_id' => $metric->id,
                 'captured_at' => now(),
-                'value'       => $value,
+                'value' => $value,
             ]);
 
             // 更新指标当前值
             $metric->update([
                 'current_json_value' => $value,
-                'last_computed_at'   => now(),
+                'last_computed_at' => now(),
             ]);
 
             $results[$metric->key] = $value;
@@ -94,19 +95,19 @@ class MetricEngine
 
         $query = Task::where('project_id', $project->id);
 
-        if (!empty($statuses)) {
+        if (! empty($statuses)) {
             $query->whereIn('status', $statuses);
         }
-        if (!empty($priorities)) {
+        if (! empty($priorities)) {
             $query->whereIn('priority', $priorities);
         }
 
         $count = $query->count();
 
         return [
-            'value'   => $count,
-            'label'   => $def['label'] ?? '任务数',
-            'unit'    => '个',
+            'value' => $count,
+            'label' => $def['label'] ?? '任务数',
+            'unit' => '个',
         ];
     }
 
@@ -117,16 +118,16 @@ class MetricEngine
 
         $query = Risk::where('project_id', $project->id)->whereIn('status', $statuses);
 
-        if (!empty($severities)) {
+        if (! empty($severities)) {
             $query->whereIn('severity', $severities);
         }
 
         $count = $query->count();
 
         return [
-            'value'   => $count,
-            'label'   => $def['label'] ?? '风险数',
-            'unit'    => '个',
+            'value' => $count,
+            'label' => $def['label'] ?? '风险数',
+            'unit' => '个',
         ];
     }
 
@@ -146,10 +147,10 @@ class MetricEngine
         $rate = round(($done / $total) * 100, 1);
 
         return [
-            'value'   => $rate,
-            'label'   => $def['label'] ?? '完成率',
-            'unit'    => '%',
-            'detail'  => "{$done}/{$total}",
+            'value' => $rate,
+            'label' => $def['label'] ?? '完成率',
+            'unit' => '%',
+            'detail' => "{$done}/{$total}",
         ];
     }
 
@@ -161,9 +162,9 @@ class MetricEngine
             ->count();
 
         return [
-            'value'   => $count,
-            'label'   => $def['label'] ?? '在制品',
-            'unit'    => '个',
+            'value' => $count,
+            'label' => $def['label'] ?? '在制品',
+            'unit' => '个',
         ];
     }
 
@@ -181,15 +182,32 @@ class MetricEngine
         }
 
         $avgDays = round(
-            $tasks->avg(fn(Task $t) => $t->start_at->diffInDays($t->completed_at ?: now())),
+            $tasks->avg(fn (Task $t) => $t->start_at->diffInDays($t->completed_at ?: now())),
             1
         );
 
         return [
-            'value'   => $avgDays,
-            'label'   => $def['label'] ?? '平均周期',
-            'unit'    => '天',
+            'value' => $avgDays,
+            'label' => $def['label'] ?? '平均周期',
+            'unit' => '天',
         ];
+    }
+
+    private function getExpressionLanguage(): ExpressionLanguage
+    {
+        if ($this->expressionLanguage === null) {
+            $language = new ExpressionLanguage();
+
+            // 注册 mod(a, b) 函数 — 兼容之前的 % 取模运算符
+            $language->register('mod',
+                fn ($a, $b) => sprintf('(%s %% %s)', $a, $b),
+                fn (array $arguments, $a, $b) => $a % $b,
+            );
+
+            $this->expressionLanguage = $language;
+        }
+
+        return $this->expressionLanguage;
     }
 
     private function formula(Project $project, array $def): array
@@ -205,27 +223,35 @@ class MetricEngine
             $vars[$key] = $result['value'] ?? 0;
         }
 
-        // 简单算术替换 — 安全执行
-        $evalExpr = $expression;
+        // {key} → value 替换（向后兼容）
+        $parsedExpr = $expression;
         foreach ($vars as $k => $v) {
-            $evalExpr = str_replace('{' . $k . '}', (string) $v, $evalExpr);
+            $parsedExpr = str_replace('{'.$k.'}', (string) $v, $parsedExpr);
         }
 
-        // 仅允许数字/运算符/括号/空格
-        if (!preg_match('/^[\d\s+\-*\/().%]+$/', $evalExpr)) {
-            return ['value' => 0, 'label' => $def['label'] ?? '公式结果', 'unit' => '', 'error' => '非法公式'];
+        // 将简单 % 取模自动转换为 mod() 函数调用（ExpressionLanguage 不支持 % 运算符）
+        $parsedExpr = preg_replace(
+            '/(\d+(?:\.\d+)?)\s*%\s*(\d+(?:\.\d+)?)/',
+            'mod($1, $2)',
+            $parsedExpr,
+        );
+
+        // 检查是否有未转换的 %（复杂表达式场景，引导用户改用 mod()）
+        if (str_contains($parsedExpr, '%')) {
+            return ['value' => 0, 'label' => $def['label'] ?? '公式结果', 'unit' => '', 'error' => '公式包含不兼容的 % 运算符，请改用 mod(a, b) 函数'];
         }
 
         try {
-            $value = round((float) eval("return {$evalExpr};"), 2);
+            $language = $this->getExpressionLanguage();
+            $value = round((float) $language->evaluate($parsedExpr), 2);
         } catch (\Throwable) {
             return ['value' => 0, 'label' => $def['label'] ?? '公式结果', 'unit' => '', 'error' => '计算错误'];
         }
 
         return [
-            'value'   => $value,
-            'label'   => $def['label'] ?? '公式结果',
-            'unit'    => $def['unit'] ?? '',
+            'value' => $value,
+            'label' => $def['label'] ?? '公式结果',
+            'unit' => $def['unit'] ?? '',
         ];
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Risk;
 use App\Models\User;
 use App\Notifications\DailyReportNotification;
 use App\Notifications\RiskAlertNotification;
@@ -27,14 +28,14 @@ class DailyReportCommand extends Command
 
         // 1. 先执行风险扫描
         $this->info('🔍 执行风险扫描...');
-        $detector = new RiskDetector();
+        $detector = new RiskDetector;
         $scanResult = $detector->scanAll();
         $this->line("  新增: {$scanResult['new']} | 更新: {$scanResult['updated']} | 已解决: {$scanResult['resolved']}");
 
         // ── 站内通知：风险扫描结果 ──
         if ($scanResult['new'] > 0) {
-            $users = User::whereHas('roles', fn($q) => $q->whereIn('slug', ['admin', 'manager']))->get();
-            $newRisks = \App\Models\Risk::where('created_at', '>=', now()->subMinutes(5))
+            $users = User::whereHas('roles', fn ($q) => $q->whereIn('slug', ['admin', 'manager']))->get();
+            $newRisks = Risk::where('created_at', '>=', now()->subMinutes(5))
                 ->where('status', 'open')
                 ->get();
             foreach ($users as $user) {
@@ -72,7 +73,7 @@ class DailyReportCommand extends Command
         }
 
         // 4. 风险预警
-        if (!empty($report['risks'])) {
+        if (! empty($report['risks'])) {
             $this->warn('⚠️ 风险预警：');
             foreach ($report['risks'] as $r) {
                 $sev = ['critical' => '<error>严重</error>', 'high' => '<fg=red>高</>', 'medium' => '<fg=yellow>中</>', 'low' => '<fg=green>低</>'][$r['severity']] ?? '未知';
@@ -81,7 +82,7 @@ class DailyReportCommand extends Command
         }
 
         // ── 站内通知：日报推送 ──
-        $users = User::whereHas('roles', fn($q) => $q->whereIn('slug', ['admin', 'manager']))->get();
+        $users = User::whereHas('roles', fn ($q) => $q->whereIn('slug', ['admin', 'manager']))->get();
         foreach ($users as $user) {
             $user->notify(new DailyReportNotification($report['summary']));
         }
@@ -92,12 +93,12 @@ class DailyReportCommand extends Command
             $this->line(json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
         } else {
             $md = $reportService->toMarkdown($report);
-            $this->line("\n" . $md);
+            $this->line("\n".$md);
         }
 
         // 6. 推送到飞书
-        if (!$this->option('no-push')) {
-            $feishu = new FeishuService();
+        if (! $this->option('no-push')) {
+            $feishu = new FeishuService;
             if ($feishu->shouldSendDaily()) {
                 $this->info('📤 推送飞书日报...');
                 $card = $feishu->buildDailyCard($report);
@@ -106,7 +107,7 @@ class DailyReportCommand extends Command
                 if ($result['ok']) {
                     $this->info('✅ 飞书推送成功');
                 } else {
-                    $this->error('❌ 飞书推送失败：' . ($result['error'] ?? '未知错误'));
+                    $this->error('❌ 飞书推送失败：'.($result['error'] ?? '未知错误'));
                     $this->line('  提示：请在系统设置中配置飞书 Webhook URL');
                 }
             } else {
@@ -115,6 +116,7 @@ class DailyReportCommand extends Command
         }
 
         $this->info('✅ 日报生成完成');
+
         return self::SUCCESS;
     }
 }

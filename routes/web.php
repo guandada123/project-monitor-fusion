@@ -1,5 +1,10 @@
 <?php
 
+use App\Http\Controllers\LogoutController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\Webhook\GitHubWebhookController;
+use App\Http\Middleware\VerifyCsrfToken;
+use App\Livewire\AggregateView;
 use App\Livewire\Auth\Login;
 use App\Livewire\Dashboard;
 use App\Livewire\IntegrationManager;
@@ -9,26 +14,24 @@ use App\Livewire\ProjectCompare;
 use App\Livewire\ProjectDetail;
 use App\Livewire\ProjectList;
 use App\Livewire\ProjectReport;
-use App\Livewire\AggregateView;
 use App\Livewire\ReportCenter;
 use App\Livewire\ResourceView;
 use App\Livewire\RiskManager;
+use App\Livewire\RoleManager;
+use App\Livewire\Settings;
 use App\Livewire\SlowQueryMonitor;
 use App\Livewire\TaskBoard;
-use App\Livewire\RoleManager;
-use App\Http\Controllers\LogoutController;
-use App\Http\Controllers\ReportController;
-use App\Http\Controllers\Webhook\GitHubWebhookController;
-use App\Livewire\Settings;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
-Route::get('/welcome', fn() => view('welcome'))->name('welcome');
+Route::get('/welcome', fn () => view('welcome'))->name('welcome');
 
 // Webhook (public — HMAC-signed, no CSRF)
 Route::post('/webhook/github', GitHubWebhookController::class)
     ->name('webhook.github')
-    ->withoutMiddleware(\App\Http\Middleware\VerifyCsrfToken::class);
+    ->withoutMiddleware(VerifyCsrfToken::class);
 
 // Guest routes
 Route::middleware('guest')->group(function () {
@@ -130,12 +133,22 @@ Route::post('/logout', LogoutController::class)
     ->name('logout');
 
 // Dusk 浏览器测试登录路由
-Route::get('/dusk/login/{userId}', function (int $userId, \Illuminate\Http\Request $request) {
+Route::get('/dusk/login/{userId}', function (int $userId, Request $request) {
     if ($request->has('guard')) {
-        \Illuminate\Support\Facades\Auth::guard($request->guard)->loginUsingId($userId);
+        Auth::guard($request->guard)->loginUsingId($userId);
     } else {
-        \Illuminate\Support\Facades\Auth::loginUsingId($userId);
+        Auth::loginUsingId($userId);
     }
 
     return redirect('/');
 })->middleware('web')->name('dusk.login');
+
+// Dusk loginAs() 兼容路由（带下划线前缀，与 Dusk 内置调用一致）
+Route::get('/_dusk/login/{userId}', function (int $userId, Request $request) {
+    if ($request->has('guard')) {
+        Auth::guard($request->guard)->loginUsingId($userId);
+    } else {
+        Auth::loginUsingId($userId);
+    }
+    return redirect('/');
+})->middleware('web');

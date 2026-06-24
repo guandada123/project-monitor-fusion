@@ -1,15 +1,16 @@
 <?php
 
-use App\Models\User;
+use App\Livewire\RiskManager;
+use App\Models\Assignment;
 use App\Models\Project;
 use App\Models\Risk;
 use App\Models\Task;
-use App\Models\Assignment;
+use App\Models\User;
 use App\Services\RiskDetector;
 use App\Services\RiskSuggestionService;
-use App\Livewire\RiskManager;
-use Livewire\Livewire;
 use Illuminate\Support\Facades\DB;
+use Livewire\Livewire;
+
 use function Pest\Laravel\get;
 
 // ─────────────────────────────────────────────

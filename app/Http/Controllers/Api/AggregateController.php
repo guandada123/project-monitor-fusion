@@ -70,29 +70,29 @@ class AggregateController extends Controller
         return ApiResponse::success([
             'projects' => [
                 'total' => $projects->count(),
-                'list'  => $projects->map(fn ($p) => [
-                    'id'         => $p->id,
-                    'name'       => $p->name,
-                    'slug'       => $p->slug,
-                    'status'     => $p->status,
-                    'source'     => $p->source,
+                'list' => $projects->map(fn ($p) => [
+                    'id' => $p->id,
+                    'name' => $p->name,
+                    'slug' => $p->slug,
+                    'status' => $p->status,
+                    'source' => $p->source,
                     'task_count' => $p->tasks_count,
                     'risk_count' => $p->risks_count,
                 ]),
             ],
             'tasks' => [
-                'total'           => $totalTasks,
-                'done'            => $doneTasks,
-                'in_progress'     => (int) ($taskStats->in_progress_count ?? 0),
-                'todo'            => (int) ($taskStats->todo_count ?? 0),
-                'blocked'         => (int) ($taskStats->blocked_count ?? 0),
+                'total' => $totalTasks,
+                'done' => $doneTasks,
+                'in_progress' => (int) ($taskStats->in_progress_count ?? 0),
+                'todo' => (int) ($taskStats->todo_count ?? 0),
+                'blocked' => (int) ($taskStats->blocked_count ?? 0),
                 'completion_rate' => $completionRate,
             ],
             'risks' => [
-                'total'    => (int) ($riskStats->total ?? 0),
+                'total' => (int) ($riskStats->total ?? 0),
                 'critical' => (int) ($riskStats->critical_count ?? 0),
-                'high'     => (int) ($riskStats->high_count ?? 0),
-                'open'     => (int) ($riskStats->open_count ?? 0),
+                'high' => (int) ($riskStats->high_count ?? 0),
+                'open' => (int) ($riskStats->open_count ?? 0),
             ],
         ]);
     }

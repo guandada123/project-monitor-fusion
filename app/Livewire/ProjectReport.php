@@ -9,8 +9,11 @@ use Livewire\Component;
 class ProjectReport extends Component
 {
     public string $slug;
+
     public ?string $dateFrom = null;
+
     public ?string $dateTo = null;
+
     public string $dimension = 'progress'; // progress | quality | load
 
     protected $queryString = ['dateFrom', 'dateTo', 'dimension'];
@@ -44,7 +47,7 @@ class ProjectReport extends Component
             $taskQuery->where('created_at', '>=', $this->dateFrom);
         }
         if ($this->dateTo) {
-            $taskQuery->where('created_at', '<=', $this->dateTo . ' 23:59:59');
+            $taskQuery->where('created_at', '<=', $this->dateTo.' 23:59:59');
         }
 
         $allTasks = $project->tasks;
@@ -76,24 +79,24 @@ class ProjectReport extends Component
         $dimensionCharts = $this->buildDimensionCharts($project, $allTasks);
 
         $charts = [
-            'donut'       => ChartSvgService::donutGauge($completion, '完成率'),
-            'kpi_open'    => ChartSvgService::kpiCard('未完成', (string) $openTasks, $openTasks > 0 ? 'up' : 'down', '#ef4444'),
-            'kpi_done'    => ChartSvgService::kpiCard('已完成', (string) $closedTasks, $closedTasks > 0 ? 'up' : 'down', '#10b981'),
-            'kpi_risk'    => ChartSvgService::kpiCard('风险数', (string) $risks->count(), $risks->count() > 0 ? 'up' : 'down', '#f59e0b'),
-            'bars_tasks'  => ChartSvgService::horizontalBars($taskBars),
-            'bars_risks'  => ChartSvgService::horizontalBars($riskBars),
-            'progress'    => ChartSvgService::progressBar($completion, '项目完成率'),
-            'dimension'   => $dimensionCharts,
+            'donut' => ChartSvgService::donutGauge($completion, '完成率'),
+            'kpi_open' => ChartSvgService::kpiCard('未完成', (string) $openTasks, $openTasks > 0 ? 'up' : 'down', '#ef4444'),
+            'kpi_done' => ChartSvgService::kpiCard('已完成', (string) $closedTasks, $closedTasks > 0 ? 'up' : 'down', '#10b981'),
+            'kpi_risk' => ChartSvgService::kpiCard('风险数', (string) $risks->count(), $risks->count() > 0 ? 'up' : 'down', '#f59e0b'),
+            'bars_tasks' => ChartSvgService::horizontalBars($taskBars),
+            'bars_risks' => ChartSvgService::horizontalBars($riskBars),
+            'progress' => ChartSvgService::progressBar($completion, '项目完成率'),
+            'dimension' => $dimensionCharts,
         ];
 
         return [
-            'project'     => $project,
-            'tasks'       => $tasks,
-            'risks'       => $risks,
-            'completion'  => $completion,
-            'openTasks'   => $openTasks,
+            'project' => $project,
+            'tasks' => $tasks,
+            'risks' => $risks,
+            'completion' => $completion,
+            'openTasks' => $openTasks,
             'closedTasks' => $closedTasks,
-            'charts'      => $charts,
+            'charts' => $charts,
             'generatedAt' => now(),
         ];
     }

@@ -13,17 +13,23 @@ class RoleManager extends Component
     use AuthorizesResourceAccess;
 
     public $roles;
+
     public $permissions;
 
     // Form
     public $editingRole = null;
+
     public $formName = '';
+
     public $formSlug = '';
+
     public $formDescription = '';
+
     public $formPermissions = [];
 
     // User assignment
     public $assigningRole = null;
+
     public $assignUserId = '';
 
     // Delete
@@ -33,8 +39,8 @@ class RoleManager extends Component
     public $users;
 
     protected $rules = [
-        'formName'        => 'required|string|max:255',
-        'formSlug'        => 'required|string|max:255|regex:/^[a-z_]+$/',
+        'formName' => 'required|string|max:255',
+        'formSlug' => 'required|string|max:255|regex:/^[a-z_]+$/',
         'formDescription' => 'nullable|string|max:500',
         'formPermissions' => 'array',
     ];
@@ -84,19 +90,20 @@ class RoleManager extends Component
             $this->validateOnly('formSlug');
             if (Role::where('slug', $this->formSlug)->exists()) {
                 $this->addError('formSlug', '该标识已被使用。');
+
                 return;
             }
 
             $role = Role::create([
-                'name'        => $this->formName,
-                'slug'        => $this->formSlug,
+                'name' => $this->formName,
+                'slug' => $this->formSlug,
                 'description' => $this->formDescription,
-                'is_system'   => false,
+                'is_system' => false,
             ]);
         } else {
             $role = Role::findOrFail($this->editingRole);
             $role->update([
-                'name'        => $this->formName,
+                'name' => $this->formName,
                 'description' => $this->formDescription,
             ]);
         }
@@ -125,6 +132,7 @@ class RoleManager extends Component
         if ($role->is_system) {
             session()->flash('error', '系统内置角色不可删除。');
             $this->deletingRole = null;
+
             return;
         }
 

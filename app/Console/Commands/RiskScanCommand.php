@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Risk;
 use App\Models\User;
 use App\Notifications\RiskAlertNotification;
 use App\Services\FeishuService;
@@ -21,7 +22,7 @@ class RiskScanCommand extends Command
     {
         $this->info('🔍 扫描项目风险...');
 
-        $detector = new RiskDetector();
+        $detector = new RiskDetector;
         $result = $detector->scanAll();
 
         $this->table(
@@ -34,7 +35,7 @@ class RiskScanCommand extends Command
         );
 
         // 按规则分类展示
-        if (!empty($result['by_rule'])) {
+        if (! empty($result['by_rule'])) {
             $this->info('按规则分类：');
             foreach ($result['by_rule'] as $rule => $count) {
                 $title = RiskDetector::RULES[$rule]['title'] ?? $rule;
@@ -43,12 +44,12 @@ class RiskScanCommand extends Command
         }
 
         // ── 站内通知 ──
-        if (!$this->option('no-notify') && $result['new'] > 0) {
+        if (! $this->option('no-notify') && $result['new'] > 0) {
             $this->info('🔔 发送站内通知...');
-            $users = User::whereHas('roles', fn($q) => $q->whereIn('slug', ['admin', 'manager']))->get();
+            $users = User::whereHas('roles', fn ($q) => $q->whereIn('slug', ['admin', 'manager']))->get();
 
             // 获取本次新增的风险
-            $newRisks = \App\Models\Risk::where('created_at', '>=', now()->subMinutes(5))
+            $newRisks = Risk::where('created_at', '>=', now()->subMinutes(5))
                 ->where('status', 'open')
                 ->get();
 
@@ -63,10 +64,10 @@ class RiskScanCommand extends Command
         }
 
         // 推送飞书严重风险告警
-        if (!$this->option('no-push')) {
+        if (! $this->option('no-push')) {
             $criticalRisks = $detector->getCriticalRisks();
-            if (!empty($criticalRisks)) {
-                $feishu = new FeishuService();
+            if (! empty($criticalRisks)) {
+                $feishu = new FeishuService;
                 if ($feishu->shouldSendRiskAlert()) {
                     $this->info('📤 推送风险告警...');
                     foreach ($criticalRisks as $risk) {
@@ -84,6 +85,7 @@ class RiskScanCommand extends Command
         }
 
         $this->info('✅ 风险扫描完成');
+
         return self::SUCCESS;
     }
 }

@@ -1,7 +1,8 @@
 <?php
 
-use App\Services\SlowQueryMonitor;
 use App\Models\User;
+use App\Providers\AppServiceProvider;
+use App\Services\SlowQueryMonitor;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -26,7 +27,7 @@ test('slow query monitor does not interfere with normal queries', function () {
 });
 
 test('app service provider boot calls slow query monitor', function () {
-    $provider = new \App\Providers\AppServiceProvider(app());
+    $provider = new AppServiceProvider(app());
 
     // Should not throw
     $provider->boot();
@@ -37,7 +38,7 @@ test('app service provider boot calls slow query monitor', function () {
 // ─── Caller detection ───
 
 test('findCaller returns a non-vendor file path', function () {
-    $monitor = new SlowQueryMonitor();
+    $monitor = new SlowQueryMonitor;
 
     // Use reflection to access protected method
     $refMethod = new ReflectionMethod($monitor, 'findCaller');
@@ -52,7 +53,7 @@ test('findCaller returns a non-vendor file path', function () {
 // ─── SQL truncation ───
 
 test('truncateSql does not truncate short sql', function () {
-    $monitor = new SlowQueryMonitor();
+    $monitor = new SlowQueryMonitor;
     $refMethod = new ReflectionMethod($monitor, 'truncateSql');
     $refMethod->setAccessible(true);
 
@@ -63,14 +64,14 @@ test('truncateSql does not truncate short sql', function () {
 });
 
 test('truncateSql truncates long sql with ellipsis', function () {
-    $monitor = new SlowQueryMonitor();
+    $monitor = new SlowQueryMonitor;
     $refMethod = new ReflectionMethod($monitor, 'truncateSql');
     $refMethod->setAccessible(true);
 
     $sql = str_repeat('x', 1000);
     $result = $refMethod->invoke($monitor, $sql, 20);
 
-    expect($result)->toBe(str_repeat('x', 20) . '...');
+    expect($result)->toBe(str_repeat('x', 20).'...');
     expect(mb_strlen($result))->toBe(23);
 });
 

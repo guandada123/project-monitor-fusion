@@ -2,13 +2,14 @@
 
 namespace Database\Factories;
 
+use App\Models\Assignment;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class AssignmentFactory extends Factory
 {
-    protected $model = \App\Models\Assignment::class;
+    protected $model = Assignment::class;
 
     public function definition(): array
     {

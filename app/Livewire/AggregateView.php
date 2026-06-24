@@ -3,8 +3,8 @@
 namespace App\Livewire;
 
 use App\Models\Project;
-use Livewire\Component;
 use Livewire\Attributes\Url;
+use Livewire\Component;
 
 class AggregateView extends Component
 {
@@ -12,6 +12,7 @@ class AggregateView extends Component
     public string $search = '';
 
     public string $sortField = 'completion_rate';
+
     public string $sortDirection = 'desc';
 
     /** @var array<string, string> */
@@ -21,10 +22,10 @@ class AggregateView extends Component
     {
         $this->sortOptions = [
             'completion_rate' => '完成率',
-            'risks_count'     => '风险数',
-            'tasks_count'     => '任务数',
-            'name'            => '项目名称',
-            'created_at'      => '创建时间',
+            'risks_count' => '风险数',
+            'tasks_count' => '任务数',
+            'name' => '项目名称',
+            'created_at' => '创建时间',
         ];
     }
 
@@ -48,7 +49,7 @@ class AggregateView extends Component
             $search = $this->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
@@ -67,19 +68,20 @@ class AggregateView extends Component
         // Enrich project data for the view
         $enrichedProjects = $projects->map(function ($project) {
             $riskCount = $project->risks->count();
+
             return (object) [
-                'slug'            => $project->slug,
-                'name'            => $project->name,
-                'status'          => $project->status,
-                'source'          => $project->source,
-                'tasks_count'     => $project->tasks->count(),
+                'slug' => $project->slug,
+                'name' => $project->name,
+                'status' => $project->status,
+                'source' => $project->source,
+                'tasks_count' => $project->tasks->count(),
                 'completed_tasks' => $project->tasks->where('status', 'done')->count(),
-                'risks_count'     => $riskCount,
-                'critical_risks'  => $project->risks->where('severity', 'critical')->count(),
-                'high_risks'      => $project->risks->where('severity', 'high')->count(),
+                'risks_count' => $riskCount,
+                'critical_risks' => $project->risks->where('severity', 'critical')->count(),
+                'high_risks' => $project->risks->where('severity', 'high')->count(),
                 'completion_rate' => $project->completion_rate,
-                'health'          => $this->computeHealth($riskCount, $project->completion_rate),
-                'created_at'      => $project->created_at,
+                'health' => $this->computeHealth($riskCount, $project->completion_rate),
+                'created_at' => $project->created_at,
             ];
         });
 
@@ -88,17 +90,18 @@ class AggregateView extends Component
         $sortDir = $this->sortDirection;
         $enrichedProjects = $enrichedProjects->sortBy(function ($p) use ($sortField) {
             $val = $p->$sortField ?? '';
+
             return is_numeric($val) ? (float) $val : strtolower($val);
         }, SORT_REGULAR, $sortDir === 'desc')->values();
 
         return view('livewire.aggregate-view', [
-            'projects'       => $enrichedProjects,
-            'totalProjects'  => $totalProjects,
-            'totalTasks'     => $totalTasks,
+            'projects' => $enrichedProjects,
+            'totalProjects' => $totalProjects,
+            'totalTasks' => $totalTasks,
             'completedTasks' => $completedTasks,
-            'totalRisks'     => $totalRisks,
-            'criticalRisks'  => $criticalRisks,
-            'avgCompletion'  => $avgCompletion,
+            'totalRisks' => $totalRisks,
+            'criticalRisks' => $criticalRisks,
+            'avgCompletion' => $avgCompletion,
         ])->layout('layouts.app')->title('项目聚合视图 — Project Monitor');
     }
 
@@ -110,6 +113,7 @@ class AggregateView extends Component
         if ($riskCount <= 2 || $completionRate >= 50) {
             return 'warning';
         }
+
         return 'critical';
     }
 }

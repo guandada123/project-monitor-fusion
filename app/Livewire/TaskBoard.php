@@ -6,6 +6,7 @@ use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
 use App\Traits\AuthorizesResourceAccess;
+use Illuminate\Database\Eloquent\Collection;
 use Livewire\Component;
 
 class TaskBoard extends Component
@@ -13,8 +14,8 @@ class TaskBoard extends Component
     use AuthorizesResourceAccess;
 
     protected $rules = [
-        'projectId'       => 'nullable|integer|exists:projects,id',
-        'assigneeFilter'  => 'nullable|integer|exists:users,id',
+        'projectId' => 'nullable|integer|exists:projects,id',
+        'assigneeFilter' => 'nullable|integer|exists:users,id',
     ];
 
     public ?int $projectId = null;
@@ -56,8 +57,9 @@ class TaskBoard extends Component
         $this->authorizeResourceAccess('manage_projects', '您没有管理项目任务的权限。');
 
         $validStatuses = ['todo', 'in_progress', 'review', 'done', 'blocked'];
-        if (!in_array($status, $validStatuses)) {
+        if (! in_array($status, $validStatuses)) {
             session()->flash('error', '无效的任务状态');
+
             return;
         }
 
@@ -90,18 +92,18 @@ class TaskBoard extends Component
         $this->columns = [];
 
         foreach ($statuses as $s) {
-            /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\Task> $colTasks */
+            /** @var Collection<int, Task> $colTasks */
             $colTasks = $tasks->where('status', $s)->values();
-            $this->columns[$s] = $colTasks->map(fn (\App\Models\Task $t) => [
-                'id'       => $t->id,
-                'title'    => $t->title,
+            $this->columns[$s] = $colTasks->map(fn (Task $t) => [
+                'id' => $t->id,
+                'title' => $t->title,
                 'priority' => $t->priority,
                 'estimate' => $t->estimate,
-                'spent'    => $t->spent,
-                'due_at'   => $t->due_at?->format('m/d'),
+                'spent' => $t->spent,
+                'due_at' => $t->due_at?->format('m/d'),
                 'is_overdue' => $t->is_overdue,
                 'assignee' => $t->assignee ? [
-                    'id'   => $t->assignee->id,
+                    'id' => $t->assignee->id,
                     'name' => $t->assignee->name,
                 ] : null,
             ])->toArray();

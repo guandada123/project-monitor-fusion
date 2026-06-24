@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,8 +14,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /**
  * @property-read bool          $is_overdue
  * @property-read User|null     $assignee
- * @property-read \Illuminate\Database\Eloquent\Collection<int,User> $assignees
- * @property-read \Carbon\Carbon|null $due_at
+ * @property-read Collection<int,User> $assignees
+ * @property-read Carbon|null $due_at
  * @property-read Project|null  $project
  */
 class Task extends Model

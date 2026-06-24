@@ -2,16 +2,18 @@
 
 namespace Database\Factories;
 
+use App\Models\Metric;
 use App\Models\Project;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class MetricFactory extends Factory
 {
-    protected $model = \App\Models\Metric::class;
+    protected $model = Metric::class;
 
     public function definition(): array
     {
         $key = fake()->unique()->word();
+
         return [
             'project_id' => Project::factory(),
             'key' => $key,

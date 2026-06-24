@@ -2,11 +2,12 @@
 
 namespace Database\Factories;
 
+use App\Models\Permission;
 use App\Models\Role;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Role>
+ * @extends Factory<Role>
  */
 class RoleFactory extends Factory
 {
@@ -28,7 +29,7 @@ class RoleFactory extends Factory
     public function withAllPermissions(): static
     {
         return $this->afterCreating(function (Role $role) {
-            $ids = \App\Models\Permission::pluck('id');
+            $ids = Permission::pluck('id');
             if ($ids->isNotEmpty()) {
                 $role->permissions()->sync($ids);
             }
@@ -41,7 +42,7 @@ class RoleFactory extends Factory
     public function withPermissions(array $slugs): static
     {
         return $this->afterCreating(function (Role $role) use ($slugs) {
-            $ids = \App\Models\Permission::whereIn('slug', $slugs)->pluck('id');
+            $ids = Permission::whereIn('slug', $slugs)->pluck('id');
             if ($ids->isNotEmpty()) {
                 $role->permissions()->sync($ids);
             }

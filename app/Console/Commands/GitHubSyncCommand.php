@@ -27,18 +27,20 @@ class GitHubSyncCommand extends Command
     {
         // Resolve integration
         $integration = $this->resolveIntegration();
-        if (!$integration) {
+        if (! $integration) {
             $this->error('未找到活跃的 GitHub 集成配置。请先在集成管理中配置。');
+
             return self::FAILURE;
         }
 
         $this->info("🔗 使用集成: {$integration->name}");
-        $this->info("📦 仓库: " . ($integration->config['org'] ?? '?') . '/' . ($integration->config['repo'] ?? '?'));
+        $this->info('📦 仓库: '.($integration->config['org'] ?? '?').'/'.($integration->config['repo'] ?? '?'));
 
         // Resolve project (DB query, no retry needed)
         $project = $this->resolveProject();
-        if (!$project) {
+        if (! $project) {
             $this->error('未找到关联项目。请用 --project= 指定项目 slug。');
+
             return self::FAILURE;
         }
 
@@ -50,6 +52,7 @@ class GitHubSyncCommand extends Command
             $this->warn('🔍 DRY-RUN 模式 — 不会实际写入');
             $this->line('');
             $this->previewSync($service);
+
             return self::SUCCESS;
         }
 
@@ -67,7 +70,7 @@ class GitHubSyncCommand extends Command
             try {
                 // Connection test
                 $connTest = $service->testConnection();
-                if (!$connTest['ok']) {
+                if (! $connTest['ok']) {
                     throw new \RuntimeException($connTest['error'] ?? '连接失败');
                 }
 
@@ -81,7 +84,7 @@ class GitHubSyncCommand extends Command
 
                 $result = $service->sync($project);
 
-                if (!$result['ok']) {
+                if (! $result['ok']) {
                     throw new \RuntimeException($result['error'] ?? '同步返回失败状态');
                 }
 
@@ -120,7 +123,7 @@ class GitHubSyncCommand extends Command
         }
 
         // ── 全部重试失败 ──
-        $this->error('⚠️ 已达最大重试次数（' . $this->maxRetries . ' 次），同步终止。');
+        $this->error('⚠️ 已达最大重试次数（'.$this->maxRetries.' 次），同步终止。');
 
         $integration->update([
             'error_message' => "[{$this->maxRetries}次重试后失败] {$lastError}",
@@ -154,8 +157,9 @@ class GitHubSyncCommand extends Command
 
         // Try to match project by integration's repo name
         $integration = $this->resolveIntegration();
-        if ($integration && !empty($integration->config['repo'])) {
+        if ($integration && ! empty($integration->config['repo'])) {
             $repoName = $integration->config['repo'];
+
             return Project::where('slug', 'like', "%{$repoName}%")
                 ->orWhere('source', 'github')
                 ->first();
@@ -170,11 +174,11 @@ class GitHubSyncCommand extends Command
             $issues = $service->fetchIssues('all', 10);
             $this->info('Issues 预览 (前 10):');
             foreach ($issues as $issue) {
-                $isPR = !empty($issue['pull_request']) ? ' [PR]' : '';
+                $isPR = ! empty($issue['pull_request']) ? ' [PR]' : '';
                 $this->line("  #{$issue['number']}: {$issue['title']}{$isPR} [{$issue['state']}]");
             }
         } catch (\Throwable $e) {
-            $this->error('获取 Issues 失败: ' . $e->getMessage());
+            $this->error('获取 Issues 失败: '.$e->getMessage());
         }
     }
 }

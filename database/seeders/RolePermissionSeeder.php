@@ -39,14 +39,14 @@ class RolePermissionSeeder extends Seeder
 
     protected array $roles = [
         'admin' => [
-            'name'        => '管理员',
+            'name' => '管理员',
             'description' => '拥有系统所有权限',
-            'permissions'  => '*', // all
+            'permissions' => '*', // all
         ],
         'manager' => [
-            'name'        => '项目经理',
+            'name' => '项目经理',
             'description' => '可查看所有数据并管理项目、指标和集成',
-            'permissions'  => [
+            'permissions' => [
                 'view_dashboard', 'view_projects', 'manage_projects',
                 'view_board', 'view_resources', 'view_metrics', 'manage_metrics',
                 'view_reports', 'manage_integrations', 'view_risks', 'manage_risks',
@@ -54,9 +54,9 @@ class RolePermissionSeeder extends Seeder
             ],
         ],
         'viewer' => [
-            'name'        => '查看者',
+            'name' => '查看者',
             'description' => '只读查看仪表板、项目、资源和报表',
-            'permissions'  => [
+            'permissions' => [
                 'view_dashboard', 'view_projects', 'view_board',
                 'view_resources', 'view_metrics', 'view_reports',
                 'view_risks', 'view_monitoring',
@@ -76,9 +76,9 @@ class RolePermissionSeeder extends Seeder
             $role = Role::firstOrCreate(
                 ['slug' => $slug],
                 [
-                    'name'        => $config['name'],
+                    'name' => $config['name'],
                     'description' => $config['description'],
-                    'is_system'   => true,
+                    'is_system' => true,
                 ]
             );
 

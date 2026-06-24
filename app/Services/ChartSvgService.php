@@ -101,7 +101,9 @@ SVG;
     {
         $palette = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4'];
         $groupCount = count($groups);
-        if ($groupCount === 0) return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" width="200" height="60"><text x="100" y="35" text-anchor="middle" font-size="12" fill="#9ca3af">请选择项目</text></svg>';
+        if ($groupCount === 0) {
+            return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" width="200" height="60"><text x="100" y="35" text-anchor="middle" font-size="12" fill="#9ca3af">请选择项目</text></svg>';
+        }
 
         // Find all unique labels across all groups
         $allLabels = [];
@@ -126,7 +128,9 @@ SVG;
         $maxVal = 1;
         foreach ($groups as $g) {
             foreach ($g['bars'] as $b) {
-                if ($b['value'] > $maxVal) $maxVal = $b['value'];
+                if ($b['value'] > $maxVal) {
+                    $maxVal = $b['value'];
+                }
             }
         }
 
@@ -177,7 +181,7 @@ SVG;
             );
             $legendItems .= sprintf(
                 '<text x="%d" y="%d" font-size="10" fill="%s" font-weight="500">%s</text>',
-                $lx + 14, $legendY + 1, '#374151', htmlspecialchars(mb_strlen($group['name']) > 8 ? mb_substr($group['name'], 0, 7) . '…' : $group['name'])
+                $lx + 14, $legendY + 1, '#374151', htmlspecialchars(mb_strlen($group['name']) > 8 ? mb_substr($group['name'], 0, 7).'…' : $group['name'])
             );
         }
 
@@ -218,7 +222,7 @@ SVG;
     private static function describeArc(float $cx, float $cy, float $r, float $startDeg, float $endDeg): string
     {
         $start = deg2rad($startDeg);
-        $end   = deg2rad($endDeg);
+        $end = deg2rad($endDeg);
 
         $x1 = $cx + $r * cos($start);
         $y1 = $cy + $r * sin($start);

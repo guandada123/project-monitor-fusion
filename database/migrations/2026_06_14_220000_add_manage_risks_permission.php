@@ -12,9 +12,9 @@ return new class extends Migration
         Permission::firstOrCreate(
             ['slug' => 'manage_risks'],
             [
-                'name'        => '管理风险',
+                'name' => '管理风险',
                 'description' => '确认、忽略风险并管理风险建议',
-                'group'       => 'risks',
+                'group' => 'risks',
             ]
         );
 

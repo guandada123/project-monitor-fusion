@@ -2,20 +2,21 @@
 
 namespace Database\Factories;
 
+use App\Models\Integration;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class IntegrationFactory extends Factory
 {
-    protected $model = \App\Models\Integration::class;
+    protected $model = Integration::class;
 
     public function definition(): array
     {
         return [
             'type' => fake()->randomElement(['github', 'jira', 'feishu_base', 'csv']),
-            'name' => fake()->company() . ' ' . fake()->randomElement(['Sync', 'Connector', 'Bridge']),
+            'name' => fake()->company().' '.fake()->randomElement(['Sync', 'Connector', 'Bridge']),
             'config' => [
                 'url' => fake()->url(),
-                'token_prefix' => substr(fake()->uuid(), 0, 8) . '...',
+                'token_prefix' => substr(fake()->uuid(), 0, 8).'...',
                 'enabled' => true,
             ],
             'status' => fake()->randomElement(['active', 'active', 'active', 'paused']), // weighted
@@ -84,9 +85,9 @@ class IntegrationFactory extends Factory
     {
         return $this->state(fn (array $attrs) => [
             'type' => 'csv',
-            'name' => 'CSV Import ' . fake()->randomDigitNotNull(),
+            'name' => 'CSV Import '.fake()->randomDigitNotNull(),
             'config' => [
-                'file_path' => '/imports/projects_' . fake()->date('Ymd') . '.csv',
+                'file_path' => '/imports/projects_'.fake()->date('Ymd').'.csv',
                 'delimiter' => ',',
                 'has_header' => true,
             ],

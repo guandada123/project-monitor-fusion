@@ -1,6 +1,7 @@
 <?php
 
 use Dedoc\Scramble\Http\Middleware\RestrictedDocsAccess;
+use Dedoc\Scramble\SecurityDocumentation\MiddlewareAuthSecurityStrategy;
 
 return [
     /*
@@ -170,5 +171,5 @@ return [
      * ],
      */
     // Automatically document bearer token auth for routes using 'auth:sanctum' middleware
-    'security_strategy' => \Dedoc\Scramble\SecurityDocumentation\MiddlewareAuthSecurityStrategy::class,
+    'security_strategy' => MiddlewareAuthSecurityStrategy::class,
 ];

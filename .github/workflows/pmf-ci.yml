@@ -68,6 +68,8 @@ jobs:
           npm audit --audit-level=high || echo "::warning::npm audit 发现高/严重漏洞"
       - name: Check for secrets (gitleaks)
         uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Hardcoded credentials check
         run: |
           echo "=== 硬编码密钥检测 ==="
@@ -89,3 +91,75 @@ jobs:
             exit 1
           fi
           echo "✅ 未检测到硬编码密钥"
+
+  # ────────────────────────────
+  # Dusk Browser Tests
+  # ────────────────────────────
+  dusk:
+    name: Dusk Browser Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: project_monitor
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          extensions: pdo, pdo_pgsql, pgsql, mbstring, xml, json, fileinfo
+      - name: Install Chrome
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+      - name: Prepare Laravel directories
+        run: mkdir -p storage/framework/cache storage/framework/views storage/framework/sessions storage/logs
+      - name: Install PHP dependencies
+        run: composer install --no-progress --no-interaction
+      - name: Install ChromeDriver
+        run: |
+          CHROME_VERSION=$(google-chrome-stable --version | grep -oP '\d+\.\d+\.\d+' | head -1)
+          MAJOR=$(echo $CHROME_VERSION | cut -d. -f1)
+          echo "Chrome version: $CHROME_VERSION (major: $MAJOR)"
+          php artisan dusk:chrome-driver $MAJOR
+      - name: Configure environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          sed -i 's/DB_HOST=127.0.0.1/DB_HOST=localhost/' .env
+          sed -i 's/DB_USERNAME=guan/DB_USERNAME=postgres/' .env
+          sed -i 's/DB_PASSWORD=$/DB_PASSWORD=postgres/' .env
+          sed -i 's/APP_ENV=local/APP_ENV=dusk/' .env
+          sed -i 's/APP_DEBUG=true/APP_DEBUG=false/' .env
+          sed -i 's/CACHE_STORE=file/CACHE_STORE=array/' .env
+          sed -i 's/LOG_LEVEL=debug/LOG_LEVEL=error/' .env
+          sed -i 's/SESSION_DRIVER=file/SESSION_DRIVER=array/' .env
+      - name: Run database migrations & seed
+        run: php artisan migrate --seed
+      - name: Start dev server
+        run: php artisan serve --port=8000 --no-reload &
+      - name: Wait for dev server
+        run: |
+          for i in $(seq 1 30); do
+            curl -s -o /dev/null http://localhost:8000 && echo "Server ready" && break
+            sleep 1
+          done
+      - name: Run Dusk tests
+        run: php artisan dusk
+      - name: Upload Dusk failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dusk-failures-${{ github.run_id }}
+          path: tests/Browser/screenshots/

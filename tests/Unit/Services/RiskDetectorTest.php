@@ -3,7 +3,6 @@
 use App\Models\Project;
 use App\Models\Risk;
 use App\Models\Task;
-use App\Models\User;
 use App\Services\RiskDetector;
 
 // ─────────────────────────────────────────────
@@ -13,7 +12,7 @@ use App\Services\RiskDetector;
 describe('RiskDetector rules', function () {
 
     beforeEach(function () {
-        $this->detector = new RiskDetector();
+        $this->detector = new RiskDetector;
     });
 
     test('overdue_tasks rule creates high-severity risk', function () {

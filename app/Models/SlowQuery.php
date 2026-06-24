@@ -30,9 +30,9 @@ class SlowQuery extends Model
     protected function casts(): array
     {
         return [
-            'time'        => 'float',
-            'bindings'    => 'array',
-            'is_slow'     => 'boolean',
+            'time' => 'float',
+            'bindings' => 'array',
+            'is_slow' => 'boolean',
             'is_critical' => 'boolean',
             'captured_at' => 'datetime',
         ];
@@ -72,8 +72,9 @@ class SlowQuery extends Model
     public function getQueryPreviewAttribute(): string
     {
         $maxLen = 200;
+
         return mb_strlen($this->query) > $maxLen
-            ? mb_substr($this->query, 0, $maxLen) . '...'
+            ? mb_substr($this->query, 0, $maxLen).'...'
             : $this->query;
     }
 

@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Services\RiskEngine;
 
 use App\Models\Project;
@@ -16,11 +17,13 @@ class FeishuAlertService
 
     public function sendRiskAlert(Project $project, array $risks): void
     {
-        if (empty($risks) || empty($this->webhookUrl)) return;
+        if (empty($risks) || empty($this->webhookUrl)) {
+            return;
+        }
 
         $riskLines = '';
         foreach ($risks as $risk) {
-            $emoji = match($risk['severity']) {
+            $emoji = match ($risk['severity']) {
                 'critical' => '🔴', 'high' => '🟠', 'medium' => '🟡', 'low' => '🟢', default => '⚪',
             };
             $riskLines .= "{$emoji} **{$risk['title']}** — {$risk['detail']}\n";
@@ -53,7 +56,7 @@ class FeishuAlertService
 
         $completion = $project->completionRate();
         $totalTasks = $project->tasks()->count();
-        $openRisks  = $project->risks()->where('status', 'open')->count();
+        $openRisks = $project->risks()->where('status', 'open')->count();
         $closedRisks = $project->risks()->where('status', 'closed')->count();
 
         $statusEmoji = $completion >= 80 ? '🟢' : ($completion >= 50 ? '🟡' : '🔴');
@@ -74,14 +77,14 @@ class FeishuAlertService
             'msg_type' => 'interactive',
             'card' => [
                 'header' => [
-                    'title'    => ['content' => '📊 项目进度报告', 'tag' => 'plain_text'],
+                    'title' => ['content' => '📊 项目进度报告', 'tag' => 'plain_text'],
                     'template' => $openRisks > 3 ? 'red' : ($completion >= 80 ? 'green' : 'blue'),
                 ],
                 'elements' => [
                     ['tag' => 'div', 'text' => ['content' => $md, 'tag' => 'lark_md']],
                     ['tag' => 'hr'],
                     ['tag' => 'note', 'elements' => [
-                        ['tag' => 'plain_text', 'content' => '— 项目监控仪表板 · ' . now()->format('Y-m-d H:i')]
+                        ['tag' => 'plain_text', 'content' => '— 项目监控仪表板 · '.now()->format('Y-m-d H:i')],
                     ]],
                 ],
             ],
@@ -99,9 +102,11 @@ class FeishuAlertService
             $resp = Http::timeout(10)->post($this->webhookUrl, $body);
             $ok = $resp->successful();
             Log::info($logLabel, ['status' => $resp->status(), 'ok' => $ok]);
+
             return ['ok' => $ok, 'status' => $resp->status(), 'body' => $resp->body()];
         } catch (\Throwable $e) {
             Log::error('FeishuAlertService error', ['msg' => $e->getMessage()]);
+
             return ['ok' => false, 'error' => $e->getMessage()];
         }
     }

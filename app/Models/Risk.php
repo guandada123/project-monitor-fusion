@@ -2,14 +2,15 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property-read Project|null $project
- * @property-read \Carbon\Carbon|null $first_seen_at
- * @property-read \Carbon\Carbon|null $last_seen_at
+ * @property-read Carbon|null $first_seen_at
+ * @property-read Carbon|null $last_seen_at
  */
 class Risk extends Model
 {
