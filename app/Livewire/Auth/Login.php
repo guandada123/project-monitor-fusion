@@ -22,9 +22,8 @@ class Login extends Component
         $this->validate();
 
         if (!Auth::attempt(['email' => $this->email, 'password' => $this->password], $this->remember)) {
-            throw ValidationException::withMessages([
-                'email' => '邮箱或密码不正确',
-            ]);
+            $this->addError('email', '邮箱或密码不正确');
+            return;
         }
 
         session()->regenerate();

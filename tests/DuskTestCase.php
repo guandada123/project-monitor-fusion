@@ -5,12 +5,20 @@ namespace Tests;
 use Facebook\WebDriver\Chrome\ChromeOptions;
 use Facebook\WebDriver\Remote\DesiredCapabilities;
 use Facebook\WebDriver\Remote\RemoteWebDriver;
+use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Illuminate\Support\Collection;
 use Laravel\Dusk\TestCase as BaseTestCase;
 use PHPUnit\Framework\Attributes\BeforeClass;
 
 abstract class DuskTestCase extends BaseTestCase
 {
+    use DatabaseTruncation;
+
+    /**
+     * The seeder to run after each database truncation/migration.
+     * Ensures roles and permissions are always available for browser tests.
+     */
+    protected $seeder = \Database\Seeders\RolePermissionSeeder::class;
     /**
      * Prepare for Dusk test execution.
      * Starts the ChromeDriver for browser automation.
@@ -21,6 +29,17 @@ abstract class DuskTestCase extends BaseTestCase
         if (! static::runningInSail()) {
             static::startChromeDriver(['--port=9515']);
         }
+    }
+
+    /**
+     * Set up the test — truncate database tables and run seeder
+     * to ensure a clean state with seeded roles/permissions.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->truncateDatabaseTables();
     }
 
     /**

@@ -16,17 +16,18 @@ abstract class BrowserTestCase extends DuskTestCase
     protected $seeder = \Database\Seeders\RolePermissionSeeder::class;
 
     /**
-     * Create a user, log them in via the Dusk browser, and return the user.
+     * Create a user, log them in via Dusk's built-in loginAs(),
+     * and return the user.
+     *
+     * loginAs() uses the /dusk/login/{userId} route which is much
+     * more reliable than going through the Livewire login form.
      */
     protected function loginViaBrowser(\Laravel\Dusk\Browser $browser, array $attrs = []): \App\Models\User
     {
         $user = \App\Models\User::factory()->admin()->create($attrs);
 
-        $browser->visit('/login')
-            ->type('email', $user->email)
-            ->type('password', 'password')
-            ->press('登录')
-            ->waitForLocation('/')
+        $browser->loginAs($user)
+            ->visit('/')
             ->assertPathIs('/');
 
         return $user;

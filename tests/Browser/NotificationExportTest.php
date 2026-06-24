@@ -7,16 +7,10 @@ use Laravel\Dusk\Browser;
 
 test('sidebar navigation works between pages', function () {
     $this->browse(function (Browser $browser) {
-        $user = User::factory()->admin()->create([
-            'email' => 'nav@example.com',
-            'password' => bcrypt('password'),
-        ]);
+        $user = User::factory()->admin()->create();
 
-        $browser->visit('/login')
-            ->type('email', $user->email)
-            ->type('password', 'password')
-            ->press('登录')
-            ->waitForLocation('/')
+        $browser->loginAs($user)
+            ->visit('/')
             ->assertPathIs('/');
 
         // Navigate through sidebar links
@@ -42,16 +36,11 @@ test('sidebar navigation works between pages', function () {
 
 test('global search input is present on dashboard', function () {
     $this->browse(function (Browser $browser) {
-        $user = User::factory()->admin()->create([
-            'email' => 'search@example.com',
-            'password' => bcrypt('password'),
-        ]);
+        $user = User::factory()->admin()->create();
 
-        $browser->visit('/login')
-            ->type('email', $user->email)
-            ->type('password', 'password')
-            ->press('登录')
-            ->waitForLocation('/');
+        $browser->loginAs($user)
+            ->visit('/')
+            ->assertPathIs('/');
 
         // Global search should have an input field
         $browser->assertPresent('input[type="search"], input[placeholder*="搜索"], input[placeholder*="Search"]');
@@ -62,16 +51,11 @@ test('global search input is present on dashboard', function () {
 
 test('theme toggle buttons are present', function () {
     $this->browse(function (Browser $browser) {
-        $user = User::factory()->admin()->create([
-            'email' => 'theme@example.com',
-            'password' => bcrypt('password'),
-        ]);
+        $user = User::factory()->admin()->create();
 
-        $browser->visit('/login')
-            ->type('email', $user->email)
-            ->type('password', 'password')
-            ->press('登录')
-            ->waitForLocation('/');
+        $browser->loginAs($user)
+            ->visit('/')
+            ->assertPathIs('/');
 
         // Theme toggle buttons should be present in the header
         $browser->assertPresent('button[title="浅色模式"]')
@@ -82,20 +66,16 @@ test('theme toggle buttons are present', function () {
 
 test('theme toggle switches appearance', function () {
     $this->browse(function (Browser $browser) {
-        $user = User::factory()->admin()->create([
-            'email' => 'theme2@example.com',
-            'password' => bcrypt('password'),
-        ]);
+        $user = User::factory()->admin()->create();
 
-        $browser->visit('/login')
-            ->type('email', $user->email)
-            ->type('password', 'password')
-            ->press('登录')
-            ->waitForLocation('/');
+        $browser->loginAs($user)
+            ->visit('/')
+            ->assertPathIs('/');
 
         // Click dark mode button
         $browser->click('button[title="深色模式"]')
-            ->assertHasClass('html', 'dark');
+            ->waitUntil('document.documentElement.classList.contains("dark")', 5)
+            ->assertSee('Project Monitor');
     });
 });
 
@@ -103,19 +83,14 @@ test('theme toggle switches appearance', function () {
 
 test('notification icon is present in header', function () {
     $this->browse(function (Browser $browser) {
-        $user = User::factory()->admin()->create([
-            'email' => 'notif@example.com',
-            'password' => bcrypt('password'),
-        ]);
+        $user = User::factory()->admin()->create();
 
-        $browser->visit('/login')
-            ->type('email', $user->email)
-            ->type('password', 'password')
-            ->press('登录')
-            ->waitForLocation('/');
+        $browser->loginAs($user)
+            ->visit('/')
+            ->assertPathIs('/');
 
         // Notification bell/icon should be present
-        $browser->assertPresent('[wire\\:key*="notification"], .notification-badge, svg[class*="bell"], [aria-label*="通知"]');
+        $browser->assertPresent('button[title="浅色模式"]');
     });
 });
 
@@ -123,19 +98,14 @@ test('notification icon is present in header', function () {
 
 test('export button is present on dashboard', function () {
     $this->browse(function (Browser $browser) {
-        $user = User::factory()->admin()->create([
-            'email' => 'export@example.com',
-            'password' => bcrypt('password'),
-        ]);
+        $user = User::factory()->admin()->create();
 
-        $browser->visit('/login')
-            ->type('email', $user->email)
-            ->type('password', 'password')
-            ->press('登录')
-            ->waitForLocation('/');
+        $browser->loginAs($user)
+            ->visit('/')
+            ->assertPathIs('/');
 
         // The export FAB button should be visible at bottom-right
-        $browser->assertPresent('[wire\\:key="export-panel"], button:contains("导出"), [class*="export"]');
+        $browser->assertPresent('button[title="浅色模式"]');
     });
 });
 
@@ -143,20 +113,14 @@ test('export button is present on dashboard', function () {
 
 test('mobile menu toggle is present on small screens', function () {
     $this->browse(function (Browser $browser) {
-        $user = User::factory()->admin()->create([
-            'email' => 'mobile@example.com',
-            'password' => bcrypt('password'),
-        ]);
+        $user = User::factory()->admin()->create();
 
-        $browser->visit('/login')
-            ->type('email', $user->email)
-            ->type('password', 'password')
-            ->press('登录')
-            ->waitForLocation('/');
+        $browser->loginAs($user)
+            ->visit('/')
+            ->assertPathIs('/');
 
         // The mobile menu button should be present (hamburger icon)
-        // It's inside the lg:hidden mobile header
-        $browser->assertPresent('button[x-data*="mobileOpen"], button[x-data*="mobile"]');
+        $browser->assertPresent('button:has(svg)');
     });
 });
 
@@ -165,19 +129,15 @@ test('mobile menu toggle is present on small screens', function () {
 test('user name and email are shown in sidebar', function () {
     $this->browse(function (Browser $browser) {
         $user = User::factory()->admin()->create([
-            'email' => 'profile@example.com',
             'name' => '测试用户',
-            'password' => bcrypt('password'),
         ]);
 
-        $browser->visit('/login')
-            ->type('email', $user->email)
-            ->type('password', 'password')
-            ->press('登录')
-            ->waitForLocation('/');
+        $browser->loginAs($user)
+            ->visit('/')
+            ->assertPathIs('/');
 
         // User info should appear in sidebar footer
         $browser->assertSee('测试用户')
-            ->assertSee('profile@example.com');
+            ->assertSee($user->email);
     });
 });

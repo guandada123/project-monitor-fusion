@@ -8,7 +8,7 @@ export default defineConfig({
   retries: 1,
   reporter: [["html", { outputFolder: "e2e-report" }], ["list"]],
   use: {
-    baseURL: "http://localhost:8080",
+    baseURL: "http://localhost:8000",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     headless: true,
