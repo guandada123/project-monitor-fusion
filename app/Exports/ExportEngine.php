@@ -151,37 +151,21 @@ class ExportEngine
 
     protected function writeCsv(string $filePath, Collection $data, array $columns): void
     {
-        Storage::disk('local')->makeDirectory('exports');
-
-        $fullPath = Storage::disk('local')->path($filePath);
-
-        $writer = new CsvWriter;
-        $writer->openToFile($fullPath);
-
-        // Header row
-        $headerRow = Row::fromValues(array_values($columns));
-        $writer->addRow($headerRow);
-
-        // Data rows
-        $columnKeys = array_keys($columns);
-        foreach ($data as $item) {
-            $values = [];
-            foreach ($columnKeys as $key) {
-                $values[] = $this->extractValue($item, $key);
-            }
-            $writer->addRow(Row::fromValues($values));
-        }
-
-        $writer->close();
+        $this->writeSpreadsheet($filePath, $data, $columns, CsvWriter::class);
     }
 
     protected function writeXlsx(string $filePath, Collection $data, array $columns): void
+    {
+        $this->writeSpreadsheet($filePath, $data, $columns, XlsxWriter::class);
+    }
+
+    protected function writeSpreadsheet(string $filePath, Collection $data, array $columns, string $writerClass): void
     {
         Storage::disk('local')->makeDirectory('exports');
 
         $fullPath = Storage::disk('local')->path($filePath);
 
-        $writer = new XlsxWriter;
+        $writer = new $writerClass;
         $writer->openToFile($fullPath);
 
         // Header row
@@ -257,100 +241,65 @@ class ExportEngine
     {
         $escaped = e((string) $value);
 
-        // Status badges for projects
-        if ($key === 'status' && $entityType === 'project') {
-            $class = match ($escaped) {
-                'active' => 'status-active',
-                'completed' => 'status-completed',
-                'on_hold' => 'status-on_hold',
-                default => '',
-            };
-            $label = match ($escaped) {
-                'active' => '进行中',
-                'completed' => '已完成',
-                'on_hold' => '已暂停',
-                default => $escaped,
-            };
-
-            return "<span class=\"status-badge {$class}\">{$label}</span>";
-        }
-
-        // Status badges for risks
-        if ($key === 'status' && $entityType === 'risk') {
-            $class = match ($escaped) {
-                'open' => 'status-open',
-                'acknowledged' => 'status-acknowledged',
-                'closed' => 'status-closed',
-                default => '',
-            };
-            $label = match ($escaped) {
-                'open' => '未处理',
-                'acknowledged' => '已确认',
-                'closed' => '已关闭',
-                default => $escaped,
-            };
-
-            return "<span class=\"status-badge {$class}\">{$label}</span>";
-        }
-
-        // Status badges for tasks
-        if ($key === 'status' && $entityType === 'task') {
-            $class = match ($escaped) {
-                'todo' => '',
-                'in_progress' => 'status-active',
-                'review' => 'status-acknowledged',
-                'done' => 'status-done',
-                'blocked' => 'status-open',
-                default => '',
-            };
-            $label = match ($escaped) {
-                'todo' => '待办',
-                'in_progress' => '进行中',
-                'review' => '审核中',
-                'done' => '已完成',
-                'blocked' => '阻塞',
-                default => $escaped,
-            };
-
-            return "<span class=\"status-badge {$class}\">{$label}</span>";
-        }
-
-        // Severity badges
-        if ($key === 'severity') {
-            $class = "severity-{$escaped}";
-            $label = match ($escaped) {
-                'critical' => '严重',
-                'high' => '高',
-                'medium' => '中',
-                'low' => '低',
-                default => $escaped,
-            };
-
-            return "<span class=\"status-badge {$class}\">{$label}</span>";
-        }
-
-        // Priority badges
-        if ($key === 'priority') {
-            $class = "priority-{$escaped}";
-            $label = match ($escaped) {
-                'critical' => '紧急',
-                'high' => '高',
-                'medium' => '中',
-                'low' => '低',
-                default => $escaped,
-            };
-
-            return "<span class=\"status-badge {$class}\">{$label}</span>";
-        }
-
-        // Boolean values
+        // Boolean values (data-driven, not badge-based)
         if ($escaped === '是' || $escaped === '否') {
             $color = $escaped === '是' ? '#10b981' : '#94a3b8';
 
             return "<span style=\"color: {$color}; font-weight: 600;\">{$escaped}</span>";
         }
 
-        return $escaped;
+        // Unified badge lookup — no more cascading if/match blocks
+        $config = $this->resolveBadgeConfig($entityType, $key);
+        if ($config === null) {
+            return $escaped;
+        }
+
+        [$classMap, $labelMap] = $config;
+        $class = $classMap[$escaped] ?? '';
+        $label = $labelMap[$escaped] ?? $escaped;
+
+        return "<span class=\"status-badge {$class}\">{$label}</span>";
+    }
+
+    /**
+     * Badge 配置查表 — 按 (entityType, key) 返回 [class映射, label映射] 二元组。
+     * 添加新 badge 类型只需在这里加一行数据，无需新增条件分支。
+     */
+    protected function resolveBadgeConfig(string $entityType, string $key): ?array
+    {
+        $entityBadges = [
+            'project' => [
+                'status' => [
+                    ['active' => 'status-active', 'completed' => 'status-completed', 'on_hold' => 'status-on_hold'],
+                    ['active' => '进行中', 'completed' => '已完成', 'on_hold' => '已暂停'],
+                ],
+            ],
+            'risk' => [
+                'status' => [
+                    ['open' => 'status-open', 'acknowledged' => 'status-acknowledged', 'closed' => 'status-closed'],
+                    ['open' => '未处理', 'acknowledged' => '已确认', 'closed' => '已关闭'],
+                ],
+            ],
+            'task' => [
+                'status' => [
+                    ['todo' => '', 'in_progress' => 'status-active', 'review' => 'status-acknowledged', 'done' => 'status-done', 'blocked' => 'status-open'],
+                    ['todo' => '待办', 'in_progress' => '进行中', 'review' => '审核中', 'done' => '已完成', 'blocked' => '阻塞'],
+                ],
+            ],
+        ];
+
+        $sharedBadges = [
+            'severity' => [
+                ['critical' => 'severity-critical', 'high' => 'severity-high', 'medium' => 'severity-medium', 'low' => 'severity-low'],
+                ['critical' => '严重', 'high' => '高', 'medium' => '中', 'low' => '低'],
+            ],
+            'priority' => [
+                ['critical' => 'priority-critical', 'high' => 'priority-high', 'medium' => 'priority-medium', 'low' => 'priority-low'],
+                ['critical' => '紧急', 'high' => '高', 'medium' => '中', 'low' => '低'],
+            ],
+        ];
+
+        return $entityBadges[$entityType][$key] ?? $sharedBadges[$key] ?? null;
     }
 
     /**
@@ -364,8 +313,8 @@ class ExportEngine
             $total = $data->count();
             $active = $data->filter(fn ($p) => $p->status === 'active')->count();
             $completed = $data->filter(fn ($p) => $p->status === 'completed')->count();
-            $totalTasks = $data->sum(fn ($p) => method_exists($p, 'tasks') ? $p->tasks->count() : ($p->task_count ?? 0));
-            $totalRisks = $data->sum(fn ($p) => method_exists($p, 'risks') ? $p->risks->count() : ($p->risk_count ?? 0));
+            $totalTasks = $data->sum(fn ($p) => $p->task_count ?? 0);
+            $totalRisks = $data->sum(fn ($p) => $p->risk_count ?? 0);
 
             $summary[] = ['label' => '项目总数', 'value' => $total];
             $summary[] = ['label' => '进行中', 'value' => $active];

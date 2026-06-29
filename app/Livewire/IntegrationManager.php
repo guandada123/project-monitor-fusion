@@ -3,10 +3,9 @@
 namespace App\Livewire;
 
 use App\Models\Integration;
-use App\Services\GitHubService;
+use App\Services\IntegrationService;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Facades\Artisan;
-use Livewire\Attributes\Locked;
+use Illuminate\Support\Facades\Log;
 use Livewire\Component;
 
 /**
@@ -28,9 +27,6 @@ class IntegrationManager extends Component
     public string $formStatus = 'active';
 
     // GitHub specific
-    #[Locked]
-    public string $ghToken = '';
-
     public string $ghOrg = '';
 
     public string $ghRepo = '';
@@ -40,14 +36,28 @@ class IntegrationManager extends Component
 
     public string $larkAppId = '';
 
-    #[Locked]
-    public string $larkAppSecret = '';
+    // larkAppSecret 不绑定到 Livewire 属性（防止序列化到前端）
 
     // DingTalk specific
     public string $dtWebhook = '';
 
-    #[Locked]
-    public string $dtSecret = '';
+    // dtSecret 不绑定到 Livewire 属性（防止序列化到前端）
+
+    /** 集成类型显示标签 */
+    private const TYPE_LABELS = [
+        'github' => 'GitHub',
+        'lark' => '飞书',
+        'dingtalk' => '钉钉',
+    ];
+
+    /** 各集成类型的密钥字段映射: formType → [input名, config key]
+     *  input: 前端 input name（用于 validateSecrets/buildConfig）
+     *  key:   config 数组中的键名（用于 handleUpdate 合并已有密钥） */
+    private const SECRET_INPUT_MAP = [
+        'github' => ['input' => 'gh_token', 'key' => 'token'],
+        'lark' => ['input' => 'lark_app_secret', 'key' => 'app_secret'],
+        'dingtalk' => ['input' => 'dt_secret', 'key' => 'secret'],
+    ];
 
     public function mount()
     {
@@ -67,14 +77,11 @@ class IntegrationManager extends Component
         $this->formName = '';
         $this->formConfig = [];
         $this->formStatus = 'active';
-        $this->ghToken = '';
         $this->ghOrg = '';
         $this->ghRepo = '';
         $this->larkWebhook = '';
         $this->larkAppId = '';
-        $this->larkAppSecret = '';
         $this->dtWebhook = '';
-        $this->dtSecret = '';
         $this->resetValidation();
     }
 
@@ -82,8 +89,7 @@ class IntegrationManager extends Component
     {
         $this->resetForm();
         $this->formType = $type;
-        $types = ['github' => 'GitHub', 'lark' => '飞书', 'dingtalk' => '钉钉'];
-        $this->formName = ($types[$type] ?? 'GitHub').' 集成';
+        $this->formName = (self::TYPE_LABELS[$type] ?? 'GitHub').' 集成';
         $this->showModal = true;
     }
 
@@ -102,7 +108,10 @@ class IntegrationManager extends Component
             'github' => $this->loadGitHubForm($this->formConfig),
             'lark' => $this->loadLarkForm($this->formConfig),
             'dingtalk' => $this->loadDingTalkForm($this->formConfig),
-            default => null,
+            default => Log::warning('IntegrationManager: unknown type in edit()', [
+                'type' => $integration->type,
+                'id' => $integration->id,
+            ]),
         };
 
         $this->showModal = true;
@@ -110,7 +119,7 @@ class IntegrationManager extends Component
 
     private function loadGitHubForm(array $config): void
     {
-        $this->ghToken = $config['token'] ?? '';
+        // ghToken 不加载到前端 — 空值表示"保留原值"
         $this->ghOrg = $config['org'] ?? '';
         $this->ghRepo = $config['repo'] ?? '';
     }
@@ -119,13 +128,59 @@ class IntegrationManager extends Component
     {
         $this->larkWebhook = $config['webhook_url'] ?? '';
         $this->larkAppId = $config['app_id'] ?? '';
-        $this->larkAppSecret = $config['app_secret'] ?? '';
+        // larkAppSecret 不加载到前端 — 空值表示"保留原值"
     }
 
     private function loadDingTalkForm(array $config): void
     {
         $this->dtWebhook = $config['webhook_url'] ?? '';
-        $this->dtSecret = $config['secret'] ?? '';
+        // dtSecret 不加载到前端 — 空值表示"保留原值"
+    }
+
+    /** 校验非敏感专属字段 */
+    private function validateTypeFields(): void
+    {
+        $this->validate(match ($this->formType) {
+            'github' => [
+                'ghOrg' => 'required|string',
+                'ghRepo' => 'required|string',
+            ],
+            'lark' => [
+                'larkWebhook' => 'required|url',
+                'larkAppId' => 'required|string',
+            ],
+            'dingtalk' => [
+                'dtWebhook' => 'required|url',
+            ],
+            default => throw new \InvalidArgumentException("未知的集成类型: {$this->formType}"),
+        });
+    }
+
+    /**
+     * 校验敏感字段（通过 request()->input()，不走 Livewire 属性防止序列化泄漏）
+     *
+     * @return bool true=通过 false=有错误
+     */
+    private function validateSecrets(): bool
+    {
+        $fieldMap = self::SECRET_INPUT_MAP[$this->formType] ?? null;
+        if (! $fieldMap) {
+            return true;
+        }
+
+        $rule = [$fieldMap['input'] => $this->editingId ? 'nullable|string' : 'required|string'];
+        $validator = \Illuminate\Support\Facades\Validator::make(request()->only($fieldMap['input']), $rule);
+
+        if ($validator->fails()) {
+            foreach ($validator->errors()->toArray() as $field => $messages) {
+                foreach ($messages as $msg) {
+                    $this->addError($field, $msg);
+                }
+            }
+            return false;
+        }
+
+        return true;
     }
 
     public function save()
@@ -136,49 +191,73 @@ class IntegrationManager extends Component
             'formType' => 'required|in:github,lark,dingtalk',
         ]);
 
+        $this->validateTypeFields();
+
+        if (! $this->validateSecrets()) {
+            return;
+        }
+
         $config = $this->buildConfig();
 
         if ($this->editingId) {
-            $integration = Integration::findOrFail($this->editingId);
-            $integration->update([
-                'name' => $this->formName,
-                'type' => $this->formType,
-                'config' => $config,
-                'status' => $this->formStatus,
-            ]);
-            session()->flash('message', '集成已更新');
+            $this->handleUpdate($config);
         } else {
-            Integration::create([
-                'type' => $this->formType,
-                'name' => $this->formName,
-                'config' => $config,
-                'status' => 'active',
-            ]);
-            session()->flash('message', '集成已添加');
+            $this->handleCreate($config);
         }
 
         $this->showModal = false;
         $this->resetForm();
     }
 
+    /** 更新已有集成（合并已有密钥） */
+    private function handleUpdate(array $config): void
+    {
+        $integration = Integration::findOrFail($this->editingId);
+        $existingConfig = $integration->config ?? [];
+        $secretKey = (self::SECRET_INPUT_MAP[$this->formType] ?? [])['key'] ?? null;
+        if ($secretKey && empty($config[$secretKey]) && ! empty($existingConfig[$secretKey] ?? null)) {
+            $config[$secretKey] = $existingConfig[$secretKey];
+        }
+        $integration->update([
+            'name' => $this->formName,
+            'type' => $this->formType,
+            'config' => $config,
+            'status' => $this->formStatus,
+        ]);
+        session()->flash('message', '集成已更新');
+    }
+
+    /** 创建新集成 */
+    private function handleCreate(array $config): void
+    {
+        Integration::create([
+            'type' => $this->formType,
+            'name' => $this->formName,
+            'config' => $config,
+            'status' => $this->formStatus,
+            'created_by' => auth()->id(),
+        ]);
+        session()->flash('message', '集成已添加');
+    }
+
     private function buildConfig(): array
     {
         return match ($this->formType) {
             'github' => [
-                'token' => $this->ghToken,
+                'token' => request()->input('gh_token', ''),
                 'org' => $this->ghOrg,
                 'repo' => $this->ghRepo,
             ],
             'lark' => [
                 'webhook_url' => $this->larkWebhook,
                 'app_id' => $this->larkAppId,
-                'app_secret' => $this->larkAppSecret,
+                'app_secret' => request()->input('lark_app_secret', ''),
             ],
             'dingtalk' => [
                 'webhook_url' => $this->dtWebhook,
-                'secret' => $this->dtSecret,
+                'secret' => request()->input('dt_secret', ''),
             ],
-            default => [],
+            default => throw new \InvalidArgumentException("未知的集成类型: {$this->formType}"),
         };
     }
 
@@ -186,8 +265,7 @@ class IntegrationManager extends Component
     {
         $this->authorizeIntegration();
         $integration = Integration::findOrFail($id);
-        $newStatus = $integration->status === 'active' ? 'inactive' : 'active';
-        $integration->update(['status' => $newStatus]);
+        $newStatus = app(IntegrationService::class)->toggleStatus($integration);
         session()->flash('message', $newStatus === 'active' ? '集成已启用' : '集成已停用');
     }
 
@@ -196,30 +274,24 @@ class IntegrationManager extends Component
         $this->authorizeIntegration();
         $integration = Integration::findOrFail($id);
 
-        if ($integration->type === 'github') {
-            $service = new GitHubService($integration);
-            $result = $service->testConnection();
-
-            $integration->update([
-                'last_sync_at' => now(),
-                'error_message' => $result['ok'] ? null : ($result['error'] ?? '未知错误'),
+        try {
+            $result = app(IntegrationService::class)->testConnection($integration);
+        } catch (\Throwable $e) {
+            Log::error('IntegrationManager: testConnection exception', [
+                'id' => $id,
+                'error' => $e->getMessage(),
             ]);
-
-            if ($result['ok']) {
-                session()->flash('message', "✅ 连接成功 — {$result['repo']} (⭐ {$result['stars']})");
-            } else {
-                session()->flash('error', '连接失败: '.($result['error'] ?? '未知错误'));
-            }
-
+            session()->flash('error', '连接测试异常: '.$e->getMessage());
             return;
         }
 
-        // Non-GitHub: simple connectivity check
-        $integration->update([
-            'last_sync_at' => now(),
-            'error_message' => null,
-        ]);
-        session()->flash('message', '连接测试成功');
+        if ($result['ok']) {
+            $repo = $result['repo'] ?? '';
+            $stars = isset($result['stars']) ? " (⭐ {$result['stars']})" : '';
+            session()->flash('message', "✅ 连接成功 — {$repo}{$stars}");
+        } else {
+            session()->flash('error', '连接失败: '.($result['error'] ?? '未知错误'));
+        }
     }
 
     public function syncNow(int $id): void
@@ -227,23 +299,22 @@ class IntegrationManager extends Component
         $this->authorizeIntegration();
         $integration = Integration::findOrFail($id);
 
-        if ($integration->type !== 'github') {
-            session()->flash('error', '仅支持 GitHub 类型的数据同步');
-
+        try {
+            $result = app(IntegrationService::class)->sync($integration);
+        } catch (\Throwable $e) {
+            Log::error('IntegrationManager: sync exception', [
+                'id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+            session()->flash('error', '同步异常: '.$e->getMessage());
             return;
         }
 
-        // Run sync via Artisan for clean output handling
-        $exitCode = Artisan::call('github:sync', [
-            '--integration' => $id,
-        ]);
-
-        $output = Artisan::output();
-
-        if ($exitCode === 0) {
-            session()->flash('message', "GitHub 同步完成!\n".$output);
+        if ($result['ok']) {
+            $output = $result['output'] ?? '';
+            session()->flash('message', "GitHub 同步完成!\n{$output}");
         } else {
-            session()->flash('error', "同步失败:\n".$output);
+            session()->flash('error', '同步失败: '.($result['error'] ?? '未知错误'));
         }
     }
 
@@ -251,7 +322,7 @@ class IntegrationManager extends Component
     {
         $this->authorizeIntegration();
         $integration = Integration::findOrFail($id);
-        $integration->delete();
+        app(IntegrationService::class)->delete($integration);
         session()->flash('message', '集成已删除');
     }
 

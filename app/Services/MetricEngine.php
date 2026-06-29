@@ -7,6 +7,7 @@ use App\Models\MetricSnapshot;
 use App\Models\Project;
 use App\Models\Risk;
 use App\Models\Task;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
 
 /**
@@ -46,29 +47,31 @@ class MetricEngine
      */
     public function computeForProject(Project $project): array
     {
-        $results = [];
-        $metrics = Metric::where('project_id', $project->id)->get();
+        return DB::transaction(function () use ($project) {
+            $results = [];
+            $metrics = Metric::where('project_id', $project->id)->get();
 
-        foreach ($metrics as $metric) {
-            $value = $this->compute($metric, $project);
+            foreach ($metrics as $metric) {
+                $value = $this->compute($metric, $project);
 
-            // 写入快照
-            MetricSnapshot::create([
-                'metric_id' => $metric->id,
-                'captured_at' => now(),
-                'value' => $value,
-            ]);
+                // 写入快照
+                MetricSnapshot::create([
+                    'metric_id' => $metric->id,
+                    'captured_at' => now(),
+                    'value' => $value,
+                ]);
 
-            // 更新指标当前值
-            $metric->update([
-                'current_json_value' => $value,
-                'last_computed_at' => now(),
-            ]);
+                // 更新指标当前值
+                $metric->update([
+                    'current_json_value' => $value,
+                    'last_computed_at' => now(),
+                ]);
 
-            $results[$metric->key] = $value;
-        }
+                $results[$metric->key] = $value;
+            }
 
-        return $results;
+            return $results;
+        });
     }
 
     /**

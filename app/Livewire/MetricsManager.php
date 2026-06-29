@@ -3,13 +3,22 @@
 namespace App\Livewire;
 
 use App\Models\Metric;
+use App\Models\MetricSnapshot;
 use App\Models\Project;
 use App\Services\MetricEngine;
+use App\Traits\AuthorizesResourceAccess;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 
 class MetricsManager extends Component
 {
+    use AuthorizesResourceAccess;
+
     public string $slug;
+
+    /** @var int 快照历史最大条数，可通过 Livewire 属性绑定动态配置 */
+    public int $historyLimit = 30;
 
     public ?Project $project = null;
 
@@ -53,6 +62,7 @@ class MetricsManager extends Component
 
     public function mount(string $slug): void
     {
+        $this->authorizeResourceAccess('manage_metrics');
         $this->slug = $slug;
         $this->project = Project::where('slug', $slug)->firstOrFail();
     }
@@ -87,7 +97,8 @@ class MetricsManager extends Component
 
     public function startEdit(int $id): void
     {
-        $metric = Metric::findOrFail($id);
+        $this->authorizeResourceAccess('manage_metrics');
+        $metric = $this->project->metrics()->findOrFail($id);
         $def = $metric->definition ?: [];
 
         $this->editingId = $id;
@@ -113,31 +124,53 @@ class MetricsManager extends Component
 
     public function saveMetric(): void
     {
+        $this->authorizeResourceAccess('manage_metrics');
+
+        $validMetricTypes = [
+            'count_tasks', 'completion_rate', 'wip_count',
+            'count_risks', 'cycle_days', 'formula',
+        ];
+
         $this->validate([
             'formName' => 'required|string|max:100',
-            'formKey' => 'required|string|max:50|regex:/^[a-z0-9_]+$/',
+            'formKey' => [
+                'required', 'string', 'max:50', 'regex:/^[a-z0-9_]+$/',
+                Rule::unique('metrics', 'key')
+                    ->where('project_id', $this->project->id)
+                    ->ignore($this->editingId),
+            ],
+            'formType' => ['required', 'string', Rule::in($validMetricTypes)],
         ]);
 
         $definition = $this->buildDefinition();
 
-        if ($this->editingId) {
-            Metric::where('id', $this->editingId)->update([
-                'name' => $this->formName,
-                'key' => $this->formKey,
-                'definition' => $definition,
-                'schedule_cron' => $this->formSchedule ?: null,
-            ]);
-            session()->flash('message', '指标已更新');
-        } else {
-            Metric::create([
-                'project_id' => $this->project->id,
-                'name' => $this->formName,
-                'key' => $this->formKey,
-                'kind' => 'custom',
-                'definition' => $definition,
-                'schedule_cron' => $this->formSchedule ?: null,
-            ]);
-            session()->flash('message', '自定义指标已创建');
+        try {
+            DB::transaction(function () use ($definition) {
+                if ($this->editingId) {
+                    Metric::where('id', $this->editingId)->update([
+                        'name' => $this->formName,
+                        'key' => $this->formKey,
+                        'definition' => $definition,
+                        'schedule_cron' => $this->formSchedule ?: null,
+                    ]);
+                    session()->flash('message', '指标已更新');
+                } else {
+                    Metric::create([
+                        'project_id' => $this->project->id,
+                        'name' => $this->formName,
+                        'key' => $this->formKey,
+                        'kind' => 'custom',
+                        'definition' => $definition,
+                        'schedule_cron' => $this->formSchedule ?: null,
+                    ]);
+                    session()->flash('message', '自定义指标已创建');
+                }
+            });
+        } catch (\Throwable $e) {
+            report($e);
+            session()->flash('error', '指标保存失败：'.$e->getMessage());
+
+            return;
         }
 
         $this->resetForm();
@@ -145,7 +178,8 @@ class MetricsManager extends Component
 
     public function deleteMetric(int $id): void
     {
-        $metric = Metric::findOrFail($id);
+        $this->authorizeResourceAccess('manage_metrics');
+        $metric = $this->project->metrics()->findOrFail($id);
         if ($metric->kind === 'system') {
             session()->flash('error', '系统指标不可删除');
 
@@ -159,15 +193,34 @@ class MetricsManager extends Component
 
     public function computeNow(): void
     {
-        $engine = new MetricEngine;
+        $this->authorizeResourceAccess('manage_metrics');
+
+        // 频率限制：30 秒内不可重复计算，防止滥用或意外重复触发
+        $lastSnapshot = MetricSnapshot::whereIn(
+            'metric_id',
+            $this->project->metrics()->pluck('id')
+        )
+            ->orderBy('captured_at', 'desc')
+            ->first();
+
+        if ($lastSnapshot && $lastSnapshot->captured_at->diffInSeconds(now()) < 30) {
+            session()->flash('error', '计算过于频繁，请 30 秒后再试');
+
+            return;
+        }
+
+        $engine = app(MetricEngine::class);
         $engine->computeForProject($this->project);
         session()->flash('message', '✅ 所有指标已重新计算并存入快照');
     }
 
     public function showSnapshots(int $metricId): void
     {
-        $engine = new MetricEngine;
-        $this->historySnapshots = $engine->getSnapshots($metricId, 30);
+        // 确保指标属于当前项目，防止跨项目窥探快照数据
+        $this->project->metrics()->findOrFail($metricId);
+
+        $engine = app(MetricEngine::class);
+        $this->historySnapshots = $engine->getSnapshots($metricId, $this->historyLimit);
         $this->historyMetricId = $metricId;
         $this->showHistory = true;
     }

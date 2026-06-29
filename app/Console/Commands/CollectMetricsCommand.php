@@ -13,26 +13,41 @@ class CollectMetricsCommand extends Command
 
     protected $description = '自动采集所有系统指标的当前快照';
 
+    public function __construct(
+        private readonly MetricCollector $collector,
+    ) {
+        parent::__construct();
+    }
+
     public function handle(): int
     {
         $dryRun = $this->option('dry-run');
+        $key = $this->option('key');
 
         if ($dryRun) {
             $this->warn('🔍 干跑模式 — 不会写入数据库');
-        } else {
-            $this->info('📐 开始采集指标快照...');
-        }
 
-        $collector = new MetricCollector;
-
-        if ($dryRun) {
-            $this->line('  实际采集时将会计算并存储所有系统指标的当前值...');
-            $this->line('  metrics: 40 条系统指标待采集');
+            if ($key) {
+                $this->line("  将采集指标: {$key}");
+            } else {
+                $count = \App\Models\Metric::system()->count();
+                $this->line("  metrics: {$count} 条系统指标待采集");
+            }
 
             return self::SUCCESS;
         }
 
-        $result = $collector->collectAll();
+        $this->info('📐 开始采集指标快照...');
+
+        $result = $key
+            ? $this->collector->collectOne($key)
+            : $this->collector->collectAll();
+
+        // 指标不存在
+        if (isset($result['message'])) {
+            $this->error($result['message']);
+            return self::FAILURE;
+        }
 
         $this->table(
             ['状态', '数量'],
@@ -45,9 +60,11 @@ class CollectMetricsCommand extends Command
 
         if ($result['errors'] > 0) {
             $this->warn("⚠️ {$result['errors']} 个指标采集失败，请检查日志");
-        } else {
-            $this->info('✅ 全部指标采集完成');
+
+            return self::FAILURE;
         }
+
+        $this->info('✅ 全部指标采集完成');
 
         return self::SUCCESS;
     }

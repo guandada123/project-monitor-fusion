@@ -196,10 +196,10 @@
                 @if($formType === 'github')
                 <div>
                     <label class="text-sm font-medium block mb-1.5" style="color: var(--color-text-secondary);">Personal Access Token</label>
-                    <input type="password" wire:model="ghToken"
+                    <input type="password" name="gh_token"
                            class="w-full px-3 py-2.5 rounded-xl border text-sm font-mono focus:ring-2 focus:ring-offset-0 focus:outline-none transition-all duration-200"
                            style="background: var(--color-bg-tertiary); border-color: var(--color-border); color: var(--color-text-primary); --tw-ring-color: var(--color-accent);"
-                           placeholder="ghp_...">
+                           placeholder="{{ $editingId ? '留空则不修改' : 'ghp_...' }}">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
@@ -237,9 +237,10 @@
                     </div>
                     <div>
                         <label class="text-sm font-medium block mb-1.5" style="color: var(--color-text-secondary);">App Secret</label>
-                        <input type="password" wire:model="larkAppSecret"
+                        <input type="password" name="lark_app_secret"
                                class="w-full px-3 py-2.5 rounded-xl border text-sm focus:ring-2 focus:ring-offset-0 focus:outline-none transition-all duration-200"
-                               style="background: var(--color-bg-tertiary); border-color: var(--color-border); color: var(--color-text-primary); --tw-ring-color: var(--color-accent);">
+                               style="background: var(--color-bg-tertiary); border-color: var(--color-border); color: var(--color-text-primary); --tw-ring-color: var(--color-accent);"
+                               placeholder="{{ $editingId ? '留空则不修改' : '请输入 App Secret' }}">
                     </div>
                 </div>
                 @endif
@@ -255,10 +256,10 @@
                 </div>
                 <div>
                     <label class="text-sm font-medium block mb-1.5" style="color: var(--color-text-secondary);">加签密钥 (可选)</label>
-                    <input type="text" wire:model="dtSecret"
+                    <input type="password" name="dt_secret"
                            class="w-full px-3 py-2.5 rounded-xl border text-sm focus:ring-2 focus:ring-offset-0 focus:outline-none transition-all duration-200"
                            style="background: var(--color-bg-tertiary); border-color: var(--color-border); color: var(--color-text-primary); --tw-ring-color: var(--color-accent);"
-                           placeholder="SEC...">
+                           placeholder="{{ $editingId ? '留空则不修改' : 'SEC...' }}">
                 </div>
                 @endif
 

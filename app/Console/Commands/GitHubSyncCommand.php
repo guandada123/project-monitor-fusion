@@ -37,7 +37,7 @@ class GitHubSyncCommand extends Command
         $this->info('📦 仓库: '.($integration->config['org'] ?? '?').'/'.($integration->config['repo'] ?? '?'));
 
         // Resolve project (DB query, no retry needed)
-        $project = $this->resolveProject();
+        $project = $this->resolveProject($integration);
         if (! $project) {
             $this->error('未找到关联项目。请用 --project= 指定项目 slug。');
 
@@ -148,15 +148,15 @@ class GitHubSyncCommand extends Command
         return Integration::active()->byType('github')->first();
     }
 
-    protected function resolveProject(): ?Project
+    protected function resolveProject(?Integration $integration = null): ?Project
     {
         $slug = $this->option('project');
         if ($slug) {
             return Project::where('slug', $slug)->first();
         }
 
-        // Try to match project by integration's repo name
-        $integration = $this->resolveIntegration();
+        // Use passed integration, or resolve fresh if not provided
+        $integration ??= $this->resolveIntegration();
         if ($integration && ! empty($integration->config['repo'])) {
             $repoName = $integration->config['repo'];
 

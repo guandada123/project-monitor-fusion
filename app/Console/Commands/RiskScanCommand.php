@@ -2,11 +2,9 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Risk;
-use App\Models\User;
-use App\Notifications\RiskAlertNotification;
 use App\Services\FeishuService;
 use App\Services\RiskDetector;
+use App\Services\RiskNotifierService;
 use Illuminate\Console\Command;
 
 class RiskScanCommand extends Command
@@ -18,12 +16,19 @@ class RiskScanCommand extends Command
 
     protected $description = '自动扫描项目风险并可选推送飞书告警';
 
+    public function __construct(
+        private readonly RiskDetector $detector,
+        private readonly FeishuService $feishu,
+        private readonly RiskNotifierService $riskNotifier,
+    ) {
+        parent::__construct();
+    }
+
     public function handle(): int
     {
         $this->info('🔍 扫描项目风险...');
 
-        $detector = new RiskDetector;
-        $result = $detector->scanAll();
+        $result = $this->detector->scanAll();
 
         $this->table(
             ['统计', '数量'],
@@ -46,33 +51,19 @@ class RiskScanCommand extends Command
         // ── 站内通知 ──
         if (! $this->option('no-notify') && $result['new'] > 0) {
             $this->info('🔔 发送站内通知...');
-            $users = User::whereHas('roles', fn ($q) => $q->whereIn('slug', ['admin', 'manager']))->get();
-
-            // 获取本次新增的风险
-            $newRisks = Risk::where('created_at', '>=', now()->subMinutes(5))
-                ->where('status', 'open')
-                ->get();
-
-            $sent = 0;
-            foreach ($users as $user) {
-                foreach ($newRisks as $risk) {
-                    $user->notify(new RiskAlertNotification($risk, 'created'));
-                    $sent++;
-                }
-            }
-            $this->line("  ✅ 已发送 {$sent} 条通知给 {$users->count()} 位管理员");
+            $sent = $this->riskNotifier->notifyNewRisks($result['new_risk_ids']);
+            $this->line("  ✅ 已发送 {$sent['risks_count']} 条通知给 {$sent['users_count']} 位管理员");
         }
 
         // 推送飞书严重风险告警
         if (! $this->option('no-push')) {
-            $criticalRisks = $detector->getCriticalRisks();
+            $criticalRisks = $this->detector->getCriticalRisks();
             if (! empty($criticalRisks)) {
-                $feishu = new FeishuService;
-                if ($feishu->shouldSendRiskAlert()) {
+                if ($this->feishu->shouldSendRiskAlert()) {
                     $this->info('📤 推送风险告警...');
                     foreach ($criticalRisks as $risk) {
-                        $card = $feishu->buildRiskAlertCard($risk);
-                        $pushResult = $feishu->sendInteractiveCard($card);
+                        $card = $this->feishu->buildRiskAlertCard($risk);
+                        $pushResult = $this->feishu->sendInteractiveCard($card);
                         $status = $pushResult['ok'] ? '✅' : '❌';
                         $this->line("  {$status} {$risk['title']}");
                     }

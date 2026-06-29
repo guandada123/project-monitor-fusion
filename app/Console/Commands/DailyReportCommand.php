@@ -2,14 +2,14 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Risk;
 use App\Models\User;
 use App\Notifications\DailyReportNotification;
-use App\Notifications\RiskAlertNotification;
 use App\Services\DailyReportService;
 use App\Services\FeishuService;
 use App\Services\RiskDetector;
+use App\Services\RiskNotifierService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Notification;
 
 class DailyReportCommand extends Command
 {
@@ -20,6 +20,14 @@ class DailyReportCommand extends Command
 
     protected $description = '生成项目日报并推送飞书';
 
+    public function __construct(
+        private readonly RiskDetector $detector,
+        private readonly FeishuService $feishu,
+        private readonly RiskNotifierService $riskNotifier,
+    ) {
+        parent::__construct();
+    }
+
     public function handle(): int
     {
         $date = $this->option('date') ?? now()->toDateString();
@@ -28,21 +36,16 @@ class DailyReportCommand extends Command
 
         // 1. 先执行风险扫描
         $this->info('🔍 执行风险扫描...');
-        $detector = new RiskDetector;
-        $scanResult = $detector->scanAll();
+        $scanResult = $this->detector->scanAll();
         $this->line("  新增: {$scanResult['new']} | 更新: {$scanResult['updated']} | 已解决: {$scanResult['resolved']}");
 
-        // ── 站内通知：风险扫描结果 ──
+        // 拉取通知目标（后续日报通知复用）
+        $users = User::whereHas('roles', fn ($q) => $q->whereIn('slug', ['admin', 'manager']))->get();
+
+        // ── 站内通知：风险扫描结果 — 使用 RiskNotifierService ──
         if ($scanResult['new'] > 0) {
-            $users = User::whereHas('roles', fn ($q) => $q->whereIn('slug', ['admin', 'manager']))->get();
-            $newRisks = Risk::where('created_at', '>=', now()->subMinutes(5))
-                ->where('status', 'open')
-                ->get();
-            foreach ($users as $user) {
-                foreach ($newRisks as $risk) {
-                    $user->notify(new RiskAlertNotification($risk, 'created'));
-                }
-            }
+            $sent = $this->riskNotifier->notifyNewRisks($scanResult['new_risk_ids']);
+            $this->line("  🔔 已发送 {$sent['risks_count']} 条风险通知给 {$sent['users_count']} 位管理员");
         }
 
         // 2. 生成日报
@@ -82,10 +85,7 @@ class DailyReportCommand extends Command
         }
 
         // ── 站内通知：日报推送 ──
-        $users = User::whereHas('roles', fn ($q) => $q->whereIn('slug', ['admin', 'manager']))->get();
-        foreach ($users as $user) {
-            $user->notify(new DailyReportNotification($report['summary']));
-        }
+        Notification::send($users, new DailyReportNotification($report['summary']));
         $this->info("🔔 日报通知已发送给 {$users->count()} 位管理员");
 
         // 5. 输出格式
@@ -98,11 +98,10 @@ class DailyReportCommand extends Command
 
         // 6. 推送到飞书
         if (! $this->option('no-push')) {
-            $feishu = new FeishuService;
-            if ($feishu->shouldSendDaily()) {
+            if ($this->feishu->shouldSendDaily()) {
                 $this->info('📤 推送飞书日报...');
-                $card = $feishu->buildDailyCard($report);
-                $result = $feishu->sendInteractiveCard($card);
+                $card = $this->feishu->buildDailyCard($report);
+                $result = $this->feishu->sendInteractiveCard($card);
 
                 if ($result['ok']) {
                     $this->info('✅ 飞书推送成功');

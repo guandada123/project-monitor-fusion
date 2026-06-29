@@ -68,6 +68,7 @@ class RiskDetector
             'updated' => 0,
             'resolved' => 0,
             'by_rule' => [],
+            'new_risk_ids' => [],
         ];
 
         // 按项目检测
@@ -79,6 +80,7 @@ class RiskDetector
                     if ($result['action'] === 'create') {
                         $results['new']++;
                         $results['by_rule'][$ruleKey] = ($results['by_rule'][$ruleKey] ?? 0) + 1;
+                        $results['new_risk_ids'][] = $result['risk_id'];
                     } elseif ($result['action'] === 'update') {
                         $results['updated']++;
                         $results['by_rule'][$ruleKey] = ($results['by_rule'][$ruleKey] ?? 0) + 1;

@@ -45,11 +45,13 @@ class AggregateView extends Component
             'tasks',
             'tasks as completed_tasks_count' => fn ($q) => $q->where('status', 'done'),
             'risks',
-            'risks as critical_risks_count' => fn ($q) => $q->where('severity', 'critical'),
-            'risks as high_risks_count' => fn ($q) => $q->where('severity', 'high'),
-        ])->with(['risks' => function ($q) {
-            $q->whereIn('status', ['open', 'acknowledged'])->select('id', 'project_id', 'severity');
-        }]);
+            'risks as critical_risks_count' => fn ($q) => $q
+                ->whereIn('status', ['open', 'acknowledged'])
+                ->where('severity', 'critical'),
+            'risks as high_risks_count' => fn ($q) => $q
+                ->whereIn('status', ['open', 'acknowledged'])
+                ->where('severity', 'high'),
+        ]);
 
         if ($this->search !== '') {
             $search = $this->search;

@@ -29,15 +29,7 @@ class ComputeMetricsCommand extends Command
             return Command::SUCCESS;
         }
 
-        if ($this->option('all')) {
-            $results = $engine->computeAll();
-            $count = count($results);
-            $this->info("✅ Metrics computed for {$count} projects");
-
-            return Command::SUCCESS;
-        }
-
-        // 默认：全部活跃项目
+        // 默认（含 --all）：全部活跃项目
         $results = $engine->computeAll();
         $count = count($results);
         $this->info("✅ Metrics computed for {$count} projects");

@@ -21,7 +21,11 @@ class ProjectController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        $user = $request->user();
         $query = Project::query()->withCount(['tasks', 'risks']);
+
+        // Scope to projects the user can access
+        $query->whereIn('id', $user->accessibleProjectIds());
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -67,7 +71,15 @@ class ProjectController extends Controller
         ]);
 
         $validated['owner_id'] = $request->user()->id;
-        $validated['slug'] = Str::slug($validated['name']);
+        $slug = Str::slug($validated['name']);
+
+        // Handle slug collisions: append incrementing suffix
+        $originalSlug = $slug;
+        $counter = 1;
+        while (Project::where('slug', $slug)->exists()) {
+            $slug = $originalSlug.'-'.($counter++);
+        }
+        $validated['slug'] = $slug;
 
         $project = Project::create($validated);
         $project->loadCount(['tasks', 'risks']);
@@ -80,8 +92,10 @@ class ProjectController extends Controller
      *
      * @urlParam project int required 项目 ID
      */
-    public function show(Project $project): JsonResponse
+    public function show(Request $request, Project $project): JsonResponse
     {
+        abort_unless($request->user()->canAccessProject($project), 403, '无权访问此项目');
+
         $project->loadCount(['tasks', 'risks', 'metrics']);
 
         return ApiResponse::success($project);

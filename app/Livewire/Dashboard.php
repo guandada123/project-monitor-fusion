@@ -167,18 +167,22 @@ class Dashboard extends Component
             // 2. Compute project stats — use DB aggregations instead of Collection filtering
             $projectIds = $projects->pluck('id');
 
-            $taskStats = Task::selectRaw("
+            // Single query for per-project stats; global totals derived from it (saves one SQL round-trip)
+            $perProjectTaskStats = Task::selectRaw("
+                    project_id,
                     COUNT(*) as total,
                     SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done,
                     SUM(CASE WHEN status != 'done' AND due_at IS NOT NULL AND due_at < ? THEN 1 ELSE 0 END) as overdue
                 ")
                 ->whereIn('project_id', $projectIds)
+                ->groupBy('project_id')
                 ->addBinding(now()->startOfDay(), 'select')
-                ->first();
+                ->get()
+                ->keyBy('project_id');
 
-            $totalTasks = (int) ($taskStats->total ?? 0);
-            $doneTasks = (int) ($taskStats->done ?? 0);
-            $overdueTasks = (int) ($taskStats->overdue ?? 0);
+            $totalTasks = (int) $perProjectTaskStats->sum('total');
+            $doneTasks = (int) $perProjectTaskStats->sum('done');
+            $overdueTasks = (int) $perProjectTaskStats->sum('overdue');
 
             $projectStats = [
                 'total_projects' => $projects->count(),
@@ -195,19 +199,6 @@ class Dashboard extends Component
                 ->where('status', 'open')
                 ->groupBy('project_id')
                 ->pluck('open_count', 'project_id');
-
-            // Per-project task stats in a single query
-            $perProjectTaskStats = Task::selectRaw("
-                    project_id,
-                    COUNT(*) as total,
-                    SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done,
-                    SUM(CASE WHEN status != 'done' AND due_at IS NOT NULL AND due_at < ? THEN 1 ELSE 0 END) as overdue
-                ")
-                ->whereIn('project_id', $projectIds)
-                ->groupBy('project_id')
-                ->addBinding(now()->startOfDay(), 'select')
-                ->get()
-                ->keyBy('project_id');
 
             $kpiSummary = $projects->map(function ($project) use ($riskCountsByProject, $perProjectTaskStats) {
                 $stats = $perProjectTaskStats->get($project->id);

@@ -11,14 +11,29 @@ class IntegrationFactory extends Factory
 
     public function definition(): array
     {
-        return [
-            'type' => fake()->randomElement(['github', 'jira', 'feishu_base', 'csv']),
-            'name' => fake()->company().' '.fake()->randomElement(['Sync', 'Connector', 'Bridge']),
-            'config' => [
-                'url' => fake()->url(),
-                'token_prefix' => substr(fake()->uuid(), 0, 8).'...',
-                'enabled' => true,
+        $type = fake()->randomElement(['github', 'lark', 'dingtalk']);
+
+        $config = match ($type) {
+            'github' => [
+                'token' => 'ghp_'.substr(fake()->sha256(), 0, 36),
+                'org' => fake()->company(),
+                'repo' => fake()->randomElement(['laravel/laravel', 'livewire/livewire', 'owner/project']),
             ],
+            'lark' => [
+                'webhook_url' => fake()->url().'/hook',
+                'app_id' => 'cli_'.substr(fake()->uuid(), 0, 24),
+                'app_secret' => substr(fake()->sha256(), 0, 32),
+            ],
+            'dingtalk' => [
+                'webhook_url' => fake()->url().'/robot/send',
+                'secret' => substr(fake()->sha256(), 0, 32),
+            ],
+        };
+
+        return [
+            'type' => $type,
+            'name' => fake()->company().' '.fake()->randomElement(['Sync', 'Connector', 'Bridge']),
+            'config' => $config,
             'status' => fake()->randomElement(['active', 'active', 'active', 'paused']), // weighted
             'last_sync_at' => fake()->optional(0.7)->dateTimeBetween('-3 days', 'now'),
             'sync_state' => ['last_event_id' => (string) fake()->randomNumber(8)],
@@ -36,10 +51,40 @@ class IntegrationFactory extends Factory
             'type' => 'github',
             'name' => 'GitHub Sync',
             'config' => [
-                'repository' => fake()->randomElement(['laravel/laravel', 'livewire/livewire', 'owner/project']),
-                'webhook_secret' => substr(fake()->sha256(), 0, 16),
-                'sync_issues' => true,
-                'sync_prs' => true,
+                'token' => 'ghp_'.substr(fake()->sha256(), 0, 36),
+                'org' => fake()->company(),
+                'repo' => fake()->randomElement(['laravel/laravel', 'livewire/livewire', 'owner/project']),
+            ],
+        ]);
+    }
+
+    /**
+     * Lark integration.
+     */
+    public function lark(): static
+    {
+        return $this->state(fn (array $attrs) => [
+            'type' => 'lark',
+            'name' => '飞书集成',
+            'config' => [
+                'webhook_url' => fake()->url().'/hook',
+                'app_id' => 'cli_'.substr(fake()->uuid(), 0, 24),
+                'app_secret' => substr(fake()->sha256(), 0, 32),
+            ],
+        ]);
+    }
+
+    /**
+     * DingTalk integration.
+     */
+    public function dingtalk(): static
+    {
+        return $this->state(fn (array $attrs) => [
+            'type' => 'dingtalk',
+            'name' => '钉钉集成',
+            'config' => [
+                'webhook_url' => fake()->url().'/robot/send',
+                'secret' => substr(fake()->sha256(), 0, 32),
             ],
         ]);
     }
@@ -76,22 +121,6 @@ class IntegrationFactory extends Factory
             'status' => 'error',
             'error_message' => fake()->sentence(),
             'last_sync_at' => fake()->dateTimeBetween('-7 days', '-1 day'),
-        ]);
-    }
-
-    /**
-     * CSV/static import integration.
-     */
-    public function csv(): static
-    {
-        return $this->state(fn (array $attrs) => [
-            'type' => 'csv',
-            'name' => 'CSV Import '.fake()->randomDigitNotNull(),
-            'config' => [
-                'file_path' => '/imports/projects_'.fake()->date('Ymd').'.csv',
-                'delimiter' => ',',
-                'has_header' => true,
-            ],
         ]);
     }
 }

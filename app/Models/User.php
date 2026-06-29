@@ -165,4 +165,41 @@ class User extends Authenticatable
         Cache::forget("user:{$this->id}:roles");
         Cache::forget("user:{$this->id}:permissions");
     }
+
+    /**
+     * Determine whether this user can access a specific project.
+     *
+     * Rules:
+     *  - Admins (role: admin) can access ALL projects.
+     *  - Users with manage_projects permission can access ALL projects.
+     *  - Project owners can access their own projects.
+     *  - All other users: access denied.
+     */
+    public function canAccessProject(Project $project): bool
+    {
+        // Admin role — full access
+        if ($this->hasRole('admin')) {
+            return true;
+        }
+
+        // System-level project management — full access
+        if ($this->hasPermission('manage_projects')) {
+            return true;
+        }
+
+        // Project owner — access only their own projects
+        return $this->id === $project->owner_id;
+    }
+
+    /**
+     * Get the IDs of all projects this user can access (for query scoping).
+     */
+    public function accessibleProjectIds(): array
+    {
+        if ($this->hasRole('admin') || $this->hasPermission('manage_projects')) {
+            return Project::pluck('id')->all();
+        }
+
+        return $this->ownedProjects()->pluck('id')->all();
+    }
 }

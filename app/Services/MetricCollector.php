@@ -7,6 +7,7 @@ use App\Models\MetricSnapshot;
 use App\Models\Project;
 use App\Models\Risk;
 use App\Models\Task;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -41,19 +42,7 @@ class MetricCollector
             try {
                 $value = $this->compute($metric);
                 if ($value !== null) {
-                    $metric->update([
-                        'current_value' => is_numeric($value) ? $value : null,
-                        'current_json_value' => is_array($value) ? $value : null,
-                        'last_computed_at' => now(),
-                    ]);
-
-                    MetricSnapshot::create([
-                        'metric_id' => $metric->id,
-                        'value' => is_numeric($value) ? $value : null,
-                        'json_value' => is_array($value) ? $value : null,
-                        'captured_at' => now(),
-                    ]);
-
+                    $this->updateMetricWithSnapshot($metric, $value);
                     $results['computed']++;
                 }
             } catch (\Throwable $e) {
@@ -67,6 +56,63 @@ class MetricCollector
         }
 
         return $results;
+    }
+
+    /**
+     * 采集单个指标
+     */
+    public function collectOne(string $key): array
+    {
+        $results = ['total' => 0, 'computed' => 0, 'errors' => 0];
+
+        $metric = Metric::where('key', $key)->first();
+
+        if (! $metric) {
+            return [
+                'total' => 0,
+                'computed' => 0,
+                'errors' => 0,
+                'message' => "指标 '{$key}' 未找到",
+            ];
+        }
+
+        try {
+            $value = $this->compute($metric);
+            if ($value !== null) {
+                $this->updateMetricWithSnapshot($metric, $value);
+                $results['computed']++;
+            }
+        } catch (\Throwable $e) {
+            Log::warning("MetricCollector failed for {$metric->key}", [
+                'metric_id' => $metric->id,
+                'error' => $e->getMessage(),
+            ]);
+            $results['errors']++;
+        }
+        $results['total']++;
+
+        return $results;
+    }
+
+    /**
+     * 在事务中更新指标值并创建快照
+     */
+    private function updateMetricWithSnapshot(Metric $metric, mixed $value): void
+    {
+        DB::transaction(function () use ($metric, $value) {
+            $metric->update([
+                'current_value' => is_numeric($value) ? $value : null,
+                'current_json_value' => is_array($value) ? $value : null,
+                'last_computed_at' => now(),
+            ]);
+
+            MetricSnapshot::create([
+                'metric_id' => $metric->id,
+                'value' => is_numeric($value) ? $value : null,
+                'json_value' => is_array($value) ? $value : null,
+                'captured_at' => now(),
+            ]);
+        });
     }
 
     /**
