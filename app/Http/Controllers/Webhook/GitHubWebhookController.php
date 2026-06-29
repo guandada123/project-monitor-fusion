@@ -17,6 +17,10 @@ class GitHubWebhookController
         $id = $request->header('X-GitHub-Delivery', (string) str()->uuid());
 
         $secret = config('services.github.webhook_secret');
+        if (empty($secret)) {
+            Log::critical('GitHub webhook secret not configured');
+            abort(500, 'Webhook 未正确配置');
+        }
         if (! $this->isValidSignature($request->getContent(), $signature, $secret)) {
             $computed = 'sha256='.hash_hmac('sha256', $request->getContent(), $secret);
             Log::warning('GitHub webhook signature invalid', [

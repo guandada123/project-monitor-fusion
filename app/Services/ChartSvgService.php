@@ -22,6 +22,7 @@ class ChartSvgService
         $color = $percentage >= 80 ? '#10b981' : ($percentage >= 50 ? '#f59e0b' : '#ef4444');
 
         $arc = self::describeArc($cx, $cy, $radius - $stroke / 2, -90, -90 + $angle);
+        $safeLabel = htmlspecialchars($label, ENT_QUOTES, 'UTF-8');
 
         return <<<SVG
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {$size} {$size}" width="{$size}" height="{$size}">
@@ -31,7 +32,7 @@ class ChartSvgService
     {$percentage}%
   </text>
   <text x="{$cx}" y="{$cy}+24" text-anchor="middle" font-size="11" fill="#6b7280">
-    {$label}
+    {$safeLabel}
   </text>
 </svg>
 SVG;
@@ -57,8 +58,9 @@ SVG;
             $w = ($item['value'] / $maxVal) * $chartW;
             $w = max($w, $item['value'] > 0 ? 6 : 0);
             $color = $item['color'] ?? '#6b7280';
+            $safeLabel = htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8');
             $bars .= <<<BAR
-  <text x="{$labelX}" y="{$y}" dominant-baseline="central" font-size="12" fill="#374151" font-weight="500">{$item['label']}</text>
+  <text x="{$labelX}" y="{$y}" dominant-baseline="central" font-size="12" fill="#374151" font-weight="500">{$safeLabel}</text>
   <rect x="{$barX}" y="{$y}" width="{$w}" height="{$barHeight}" rx="4" fill="{$color}" opacity="0.85"/>
   <text x="{$valX}" y="{$y}" dominant-baseline="central" font-size="12" fill="#6b7280">{$item['value']}</text>
 BAR;
@@ -82,11 +84,14 @@ SVG;
         };
         $trendColor = $trend === 'up' ? '#10b981' : ($trend === 'down' ? '#ef4444' : '#6b7280');
 
+        $safeTitle = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
+        $safeValue = htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+
         return <<<SVG
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 80" width="160" height="80">
   <rect x="0" y="0" width="160" height="80" rx="10" fill="#f9fafb" stroke="#e5e7eb" stroke-width="1"/>
-  <text x="16" y="28" font-size="12" fill="#6b7280">{$title}</text>
-  <text x="16" y="56" font-size="22" font-weight="700" fill="{$color}">{$value}</text>
+  <text x="16" y="28" font-size="12" fill="#6b7280">{$safeTitle}</text>
+  <text x="16" y="56" font-size="22" font-weight="700" fill="{$color}">{$safeValue}</text>
   <text x="140" y="28" text-anchor="end" font-size="14" fill="{$trendColor}">{$trendArrow}</text>
 </svg>
 SVG;
@@ -204,12 +209,13 @@ SVG;
     {
         $color = $percentage >= 80 ? '#10b981' : ($percentage >= 50 ? '#f59e0b' : '#ef4444');
         $barW = ($percentage / 100) * ($width - 16);
+        $safeLabel = htmlspecialchars($label, ENT_QUOTES, 'UTF-8');
 
         return <<<SVG
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {$width} {$height}" width="{$width}" height="{$height}">
   <rect x="0" y="10" width="{$width}" height="20" rx="6" fill="#e5e7eb"/>
   <rect x="0" y="10" width="{$barW}" height="20" rx="6" fill="{$color}" opacity="0.85"/>
-  <text x="8" y="26" font-size="11" fill="#374151" font-weight="600">{$label} {$percentage}%</text>
+  <text x="8" y="26" font-size="11" fill="#374151" font-weight="600">{$safeLabel} {$percentage}%</text>
 </svg>
 SVG;
     }
