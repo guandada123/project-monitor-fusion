@@ -4,7 +4,7 @@ namespace App\Livewire;
 
 use App\Models\Project;
 use App\Services\ChartSvgService;
-use App\Services\RiskEngine\FeishuAlertService;
+use App\Services\FeishuService;
 use Livewire\Component;
 
 class ProjectCompare extends Component
@@ -54,7 +54,7 @@ class ProjectCompare extends Component
             return ['ok' => false, 'error' => '请至少选择一个项目'];
         }
 
-        $service = new FeishuAlertService;
+        $service = app(FeishuService::class);
         $messages = [];
 
         foreach ($projects as $project) {

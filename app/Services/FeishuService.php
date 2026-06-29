@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Project;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -230,6 +231,54 @@ class FeishuService
                 ]],
             ],
         ];
+    }
+
+    /**
+     * 推送项目进度报告到飞书群
+     *
+     * 从 FeishuAlertService 迁移合并而来。
+     */
+    public function sendReportSummary(Project $project, string $reportUrl = ''): array
+    {
+        if (! $this->isConfigured()) {
+            return ['ok' => false, 'error' => '飞书 Webhook 未配置'];
+        }
+
+        $completion = $project->completionRate();
+        $totalTasks = $project->tasks()->count();
+        $openRisks = $project->risks()->where('status', 'open')->count();
+        $closedRisks = $project->risks()->where('status', 'closed')->count();
+
+        $statusEmoji = $completion >= 80 ? '🟢' : ($completion >= 50 ? '🟡' : '🔴');
+        $riskEmoji = $openRisks > 3 ? '🔴' : ($openRisks > 0 ? '🟡' : '🟢');
+
+        $md = "{$statusEmoji} **{$project->name}** — 项目进度报告\n\n";
+        $md .= "📊 完成率: **{$completion}%**\n";
+        $md .= "📋 总任务: {$totalTasks} 个\n";
+        $md .= "{$riskEmoji} 未闭环风险: {$openRisks} 个（已闭环 {$closedRisks} 个）\n";
+        $md .= "🏷 状态: {$project->status}\n";
+        $md .= "📅 周期: {$project->start_at} ~ {$project->end_at}\n\n";
+
+        if ($reportUrl) {
+            $md .= "[📄 查看完整报告]({$reportUrl})";
+        }
+
+        $card = [
+            'config' => ['wide_screen_mode' => true],
+            'header' => [
+                'title' => ['tag' => 'plain_text', 'content' => '📊 项目进度报告'],
+                'template' => $openRisks > 3 ? 'red' : ($completion >= 80 ? 'green' : 'blue'),
+            ],
+            'elements' => [
+                ['tag' => 'markdown', 'content' => $md],
+                ['tag' => 'hr'],
+                ['tag' => 'note', 'elements' => [
+                    ['tag' => 'plain_text', 'content' => '— 项目监控仪表板 · '.now()->format('Y-m-d H:i')],
+                ]],
+            ],
+        ];
+
+        return $this->sendInteractiveCard($card);
     }
 
     protected function loadSettings(): array

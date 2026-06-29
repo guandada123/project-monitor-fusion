@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use App\Services\ChartSvgService;
-use App\Services\RiskEngine\FeishuAlertService;
+use App\Services\FeishuService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -150,7 +150,7 @@ class ReportController extends Controller
 
         $reportUrl = route('projects.report.html', $project->slug);
 
-        $service = new FeishuAlertService;
+        $service = app(FeishuService::class);
         $result = $service->sendReportSummary($project, $reportUrl);
 
         if ($result['ok']) {
@@ -182,7 +182,7 @@ class ReportController extends Controller
             return response()->json(['ok' => false, 'error' => '未找到匹配的项目'], 404);
         }
 
-        $service = new FeishuAlertService;
+        $service = app(FeishuService::class);
         $messages = [];
 
         foreach ($projects as $project) {
