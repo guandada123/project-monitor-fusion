@@ -97,8 +97,9 @@ class User extends Authenticatable
      */
     public function hasRole(string $slug): bool
     {
-        return Cache::remember("user:{$this->id}:roles", 300, fn () => $this->roles->pluck('slug')
-        )->contains($slug);
+        return Cache::remember("user:{$this->id}:roles", 60, function () {
+            return $this->roles->pluck('slug');
+        })->contains($slug);
     }
 
     /**
@@ -106,14 +107,11 @@ class User extends Authenticatable
      */
     public function hasPermission(string $slug): bool
     {
-        return Cache::remember("user:{$this->id}:permissions", 300, function () {
-            return $this->roles()
-                ->with('permissions')
-                ->get()
-                ->pluck('permissions')
-                ->flatten()
-                ->pluck('slug')
-                ->unique();
+        return Cache::remember("user:{$this->id}:permissions", 60, function () {
+            return $this->roles()->with('permissions')->get()
+                ->flatMap(fn ($role) => $role->permissions->pluck('slug'))
+                ->unique()
+                ->values();
         })->contains($slug);
     }
 

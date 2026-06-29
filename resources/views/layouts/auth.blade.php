@@ -1,17 +1,22 @@
 <!DOCTYPE html>
-<html lang="zh-CN" x-data="{ theme: localStorage.getItem('theme') || 'system' }"
-      x-init="$watch('theme', v => { localStorage.setItem('theme', v); applyTheme(v) });
-               applyTheme(theme);
-               window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => { if(theme === 'system') applyTheme('system') });
-               function applyTheme(t) {
-                   const isDark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-                   document.documentElement.classList.toggle('dark', isDark);
-               }">
+<html lang="zh-CN" x-data="{ theme: localStorage.getItem('theme') || 'system' }">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ?? 'Project Monitor' }}</title>
+    {{-- Blocking theme init: runs before any paint, eliminates FOUC --}}
+    <script>
+        (function() {
+            var theme = localStorage.getItem('theme') || 'system';
+            var isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (isDark) document.documentElement.classList.add('dark');
+            window.__applyTheme = function(t) {
+                var d = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                document.documentElement.classList.toggle('dark', d);
+            };
+        })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
