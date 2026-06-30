@@ -26,6 +26,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => CheckPermission::class,
         ]);
 
+        $middleware->trustProxies(at: '*');
+
         $middleware->api(prepend: [
             HandleCors::class,
         ]);

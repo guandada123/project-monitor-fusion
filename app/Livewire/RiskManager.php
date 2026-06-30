@@ -78,21 +78,23 @@ class RiskManager extends Component
 
     public function loadStats(): void
     {
-        $total = Risk::count();
-        $open = Risk::where('status', 'open')->count();
-        $acknowledged = Risk::where('status', 'acknowledged')->count();
-        $closed = Risk::where('status', 'closed')->count();
+        $row = Risk::toBase()->selectRaw("
+            COUNT(*) as total,
+            COUNT(CASE WHEN status = 'open' THEN 1 END) as open,
+            COUNT(CASE WHEN status = 'acknowledged' THEN 1 END) as acknowledged,
+            COUNT(CASE WHEN status = 'closed' THEN 1 END) as closed,
+            COUNT(CASE WHEN status = 'open' AND severity = 'critical' THEN 1 END) as critical,
+            COUNT(CASE WHEN status = 'open' AND severity = 'high' THEN 1 END) as high,
+            COUNT(CASE WHEN status = 'open' AND suggestion IS NOT NULL THEN 1 END) as withSuggestion,
+            COUNT(CASE WHEN status = 'open' AND suggestion IS NULL THEN 1 END) as noSuggestion
+        ")->first();
 
-        $critical = Risk::where('status', 'open')->where('severity', 'critical')->count();
-        $high = Risk::where('status', 'open')->where('severity', 'high')->count();
-
-        $withSuggestion = Risk::where('status', 'open')->whereNotNull('suggestion')->count();
-        $noSuggestion = Risk::where('status', 'open')->whereNull('suggestion')->count();
-
-        $this->stats = compact(
-            'total', 'open', 'acknowledged', 'closed',
-            'critical', 'high', 'withSuggestion', 'noSuggestion'
-        );
+        $this->stats = $row
+            ? (array) $row
+            : [
+                'total' => 0, 'open' => 0, 'acknowledged' => 0, 'closed' => 0,
+                'critical' => 0, 'high' => 0, 'withSuggestion' => 0, 'noSuggestion' => 0,
+            ];
     }
 
     /**
@@ -283,7 +285,7 @@ class RiskManager extends Component
     {
         $projects = Project::select('id', 'name')->orderBy('name')->get();
         $risks = $this->getQuery()->paginate(20);
-        $openRisks = Risk::where('status', 'open')->count();
+        $openRisks = $this->stats['open'] ?? 0;
 
         return view('livewire.risk-manager', [
             'risks' => $risks,

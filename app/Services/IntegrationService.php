@@ -47,13 +47,52 @@ class IntegrationService
             '--no-interaction' => true,
         ]);
 
-        $output = Artisan::output();
+        $output = $this->sanitizeArtisanOutput(Artisan::output());
 
         if ($exitCode === 0) {
             return ['ok' => true, 'output' => $output];
         }
 
         return ['ok' => false, 'error' => $output ?: '同步命令执行失败'];
+    }
+
+    /**
+     * 过滤 Artisan 命令输出中的敏感信息。
+     *
+     * 移除: 命令调用行、PHP 堆栈跟踪、绝对文件路径。
+     * 截断: 最大 2000 字符。
+     */
+    private function sanitizeArtisanOutput(string $output): string
+    {
+        if (empty($output)) {
+            return '';
+        }
+
+        $lines = explode("\n", $output);
+        $filtered = [];
+
+        foreach ($lines as $line) {
+            // 跳过命令调用行（如 "  0 => '--integration=123'"）
+            if (preg_match('/^\s*\d+\s*=>\s*\'--/', $line)) {
+                continue;
+            }
+            // 跳过 PHP 堆栈跟踪中的文件路径行
+            if (preg_match('/^#\d+\s+.*\.php\(/', $line)) {
+                continue;
+            }
+            // 跳过绝对路径引用行
+            if (preg_match('/^(?>File|Line):\s+\//', $line)) {
+                continue;
+            }
+            // 替换剩余行中的绝对路径（如 /app/Http/... 等）为相对路径提示
+            $line = preg_replace('#/[a-zA-Z0-9_/]+\.php:\d+#', '[internal path]', $line);
+            $filtered[] = $line;
+        }
+
+        $result = implode("\n", $filtered);
+
+        // 截断过长输出
+        return mb_strlen($result) > 2000 ? mb_substr($result, 0, 2000)."\n... (已截断)" : $result;
     }
 
     /**

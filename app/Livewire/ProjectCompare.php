@@ -73,7 +73,7 @@ class ProjectCompare extends Component
 
     public function render()
     {
-        $allProjects = Project::withCount(['tasks', 'risks'])->where('status', 'active')->get();
+        $allProjects = Project::where('status', 'active')->get();
         $selectedProjects = $this->getSelectedProjects();
 
         $comparisons = [];
@@ -86,13 +86,11 @@ class ProjectCompare extends Component
             $color = $this->palette[$idx % count($this->palette)];
             $completion = $project->completionRate();
 
-            $taskStatusCounts = $project->tasks()
-                ->selectRaw('status, count(*) as cnt')
-                ->groupBy('status')->pluck('cnt', 'status')->toArray();
+            $tasks = $project->tasks;       // preloaded by with(['tasks']), no query
+            $risks = $project->risks;       // preloaded by with(['risks']), no query
 
-            $riskSeverityCounts = $project->risks()
-                ->selectRaw('severity, count(*) as cnt')
-                ->groupBy('severity')->pluck('cnt', 'severity')->toArray();
+            $taskStatusCounts = $tasks->groupBy('status')->map->count()->toArray();
+            $riskSeverityCounts = $risks->groupBy('severity')->map->count()->toArray();
 
             $totalTasks = $project->tasks_count;
             $doneTasks = ($taskStatusCounts['done'] ?? 0) + ($taskStatusCounts['closed'] ?? 0) + ($taskStatusCounts['completed'] ?? 0);
@@ -100,7 +98,7 @@ class ProjectCompare extends Component
             $openTasks = ($taskStatusCounts['open'] ?? 0) + ($taskStatusCounts['todo'] ?? 0);
             $blockedTasks = $taskStatusCounts['blocked'] ?? 0;
             $totalRisks = $project->risks_count;
-            $openRisks = $project->risks()->where('status', 'open')->count();
+            $openRisks = $risks->where('status', 'open')->count();
 
             $comparisons[] = [
                 'project' => $project,

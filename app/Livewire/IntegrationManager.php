@@ -114,6 +114,17 @@ class IntegrationManager extends Component
             ]),
         };
 
+        // 清除密钥字段，防止 Livewire 序列化到前端（密钥通过 request()->input() 单独传递）
+        $secretKey = match ($integration->type) {
+            'github' => 'token',
+            'lark' => 'app_secret',
+            'dingtalk' => 'secret',
+            default => null,
+        };
+        if ($secretKey !== null) {
+            unset($this->formConfig[$secretKey]);
+        }
+
         $this->showModal = true;
     }
 
@@ -281,16 +292,16 @@ class IntegrationManager extends Component
                 'id' => $id,
                 'error' => $e->getMessage(),
             ]);
-            session()->flash('error', '连接测试异常: '.$e->getMessage());
+            session()->flash('error', '连接测试异常: '.e($e->getMessage()));
             return;
         }
 
         if ($result['ok']) {
-            $repo = $result['repo'] ?? '';
-            $stars = isset($result['stars']) ? " (⭐ {$result['stars']})" : '';
+            $repo = e($result['repo'] ?? '');
+            $stars = isset($result['stars']) ? ' (⭐ '.e($result['stars']).')' : '';
             session()->flash('message', "✅ 连接成功 — {$repo}{$stars}");
         } else {
-            session()->flash('error', '连接失败: '.($result['error'] ?? '未知错误'));
+            session()->flash('error', '连接失败: '.e($result['error'] ?? '未知错误'));
         }
     }
 
@@ -306,15 +317,15 @@ class IntegrationManager extends Component
                 'id' => $id,
                 'error' => $e->getMessage(),
             ]);
-            session()->flash('error', '同步异常: '.$e->getMessage());
+            session()->flash('error', '同步异常: '.e($e->getMessage()));
             return;
         }
 
         if ($result['ok']) {
-            $output = $result['output'] ?? '';
+            $output = e($result['output'] ?? '');
             session()->flash('message', "GitHub 同步完成!\n{$output}");
         } else {
-            session()->flash('error', '同步失败: '.($result['error'] ?? '未知错误'));
+            session()->flash('error', '同步失败: '.e($result['error'] ?? '未知错误'));
         }
     }
 
@@ -328,7 +339,9 @@ class IntegrationManager extends Component
 
     public function getIntegrationsProperty()
     {
-        return Integration::orderBy('created_at', 'desc')->get();
+        return Integration::where('created_by', auth()->id())
+            ->orderBy('created_at', 'desc')
+            ->get();
     }
 
     public function render()

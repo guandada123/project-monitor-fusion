@@ -43,7 +43,7 @@ class GlobalSearch extends Component
         $this->selectedIndex = 0;
         $this->searching = true;
 
-        if (mb_strlen(trim($this->query)) < 1) {
+        if (mb_strlen(trim($this->query)) < 2) {
             $this->results = [];
             $this->counts = [];
             $this->show = false;

@@ -219,7 +219,7 @@
                     <span>关闭</span>
                 </div>
             </div>
-        @elseif (mb_strlen(trim($query)) >= 1 && !$searching)
+        @elseif (mb_strlen(trim($query)) >= 2 && !$searching)
             <!-- Empty State -->
             <div class="flex flex-col items-center justify-center py-10 px-6 text-center">
                 <div class="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
@@ -234,7 +234,7 @@
                     尝试其他关键词，如项目名、任务标题或风险描述
                 </p>
             </div>
-        @elseif (mb_strlen(trim($query)) >= 1 && $searching)
+        @elseif (mb_strlen(trim($query)) >= 2 && $searching)
             <!-- Loading Skeleton -->
             <div class="p-3 space-y-2">
                 @foreach(range(1, 3) as $i)

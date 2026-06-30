@@ -6,6 +6,7 @@ namespace App\Livewire;
 
 use App\Services\FeishuService;
 use App\Services\SettingsService;
+use Illuminate\Support\Facades\Http;
 use Livewire\Component;
 
 class Settings extends Component
@@ -94,21 +95,31 @@ class Settings extends Component
     }
 
     /**
-     * 测试飞书推送连通性
+     * 测试飞书推送连通性 — 不保存未保存更改
      */
-    public function testPush(SettingsService $settings)
+    public function testPush(): void
     {
-        $this->saveNotifications($settings);
-
-        $feishu = new FeishuService;
-        if (! $feishu->isConfigured()) {
-            session()->flash('push_result', ['ok' => false, 'error' => '请先配置飞书 Webhook URL']);
+        $webhookUrl = $this->feishuWebhookUrl;
+        if (empty($webhookUrl)) {
+            $this->addError('feishu_webhook_url', '请先填写 Webhook URL');
 
             return;
         }
 
-        $result = $feishu->sendText('🔄 这是一条测试消息，来自 Project Monitor 的飞书推送配置验证。');
-        session()->flash('push_result', $result);
+        try {
+            $response = Http::post($webhookUrl, [
+                'msg_type' => 'text',
+                'content' => ['text' => '🔔 配置测试消息 - 如果你看到此消息，配置正确！'],
+            ]);
+
+            if ($response->successful()) {
+                $this->dispatch('notify', type: 'success', message: '飞书推送测试成功');
+            } else {
+                $this->addError('test', '推送失败：'.$response->body());
+            }
+        } catch (\Exception $e) {
+            $this->addError('test', '推送异常：'.$e->getMessage());
+        }
     }
 
     public function saveGeneral(SettingsService $settings)

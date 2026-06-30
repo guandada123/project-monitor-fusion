@@ -189,19 +189,11 @@ class MetricCollector
      */
     protected function calcCompletionRate(?int $projectId): float
     {
-        $q = Task::query();
-        if ($projectId) {
-            $q->where('project_id', $projectId);
-        }
+        $result = Task::selectRaw('COUNT(*) as total, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as done', ['done'])
+            ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
+            ->first();
 
-        $total = $q->count();
-        if ($total === 0) {
-            return 0;
-        }
-
-        $done = (clone $q)->where('status', 'done')->count();
-
-        return round(($done / $total) * 100, 1);
+        return $result->total > 0 ? round(($result->done / $result->total) * 100, 2) : 0;
     }
 
     /**
@@ -270,16 +262,14 @@ class MetricCollector
      */
     protected function calcAvgWorkload(?int $projectId): float
     {
-        $q = Task::where('status', 'in_progress');
-        if ($projectId) {
-            $q->where('project_id', $projectId);
-        }
-        $inProgress = $q->count();
+        $baseQuery = Task::where('status', 'in_progress')
+            ->when($projectId, fn ($q) => $q->where('project_id', $projectId));
+
+        $inProgress = (clone $baseQuery)->count();
 
         // Count unique assignees for in_progress tasks
-        $assignees = Task::where('status', 'in_progress')
+        $assignees = (clone $baseQuery)
             ->whereNotNull('assignee_id')
-            ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
             ->distinct('assignee_id')
             ->count('assignee_id');
 

@@ -24,6 +24,8 @@ class Project extends Model
 {
     use HasFactory, SoftDeletes;
 
+    public const COMPLETED_STATUSES = ['done', 'closed', 'completed'];
+
     protected $fillable = [
         'name', 'slug', 'source', 'external_id', 'owner_id',
         'status', 'description', 'start_at', 'end_at',
@@ -71,9 +73,9 @@ class Project extends Model
         if ($total === 0) {
             return 0;
         }
-        $done = $this->tasks()->whereIn('status', ['done', 'closed', 'completed'])->count();
+        $done = $this->tasks()->whereIn('status', static::COMPLETED_STATUSES)->count();
 
-        return round(($done / $total) * 100, 1);
+        return round(($done / $total) * 100, 2);
     }
 
     // Scopes
@@ -92,20 +94,15 @@ class Project extends Model
     {
         if ($this->relationLoaded('tasks')) {
             $total = $this->tasks->count();
-            if ($total === 0) {
-                return 0;
-            }
-            $done = $this->tasks->where('status', 'done')->count();
-
-            return round(($done / $total) * 100, 1);
+            $done = $this->tasks->whereIn('status', static::COMPLETED_STATUSES)->count();
+        } else {
+            return $this->completionRate();
         }
-        $total = $this->tasks()->count();
         if ($total === 0) {
             return 0;
         }
-        $done = $this->tasks()->whereIn('status', ['done'])->count();
 
-        return round(($done / $total) * 100, 1);
+        return round(($done / $total) * 100, 2);
     }
 
     public function getOverdueRateAttribute(): float
