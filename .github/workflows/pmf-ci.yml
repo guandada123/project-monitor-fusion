@@ -171,7 +171,7 @@ jobs:
         run: php artisan dusk
       - name: Upload Dusk failure screenshots
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dusk-failures-${{ github.run_id }}
           path: tests/Browser/screenshots/
