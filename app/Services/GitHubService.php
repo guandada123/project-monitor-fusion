@@ -316,15 +316,54 @@ class GitHubService
         return $this->apiBase;
     }
 
-    protected function getPaginated(string $url, array $params): array
+    protected function getPaginated(string $url, array $params, int $maxPages = 10): array
     {
-        $resp = $this->client()->get($url, $params);
+        $allData = [];
+        $pageCount = 0;
 
-        if (! $resp->successful()) {
-            throw new \RuntimeException("GitHub API error: HTTP {$resp->status()} — {$resp->body()}");
+        do {
+            $resp = $this->client()->get($url, $params);
+
+            if (! $resp->successful()) {
+                throw new \RuntimeException("GitHub API error: HTTP {$resp->status()} — {$resp->body()}");
+            }
+
+            $data = $resp->json() ?? [];
+            $allData = array_merge($allData, $data);
+            $pageCount++;
+
+            $nextUrl = $this->parseNextLink($resp->header('Link'));
+            if ($nextUrl === null) {
+                break;
+            }
+
+            // Subsequent URLs already contain all query parameters from GitHub's Link header
+            $url = $nextUrl;
+            $params = [];
+        } while ($pageCount < $maxPages);
+
+        return $allData;
+    }
+
+    /**
+     * Parse GitHub's Link header to extract the next page URL.
+     *
+     * GitHub Link header format:
+     *   <https://api.github.com/repos/...>; rel="next", <...>; rel="last"
+     */
+    protected function parseNextLink(?string $linkHeader): ?string
+    {
+        if (empty($linkHeader)) {
+            return null;
         }
 
-        return $resp->json() ?? [];
+        foreach (explode(',', $linkHeader) as $part) {
+            if (preg_match('/<([^>]+)>;\s*rel="next"/', trim($part), $matches)) {
+                return $matches[1];
+            }
+        }
+
+        return null;
     }
 
     protected function detectPriority(array $labels): string

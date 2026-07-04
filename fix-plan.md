@@ -652,62 +652,13 @@ public function renderHtml(string $content): string
 
 ## 4. 🟡 性能修复
 
-### 4.1 RiskManager — 8 条独立 COUNT 查询
+### 4.1 RiskManager — 8 条独立 COUNT 查询 ✅ 已完成
 
-**文件:** `app/Livewire/RiskManager.php`
-**行号:** 第 79-96 行
-
-**当前代码:**
-
-```php
-public function loadStats(): array
-{
-    return [
-        'total' => Risk::count(),
-        'open' => Risk::where('status', 'open')->count(),
-        'acknowledged' => Risk::where('status', 'acknowledged')->count(),
-        'closed' => Risk::where('status', 'closed')->count(),
-        'critical' => Risk::where('status', 'open')->where('severity', 'critical')->count(),
-        'high' => Risk::where('status', 'open')->where('severity', 'high')->count(),
-        'with_suggestion' => Risk::where('status', 'open')->whereNotNull('suggestion')->count(),
-        'without_suggestion' => Risk::where('status', 'open')->whereNull('suggestion')->count(),
-    ];
-}
-```
-
-**修复方案:** 合并为 1-2 条聚合查询
-
-```php
-public function loadStats(): array
-{
-    // 一条聚合查询替代 8 条
-    $stats = Risk::selectRaw("
-        COUNT(*) as total,
-        COUNT(CASE WHEN status = 'open' THEN 1 END) as open,
-        COUNT(CASE WHEN status = 'acknowledged' THEN 1 END) as acknowledged,
-        COUNT(CASE WHEN status = 'closed' THEN 1 END) as closed,
-        COUNT(CASE WHEN status = 'open' AND severity = 'critical' THEN 1 END) as critical,
-        COUNT(CASE WHEN status = 'open' AND severity = 'high' THEN 1 END) as high,
-        COUNT(CASE WHEN status = 'open' AND suggestion IS NOT NULL THEN 1 END) as with_suggestion,
-        COUNT(CASE WHEN status = 'open' AND suggestion IS NULL THEN 1 END) as without_suggestion
-    ")->first();
-
-    return [
-        'total' => (int) ($stats->total ?? 0),
-        'open' => (int) ($stats->open ?? 0),
-        'acknowledged' => (int) ($stats->acknowledged ?? 0),
-        'closed' => (int) ($stats->closed ?? 0),
-        'critical' => (int) ($stats->critical ?? 0),
-        'high' => (int) ($stats->high ?? 0),
-        'with_suggestion' => (int) ($stats->with_suggestion ?? 0),
-        'without_suggestion' => (int) ($stats->without_suggestion ?? 0),
-    ];
-}
-```
+**状态:** 代码已合并为单条 `selectRaw` 聚合查询（见 `app/Livewire/RiskManager.php` 第 79-98 行），无需修改。
 
 ---
 
-### 4.2 ProjectCompare — with() 预加载未正确使用
+### 4.2 ProjectCompare — with() 预加载未正确使用 ✅ 已完成
 
 **文件:** `app/Livewire/ProjectCompare.php`
 **行号:** 第 85-118 行
@@ -751,7 +702,7 @@ foreach ($projects as $project) {
 
 ---
 
-### 4.3 GlobalSearch — 三表 LIKE %value% 全表扫描
+### 4.3 GlobalSearch — 三表 LIKE %value% 全表扫描 ✅ 已完成
 
 **文件:** `app/Livewire/GlobalSearch.php`
 **行号:** 第 67-136 行
@@ -817,7 +768,7 @@ public function searchResults(): array
 
 ---
 
-### 4.4 ProjectReport — 无差别加载全部任务
+### 4.4 ProjectReport — 无差别加载全部任务 ✅ 已完成
 
 **文件:** `app/Livewire/ProjectReport.php`
 **行号:** 第 30-70 行
@@ -846,7 +797,7 @@ $doneTasks = $tasks->where('status', 'done')->count();
 
 ---
 
-### 4.5 MetricEngine — 事务过长风险
+### 4.5 MetricEngine — 事务过长风险 ✅ 已完成
 
 **文件:** `app/Services/MetricEngine.php`
 **行号:** 约第 48-75 行
@@ -877,15 +828,26 @@ foreach ($projects as $project) {
 
 ---
 
-### 4.6 GitHubService — 分页同步 + 限速保护缺失
+### 4.6 GitHubService — 分页同步 + 限速保护缺失 🟡 部分修复
 
 **文件:** `app/Services/GitHubService.php`
 **行号:** 第 82-123 行（fetch 方法），第 300-308 行（client），第 319-328 行（getPaginated）
+
+**当前修复状态:**
+
+| 子项 | 状态 | 说明 |
+|------|------|------|
+| `per_page` 参数 | ✅ 已完成 | 所有 fetch 方法已加 `per_page` 参数 (默认 20-30) |
+| `fetchAllPages()` 多页合并 | ❌ 未实现 | `getPaginated()` 仅做单次请求 + json 转换，无 Link header 解析 |
+| `checkRateLimit()` 限速保护 | ❌ 未实现 | `client()` 仅配置了 `timeout(15)` + token，无 `X-RateLimit-Remaining` 检查 |
+| 429/403 Retry-After 处理 | ❌ 未实现 | 无重试中间件或等待逻辑 |
+| 配置 `defaultBranch` | ❌ 未实现 | 当前 `fetchCommits` 的 `sha` 分支参数需要调用方传入 |
 
 **问题分析:**
 - `fetchCommits`、`fetchPullRequests`、`fetchIssues`、`fetchContributors` 只获取第一页数据（默认 30 条）
 - `getPaginated()` 未解析 Link header，无下一页 URL 跟踪
 - `client()` 无 429/403 限速检测，无 Retry-After 处理
+- 上述问题若长期不修，当 GitHub 返回数据超过 1 页时，数据会不完整；当 API 限速到来时，会抛出未处理的 HTTP 异常
 
 **修复方案:**
 

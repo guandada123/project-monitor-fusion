@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\ApiResponse;
 use App\Models\Project;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -38,8 +39,8 @@ class ProjectController extends Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%");
+                $q->whereLike('name', "%{$search}%")
+                    ->orWhereLike('description', "%{$search}%");
             });
         }
 
@@ -71,17 +72,19 @@ class ProjectController extends Controller
         ]);
 
         $validated['owner_id'] = $request->user()->id;
-        $slug = Str::slug($validated['name']);
+        $validated['slug'] = $this->resolveSlug($validated['name']);
 
-        // Handle slug collisions: append incrementing suffix
-        $originalSlug = $slug;
-        $counter = 1;
-        while (Project::where('slug', $slug)->exists()) {
-            $slug = $originalSlug.'-'.($counter++);
+        try {
+            $project = Project::create($validated);
+        } catch (QueryException $e) {
+            // Unique constraint violation on slug — retry with incremented suffix
+            if ($e->getCode() === '23000' && str_contains($e->getMessage(), 'slug')) {
+                $validated['slug'] = $this->resolveSlug($validated['name'], retry: true);
+                $project = Project::create($validated);
+            } else {
+                throw $e;
+            }
         }
-        $validated['slug'] = $slug;
-
-        $project = Project::create($validated);
         $project->loadCount(['tasks', 'risks']);
 
         return ApiResponse::created($project, '项目创建成功');
@@ -121,7 +124,7 @@ class ProjectController extends Controller
         ]);
 
         if (isset($validated['name'])) {
-            $validated['slug'] = Str::slug($validated['name']);
+            $validated['slug'] = $this->resolveSlug($validated['name'], $project->id);
         }
 
         $project->update($validated);
@@ -136,6 +139,27 @@ class ProjectController extends Controller
      */
     public function destroy(Project $project): JsonResponse
     {
+        // Check for related records before soft-deleting
+        $relationCounts = [
+            '任务' => $project->tasks()->count(),
+            '风险' => $project->risks()->count(),
+            '指标' => $project->metrics()->count(),
+        ];
+
+        $nonEmpty = array_filter($relationCounts);
+        if ($nonEmpty) {
+            $details = implode('、', array_map(
+                fn (string $label, int $count) => "{$label} {$count}条",
+                array_keys($nonEmpty),
+                $nonEmpty
+            ));
+
+            return ApiResponse::error(
+                "项目存在关联数据，无法直接删除：{$details}。请先处理关联数据后再删除。",
+                409,
+            );
+        }
+
         $project->delete();
 
         return ApiResponse::noContent('项目已删除');
@@ -157,5 +181,42 @@ class ProjectController extends Controller
         $project->update($validated);
 
         return ApiResponse::success($project, '项目状态已更新');
+    }
+
+    /**
+     * Generate a unique slug for the given name.
+     *
+     * Excludes the given project ID (if any) from conflict check so a project
+     * can update its own name without triggering a false positive.
+     *
+     * When $retry is true (invoked from catch block after a unique constraint violation),
+     * skips the existence check and directly appends a suffix — the first attempt already
+     * exhausted the base + incrementing sequence, so we start from a known-collision point.
+     */
+    private function resolveSlug(string $name, ?int $excludeId = null, bool $retry = false): string
+    {
+        $slug = Str::slug($name);
+        $originalSlug = $slug;
+        $counter = 1;
+
+        if ($retry) {
+            // Called after a unique constraint violation — just append a suffix
+            return $originalSlug.'-'.time();
+        }
+
+        $query = Project::where('slug', $slug);
+        if ($excludeId !== null) {
+            $query->where('id', '!=', $excludeId);
+        }
+
+        while ($query->exists()) {
+            $slug = $originalSlug.'-'.($counter++);
+            $query = Project::where('slug', $slug);
+            if ($excludeId !== null) {
+                $query->where('id', '!=', $excludeId);
+            }
+        }
+
+        return $slug;
     }
 }

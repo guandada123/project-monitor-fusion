@@ -13,40 +13,88 @@ use Illuminate\Support\Facades\Log;
  */
 class FeishuService
 {
-    protected string $webhookUrl;
+    /**
+     * Explicit settings passed to constructor (null = lazy-load from DB).
+     *
+     * @var array<string, mixed>|null
+     */
+    private ?array $settings;
 
-    protected string $partitionTag;
-
-    protected string $botName;
-
-    protected bool $dailyReport;
-
-    protected bool $riskAlert;
+    /**
+     * Whether settings have been loaded from the database.
+     */
+    private bool $settingsLoaded = false;
 
     public function __construct(?array $settings = null)
     {
-        $settings ??= $this->loadSettings();
-
-        $this->webhookUrl = $settings['feishu_webhook_url'] ?? '';
-        $this->partitionTag = $settings['feishu_partition_tag'] ?? '[项目监控]';
-        $this->botName = $settings['feishu_bot_name'] ?? 'Project Monitor';
-        $this->dailyReport = $settings['feishu_daily_report'] ?? true;
-        $this->riskAlert = $settings['feishu_risk_alert'] ?? true;
+        // When settings are explicitly provided, use them immediately.
+        // When null (container auto-resolution), defer DB load until first use.
+        if ($settings !== null) {
+            $this->settings = $settings;
+            $this->settingsLoaded = true;
+        }
     }
+
+    // ─── Lazy settings access ───────────────────
+
+    private function ensureSettingsLoaded(): void
+    {
+        if (! $this->settingsLoaded) {
+            $this->settings = $this->loadSettings();
+            $this->settingsLoaded = true;
+        }
+    }
+
+    private function getWebhookUrl(): string
+    {
+        $this->ensureSettingsLoaded();
+
+        return (string) ($this->settings['feishu_webhook_url'] ?? '');
+    }
+
+    private function getPartitionTag(): string
+    {
+        $this->ensureSettingsLoaded();
+
+        return (string) ($this->settings['feishu_partition_tag'] ?? '[项目监控]');
+    }
+
+    private function getBotName(): string
+    {
+        $this->ensureSettingsLoaded();
+
+        return (string) ($this->settings['feishu_bot_name'] ?? 'Project Monitor');
+    }
+
+    private function isDailyReportEnabled(): bool
+    {
+        $this->ensureSettingsLoaded();
+
+        return (bool) ($this->settings['feishu_daily_report'] ?? true);
+    }
+
+    private function isRiskAlertEnabled(): bool
+    {
+        $this->ensureSettingsLoaded();
+
+        return (bool) ($this->settings['feishu_risk_alert'] ?? true);
+    }
+
+    // ─── Public API ─────────────────────────────
 
     public function isConfigured(): bool
     {
-        return ! empty($this->webhookUrl);
+        return $this->getWebhookUrl() !== '';
     }
 
     public function shouldSendDaily(): bool
     {
-        return $this->isConfigured() && $this->dailyReport;
+        return $this->isConfigured() && $this->isDailyReportEnabled();
     }
 
     public function shouldSendRiskAlert(): bool
     {
-        return $this->isConfigured() && $this->riskAlert;
+        return $this->isConfigured() && $this->isRiskAlertEnabled();
     }
 
     /**
@@ -66,7 +114,7 @@ class FeishuService
 
             $resp = Http::timeout(10)
                 ->withHeaders(['Content-Type' => 'application/json'])
-                ->post($this->webhookUrl, $payload);
+                ->post($this->getWebhookUrl(), $payload);
 
             if ($resp->successful()) {
                 $body = $resp->json();
@@ -103,13 +151,13 @@ class FeishuService
             $payload = [
                 'msg_type' => 'text',
                 'content' => [
-                    'text' => "{$this->partitionTag} {$content}",
+                    'text' => "{$this->getPartitionTag()} {$content}",
                 ],
             ];
 
             $resp = Http::timeout(10)
                 ->withHeaders(['Content-Type' => 'application/json'])
-                ->post($this->webhookUrl, $payload);
+                ->post($this->getWebhookUrl(), $payload);
 
             if ($resp->successful()) {
                 $body = $resp->json();
@@ -130,7 +178,7 @@ class FeishuService
      */
     public function buildDailyCard(array $report): array
     {
-        $tag = $this->partitionTag;
+        $tag = $this->getPartitionTag();
         $date = now()->toDateString();
         $weekday = ['日', '一', '二', '三', '四', '五', '六'][now()->dayOfWeek];
 
@@ -192,7 +240,7 @@ class FeishuService
         $elements[] = [
             'tag' => 'note',
             'elements' => [
-                ['tag' => 'plain_text', 'content' => "🤖 由 {$this->botName} 自动生成 · ".now()->format('H:i')],
+                ['tag' => 'plain_text', 'content' => "🤖 由 {$this->getBotName()} 自动生成 · ".now()->format('H:i')],
             ],
         ];
 
@@ -217,7 +265,7 @@ class FeishuService
         return [
             'config' => ['wide_screen_mode' => true],
             'header' => [
-                'title' => ['tag' => 'plain_text', 'content' => "⚠️ {$this->partitionTag} 风险告警"],
+                'title' => ['tag' => 'plain_text', 'content' => "⚠️ {$this->getPartitionTag()} 风险告警"],
                 'template' => $sevColor,
             ],
             'elements' => [
@@ -280,6 +328,8 @@ class FeishuService
 
         return $this->sendInteractiveCard($card);
     }
+
+    // ─── Settings loading ───────────────────────
 
     protected function loadSettings(): array
     {

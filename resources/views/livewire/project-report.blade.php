@@ -109,7 +109,7 @@
     <div class="glass-card p-6 mb-6">
         <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
             📝 任务清单
-            <span class="text-xs text-gray-400 ml-2">({{ count($tasks) }} 条)</span>
+            <span class="text-xs text-gray-400 ml-2">({{ $tasks->total() }} 条)</span>
         </h3>
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -126,13 +126,22 @@
                         <tr class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                             <td class="py-2 px-3">{{ $t->title }}</td>
                             <td class="py-2 px-3">
-                                @php($status = strtolower($t->status ?? 'open'))
+                                @php
+                                    $status = strtolower($t->status ?? 'open');
+                                    $statusLabels = [
+                                        'done' => '已完成', 'closed' => '已关闭', 'completed' => '已完成',
+                                        'in_progress' => '进行中', 'doing' => '进行中',
+                                        'open' => '待处理', 'todo' => '待处理',
+                                        'blocked' => '已阻塞',
+                                    ];
+                                    $statusLabel = $statusLabels[$status] ?? $status;
+                                @endphp
                                 <span class="px-2 py-0.5 rounded-full text-xs font-medium
                                     {{ in_array($status, ['done','closed','completed']) ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : '' }}
                                     {{ in_array($status, ['in_progress','doing']) ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : '' }}
                                     {{ in_array($status, ['open','todo']) ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : '' }}
                                     {{ $status === 'blocked' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : '' }}">
-                                    {{ $status }}
+                                    {{ $statusLabel }}
                                 </span>
                             </td>
                             <td class="py-2 px-3 text-xs">{{ $t->priority ?? '-' }}</td>
@@ -143,6 +152,10 @@
                     @endforelse
                 </tbody>
             </table>
+        </div>
+        {{-- Pagination links --}}
+        <div class="mt-4">
+            {{ $tasks->links() }}
         </div>
     </div>
 
@@ -164,11 +177,16 @@
                         <tr class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                             <td class="py-2 px-3">{{ $r->title ?? '-' }}</td>
                             <td class="py-2 px-3">
+                                @php
+                                    $sev = $r->severity ?? 'low';
+                                    $sevLabels = ['critical' => '严重', 'high' => '严重', 'medium' => '中等', 'low' => '低'];
+                                    $sevLabel = $sevLabels[$sev] ?? $sev;
+                                @endphp
                                 <span class="px-2 py-0.5 rounded-full text-xs font-medium
-                                    {{ ($r->severity ?? 'low') === 'high' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : '' }}
-                                    {{ ($r->severity ?? 'low') === 'medium' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : '' }}
-                                    {{ ($r->severity ?? 'low') === 'low' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : '' }}">
-                                    {{ $r->severity ?? 'low' }}
+                                    {{ in_array($sev, ['critical','high']) ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : '' }}
+                                    {{ $sev === 'medium' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : '' }}
+                                    {{ $sev === 'low' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : '' }}">
+                                    {{ $sevLabel }}
                                 </span>
                             </td>
                             <td class="py-2 px-3 text-xs">{{ $r->status ?? '-' }}</td>

@@ -327,6 +327,139 @@ describe('detectPriority from labels', function () {
     });
 });
 
+// ─── parseNextLink ──────────────────────────
+
+describe('parseNextLink', function () {
+
+    function invokeParseNextLink(?string $linkHeader): ?string
+    {
+        $service = new GitHubService(['token' => 't', 'org' => 'o', 'repo' => 'r']);
+        $ref = new ReflectionClass(GitHubService::class);
+        $method = $ref->getMethod('parseNextLink');
+        $method->setAccessible(true);
+
+        return $method->invoke($service, $linkHeader);
+    }
+
+    test('returns null for null header', function () {
+        expect(invokeParseNextLink(null))->toBeNull();
+    });
+
+    test('returns null for empty string header', function () {
+        expect(invokeParseNextLink(''))->toBeNull();
+    });
+
+    test('extracts next URL from single rel="next" link', function () {
+        $header = '<https://api.github.com/repos/o/r/issues?page=2&per_page=30>; rel="next"';
+
+        $result = invokeParseNextLink($header);
+
+        expect($result)->toBe('https://api.github.com/repos/o/r/issues?page=2&per_page=30');
+    });
+
+    test('extracts next URL from multiple rel links', function () {
+        $header = '<https://api.github.com/repos/o/r/issues?page=1>; rel="first",'
+            .'<https://api.github.com/repos/o/r/issues?page=2>; rel="next",'
+            .'<https://api.github.com/repos/o/r/issues?page=5>; rel="last"';
+
+        $result = invokeParseNextLink($header);
+
+        expect($result)->toBe('https://api.github.com/repos/o/r/issues?page=2');
+    });
+
+    test('returns null when no rel="next" link present', function () {
+        $header = '<https://api.github.com/repos/o/r/issues?page=1>; rel="first",'
+            .'<https://api.github.com/repos/o/r/issues?page=5>; rel="last"';
+
+        expect(invokeParseNextLink($header))->toBeNull();
+    });
+});
+
+// ─── getPaginated (multi-page traversal) ────
+
+describe('getPaginated multi-page traversal', function () {
+
+    beforeEach(function () {
+        Http::preventStrayRequests();
+    });
+
+    test('single page returns data without extra requests (backward compat)', function () {
+        Http::fake([
+            'api.github.com/repos/o/r/issues*' => Http::response([
+                ['number' => 1, 'title' => 'Issue 1'],
+                ['number' => 2, 'title' => 'Issue 2'],
+            ], 200),
+        ]);
+
+        $service = new GitHubService(['token' => 't', 'org' => 'o', 'repo' => 'r']);
+        $issues = $service->fetchIssues('all', 30);
+
+        expect($issues)->toHaveCount(2);
+        expect($issues[0]['number'])->toBe(1);
+    });
+
+    test('merges data from two pages via Link header', function () {
+        $page1Body = [['number' => 1, 'title' => 'Issue 1']];
+        $page2Body = [['number' => 2, 'title' => 'Issue 2']];
+
+        Http::fake([
+            'api.github.com/repos/o/r/issues*' => Http::sequence()
+                ->push($page1Body, 200, [
+                    'Link' => '<https://api.github.com/repos/o/r/issues?page=2>; rel="next"',
+                ])
+                ->push($page2Body, 200),
+        ]);
+
+        $service = new GitHubService(['token' => 't', 'org' => 'o', 'repo' => 'r']);
+        $issues = $service->fetchIssues('all', 30);
+
+        expect($issues)->toHaveCount(2);
+        expect($issues[0]['number'])->toBe(1);
+        expect($issues[1]['number'])->toBe(2);
+    });
+
+    test('respects maxPages limit and stops early', function () {
+        // Stub 12 pages in a cascading chain — default maxPages=10 should stop at page 10
+        $sequence = Http::sequence();
+        for ($i = 0; $i < 12; $i++) {
+            $sequence->push([['number' => $i + 1]], 200, [
+                'Link' => '<https://api.github.com/repos/o/r/issues?page='.($i + 2).'>; rel="next"',
+            ]);
+        }
+
+        Http::fake([
+            'api.github.com/repos/o/r/issues*' => $sequence,
+        ]);
+
+        $service = new GitHubService(['token' => 't', 'org' => 'o', 'repo' => 'r']);
+        $issues = $service->fetchIssues('all', 30);
+
+        // Default maxPages=10 → at most 10 page fetches
+        expect($issues)->toHaveCount(10);
+    });
+
+    test('Http::assertSent confirms actual request count for multi-page', function () {
+        Http::fake([
+            'api.github.com/repos/o/r/issues*' => Http::sequence()
+                ->push([['number' => 1]], 200, [
+                    'Link' => '<https://api.github.com/repos/o/r/issues?page=2>; rel="next"',
+                ])
+                ->push([['number' => 2]], 200, [
+                    'Link' => '<https://api.github.com/repos/o/r/issues?page=3>; rel="next"',
+                ])
+                ->push([['number' => 3]], 200),
+        ]);
+
+        $service = new GitHubService(['token' => 't', 'org' => 'o', 'repo' => 'r']);
+        $issues = $service->fetchIssues('all', 30);
+
+        expect($issues)->toHaveCount(3);
+        Http::assertSent(function (\Illuminate\Http\Client\Request $request) {
+            return str_contains($request->url(), 'repos/o/r/issues');
+        });
+    });
+});
+
 // ─── upsertIssue / upsertPullRequest / upsertCommitEvent ───
 
 describe('entity upsert methods', function () {

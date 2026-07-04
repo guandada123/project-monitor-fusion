@@ -63,16 +63,21 @@ class GlobalSearch extends Component
      * 使用 LIKE 模糊搜索，配合 pg_trgm GIN 索引大幅加速中文模糊匹配。
      * PostgreSQL 下 LIKE '%关键词%' 可通过三元组（trigram）索引走索引扫描，
      * 无需全表扫描，对中文项目名、任务标题搜索性能提升显著。
+     *
+     * 注意：Project / Task 使用了 SoftDeletes，所有 orWhere 条件必须
+     * 套在 where(function) 内，否则 OR 会绕过 deleted_at IS NULL 过滤。
      */
     protected function performSearch(): void
     {
         $q = trim($this->query);
         $like = '%'.$q.'%';
 
-        // 搜索项目
-        $projects = Project::where('name', 'like', $like)
-            ->orWhere('description', 'like', $like)
-            ->orWhere('slug', 'like', $like)
+        // 搜索项目（SoftDeletes → where 闭包包裹 orWhere 防止绕过）
+        $projects = Project::where(function ($query) use ($like) {
+            $query->where('name', 'like', $like)
+                ->orWhere('description', 'like', $like)
+                ->orWhere('slug', 'like', $like);
+        })
             ->select('id', 'name', 'slug', 'status', 'description')
             ->limit(5)
             ->get()
@@ -86,10 +91,12 @@ class GlobalSearch extends Component
                 'badge' => $p->status,
             ]);
 
-        // 搜索任务
+        // 搜索任务（SoftDeletes → where 闭包包裹 orWhere）
         $tasks = Task::with('project:id,name,slug')
-            ->where('title', 'like', $like)
-            ->orWhere('description', 'like', $like)
+            ->where(function ($query) use ($like) {
+                $query->where('title', 'like', $like)
+                    ->orWhere('description', 'like', $like);
+            })
             ->select('id', 'project_id', 'title', 'status', 'priority', 'due_at')
             ->limit(5)
             ->get()
@@ -103,10 +110,12 @@ class GlobalSearch extends Component
                 'meta' => $t->priority,
             ]);
 
-        // 搜索风险
+        // 搜索风险（无 SoftDeletes，但保持一致也加 where 闭包）
         $risks = Risk::with('project:id,name,slug')
-            ->where('title', 'like', $like)
-            ->orWhere('detail', 'like', $like)
+            ->where(function ($query) use ($like) {
+                $query->where('title', 'like', $like)
+                    ->orWhere('detail', 'like', $like);
+            })
             ->select('id', 'project_id', 'title', 'severity', 'status', 'rule_key')
             ->limit(5)
             ->get()

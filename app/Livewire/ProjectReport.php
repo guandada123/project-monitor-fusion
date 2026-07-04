@@ -27,7 +27,7 @@ class ProjectReport extends Component
 
     public function render()
     {
-        $project = Project::with(['tasks', 'risks', 'metrics'])
+        $project = Project::with(['risks', 'metrics'])
             ->where('slug', $this->slug)
             ->firstOrFail();
 
@@ -41,25 +41,28 @@ class ProjectReport extends Component
      */
     protected function buildFilteredData(Project $project): array
     {
-        // Filter tasks by date range
-        $taskQuery = $project->tasks();
-        if ($this->dateFrom) {
-            $taskQuery->where('created_at', '>=', $this->dateFrom);
-        }
-        if ($this->dateTo) {
-            $taskQuery->where('created_at', '<=', $this->dateTo.' 23:59:59');
-        }
+        // Aggregate task status counts via SQL — zero full task records in PHP memory
+        $statusCounts = $project->tasks()
+            ->selectRaw('status, COUNT(*) as cnt')
+            ->groupBy('status')
+            ->pluck('cnt', 'status');
 
-        $allTasks = $project->tasks;
-        $tasks = $taskQuery->orderBy('due_at')->get();
-        $risks = $project->risks()->orderByDesc('severity')->get();
+        $openTasks = ($statusCounts['open'] ?? 0) + ($statusCounts['todo'] ?? 0) + ($statusCounts['in_progress'] ?? 0);
+        $closedTasks = array_sum($statusCounts->toArray()) - $openTasks;
+
+        // Date-filtered, paginated task list for display table
+        $tasks = $project->tasks()
+            ->when($this->dateFrom, fn($q) => $q->where('created_at', '>=', $this->dateFrom))
+            ->when($this->dateTo, fn($q) => $q->where('created_at', '<=', $this->dateTo.' 23:59:59'))
+            ->orderBy('due_at')
+            ->paginate(50);
+
+        // Risk data — use pre-loaded collection, sort in PHP
+        $risks = $project->risks->sortByDesc('severity')->values();
 
         $completion = $project->completionRate();
-        $openTasks = $allTasks->whereIn('status', ['open', 'todo', 'in_progress'])->count();
-        $closedTasks = $allTasks->whereNotIn('status', ['open', 'todo', 'in_progress'])->count();
 
-        // Task status distribution
-        $statusCounts = $allTasks->groupBy('status')->map->count();
+        // Task status distribution bars
         $taskBars = [
             ['label' => '已完成', 'value' => ($statusCounts['done'] ?? 0) + ($statusCounts['closed'] ?? 0) + ($statusCounts['completed'] ?? 0), 'color' => '#10b981'],
             ['label' => '进行中', 'value' => $statusCounts['in_progress'] ?? 0, 'color' => '#3b82f6'],
@@ -75,8 +78,8 @@ class ProjectReport extends Component
             ['label' => '低',   'value' => $riskCounts['low'] ?? 0, 'color' => '#10b981'],
         ];
 
-        // Dimension-specific charts
-        $dimensionCharts = $this->buildDimensionCharts($project, $allTasks);
+        // Dimension-specific charts — no longer receives all tasks
+        $dimensionCharts = $this->buildDimensionCharts($project);
 
         $charts = [
             'donut' => ChartSvgService::donutGauge($completion, '完成率'),
@@ -104,7 +107,7 @@ class ProjectReport extends Component
     /**
      * Build dimension-specific SVG charts based on selected dimension.
      */
-    protected function buildDimensionCharts(Project $project, $tasks): array
+    protected function buildDimensionCharts(Project $project): array
     {
         $charts = [];
 
@@ -121,16 +124,21 @@ class ProjectReport extends Component
                 break;
 
             case 'quality':
-                // Quality: bug/defect density (simulated)
-                $bugRate = $tasks->count() > 0
-                    ? round($tasks->where('status', 'blocked')->count() / $tasks->count() * 100, 1)
+                // Quality: bug/defect density — use aggregation, not full task records
+                $totalTasks = $project->tasks()->count();
+                $blockedTasks = $project->tasks()->where('status', 'blocked')->count();
+                $bugRate = $totalTasks > 0
+                    ? round($blockedTasks / $totalTasks * 100, 1)
                     : 0;
                 $qualityScore = max(0, 100 - $bugRate * 3);
+
+                // Use pre-loaded collection for risks (no extra query)
+                $closedRisks = $project->risks->where('status', 'closed')->count();
 
                 $qualityBars = [
                     ['label' => '质量分',   'value' => (int) $qualityScore, 'color' => '#10b981'],
                     ['label' => '阻塞率',   'value' => (int) $bugRate, 'color' => '#ef4444'],
-                    ['label' => '已闭环风险', 'value' => $project->risks()->where('status', 'closed')->count(), 'color' => '#3b82f6'],
+                    ['label' => '已闭环风险', 'value' => $closedRisks, 'color' => '#3b82f6'],
                 ];
 
                 $charts['header'] = '🔍 质量指标';
@@ -138,7 +146,8 @@ class ProjectReport extends Component
                 break;
 
             case 'load':
-                // Resource load: tasks per assignee
+                // Resource load: tasks per assignee — only load tasks when this dimension is selected
+                $tasks = $project->tasks()->with('assignee')->get();
                 $assigneeCounts = [];
                 foreach ($tasks->groupBy('assignee_id') as $uid => $group) {
                     $name = $group->first()->assignee?->name ?? "用户#{$uid}";
