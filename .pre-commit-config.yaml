@@ -1,0 +1,51 @@
+# Pre-commit hooks — Project Monitor Fusion (Laravel)
+# Install: pip install pre-commit && pre-commit install
+# Run: pre-commit run --all-files
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^(vendor/|node_modules/|storage/)
+      - id: end-of-file-fixer
+        exclude: ^(vendor/|node_modules/|storage/)
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-toml
+      - id: check-json
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  # Local PHP tools (installed via Composer)
+  - repo: local
+    hooks:
+      - id: pint
+        name: Laravel Pint
+        entry: ./vendor/bin/pint --test
+        language: script
+        files: \.php$
+        pass_filenames: false
+        always_run: true
+
+      - id: phpstan
+        name: PHPStan
+        entry: ./vendor/bin/phpstan analyse --no-progress --no-interaction
+        language: script
+        files: \.php$
+        pass_filenames: false
+        always_run: true
+
+  # Secret 扫描
+  - repo: local
+    hooks:
+      - id: gitleaks
+        name: Gitleaks (secret scan)
+        entry: gitleaks git --pre-commit --verbose
+        language: system
+        stages: [commit]
+        always_run: true
