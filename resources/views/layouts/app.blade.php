@@ -36,9 +36,17 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
     @livewireNavigation
+    <style>
+        .skip-link { position:absolute; left:-999em; top:0; z-index:9999; padding:8px 16px;
+            background:var(--color-accent); color:#fff; border-radius:0 0 8px 0; text-decoration:none; }
+        .skip-link:focus { left:0; }
+    </style>
 </head>
 <body class="min-h-screen transition-colors duration-300"
       style="background-color: var(--color-bg-primary); color: var(--color-text-primary);">
+
+    <!-- Skip to main content (accessibility) -->
+    <a href="#main-content" class="skip-link">跳到主要内容</a>
 
     <!-- SPA Navigation Progress Bar -->
     <div id="nprogress" class="nprogress-bar" style="transform: scaleX(0);"></div>
@@ -152,7 +160,7 @@
         </div>
 
         <!-- Main Content -->
-        <main class="flex-1 min-w-0 lg:pl-0 pt-14 lg:pt-0">
+        <main id="main-content" class="flex-1 min-w-0 lg:pl-0 pt-14 lg:pt-0">
             <!-- Top Bar — Premium Glass Style -->
             <header class="hidden lg:flex items-center justify-between h-16 px-8 border-b gap-4"
                     style="background: var(--glass-bg);
