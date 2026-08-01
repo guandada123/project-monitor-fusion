@@ -12,7 +12,7 @@ RUN composer install \
     --no-scripts
 
 # Stage 2: 前端构建 (Node + Vite)
-FROM node:22-alpine AS node
+FROM node:25-alpine AS node
 WORKDIR /build
 COPY package.json package-lock.json postcss.config.js vite.config.js ./
 RUN npm ci
