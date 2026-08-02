@@ -43,6 +43,7 @@ RUN apk add --no-cache --virtual .build-deps \
         bash \
         curl \
         git \
+        libzip \
         postgresql16-client \
         supervisor \
         nano \
