@@ -315,17 +315,17 @@ async function fetchAll() {
 
     // Fetch each module independently — one failure doesn't crash others
     await Promise.all([
-        fetchModule(`${API_BASE}/api/overview`, (data) => {
+        fetchModule(`${API_BASE}/api/ops/overview`, (data) => {
             renderOverview(data);
             document.getElementById('refreshTime').textContent = fmtTime(data.timestamp);
             document.getElementById('refreshDate').textContent = data.date || '----/--/--';
         }, 'projectGrid', '项目概览'),
 
-        fetchModule(`${API_BASE}/api/cost`, renderCost, 'costContent', '成本数据'),
+        fetchModule(`${API_BASE}/api/ops/cost`, renderCost, 'costContent', '成本数据'),
 
-        fetchModule(`${API_BASE}/api/automations`, renderAutomations, 'automationContent', '自动化数据'),
+        fetchModule(`${API_BASE}/api/ops/automations`, renderAutomations, 'automationContent', '自动化数据'),
 
-        fetchModule(`${API_BASE}/api/roadmap`, renderRoadmap, 'roadmapContent', 'Roadmap 数据'),
+        fetchModule(`${API_BASE}/api/ops/roadmap`, renderRoadmap, 'roadmapContent', 'Roadmap 数据'),
     ]);
 
     // Update footer timestamp
