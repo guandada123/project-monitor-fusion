@@ -47,3 +47,27 @@ Schedule::command('github:sync')
     ->runInBackground()
     ->appendOutputTo(storage_path('logs/github-sync.log'))
     ->description('GitHub 数据自动同步');
+
+// ──────────────────────────────────────────────
+// Ops Center 合并任务（原独立 Flask 应用功能）
+// ──────────────────────────────────────────────
+
+// 每 5 分钟 — 外部项目健康探测 (QTS/Claw/Marvis)
+Schedule::command('ops:health-scan')
+    ->everyFiveMinutes()
+    ->withoutOverlapping(5)
+    ->appendOutputTo(storage_path('logs/ops-health.log'))
+    ->description('外部项目健康探测（原 Ops Center）');
+
+// 每小时 — AI 成本采集
+Schedule::command('ops:collect-cost')
+    ->hourly()
+    ->appendOutputTo(storage_path('logs/ops-cost.log'))
+    ->description('AI 成本采集（原 Ops Center）');
+
+// 每 30 分钟 — WorkBuddy 自动化同步
+Schedule::command('ops:sync-automations')
+    ->everyThirtyMinutes()
+    ->withoutOverlapping(5)
+    ->appendOutputTo(storage_path('logs/ops-automations.log'))
+    ->description('WorkBuddy 自动化同步（原 Ops Center）');

@@ -1,7 +1,7 @@
 @props(['href' => '#', 'active' => false, 'icon' => ''])
 
 <a href="{{ $href }}"
-   wire:navigate.hover
+   wire:navigate
    class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group"
    style="{{ $active ? 'background: rgba(59,130,246,0.1); color: var(--color-accent);' : 'color: var(--color-text-secondary);' }}"
    onmouseover="if(!{{ $active ? 'true' : 'false' }}){this.style.background='var(--color-bg-tertiary)';this.style.color='var(--color-text-primary)';}"

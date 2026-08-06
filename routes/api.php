@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AggregateController;
 use App\Http\Controllers\Api\BoardController;
 use App\Http\Controllers\Api\MetricController;
+use App\Http\Controllers\Api\OpsApiController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\RiskController;
 use App\Http\Controllers\Api\TaskController;
@@ -31,6 +32,16 @@ Route::get('/health', function () {
             'time' => now()->toIso8601String(),
         ],
     ]);
+});
+
+// ─── Ops Center 监控面板 (公开, 原 ops-center Flask 迁移) ───
+Route::prefix('ops')->group(function () {
+    Route::get('/overview', [OpsApiController::class, 'overview']);
+    Route::get('/automations', [OpsApiController::class, 'automations']);
+    Route::get('/cost', [OpsApiController::class, 'cost']);
+    Route::get('/roadmap', [OpsApiController::class, 'roadmap']);
+    Route::get('/health', [OpsApiController::class, 'health']);
+    Route::get('/state', [OpsApiController::class, 'state']);
 });
 
 // ─── Token management (public: create token) ───
