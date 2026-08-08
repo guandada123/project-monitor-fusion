@@ -11,12 +11,13 @@
         "axios": "^1.19.0",
         "concurrently": "^10.0.4",
         "laravel-vite-plugin": "^1.2.0",
-        "postcss": "^8.4.47",
+        "nanoid": "^3.3.18",
+        "postcss": "^8.5.26",
         "tailwindcss": "^4.3.3",
         "vite": "^6.0.11"
     },
     "dependencies": {
-        "@tailwindcss/postcss": "^4.3.1",
+        "@tailwindcss/postcss": "^4.3.3",
         "apexcharts": "^5.15.0",
         "sortablejs": "^1.15.7",
         "three": "^0.184.0"
