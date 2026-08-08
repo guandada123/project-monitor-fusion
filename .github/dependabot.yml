@@ -18,6 +18,11 @@ updates:
     labels: ["dependencies", "frontend"]
     commit-message:
       prefix: "deps(npm)"
+    # vite 锁定 ^6（Flux CSS 依赖），laravel-vite-plugin 2.x/3.x 要求 vite ^8 → 跨大版本升级必 ERESOLVE 失败。
+    # 禁止该包 semver-major 自动升级，保持与 vite 6 兼容的 1.x 线；后续若升级 vite 到 8 再移除本规则。
+    ignore:
+      - dependency-name: "laravel-vite-plugin"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: docker
     directory: "/"
     schedule:
