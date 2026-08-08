@@ -8,7 +8,7 @@
     "devDependencies": {
         "@playwright/test": "^1.61.0",
         "autoprefixer": "^10.4.20",
-        "axios": "^1.7.4",
+        "axios": "^1.19.0",
         "concurrently": "^10.0.4",
         "laravel-vite-plugin": "^1.2.0",
         "postcss": "^8.4.47",
