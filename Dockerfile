@@ -22,7 +22,7 @@ COPY --from=composer /build/vendor/livewire/flux/dist/flux.css vendor/livewire/f
 RUN npm run build
 
 # Stage 3: 运行时 (PHP-FPM + Alpine)
-FROM php:8.3-fpm-alpine AS runtime
+FROM php:8.5-fpm-alpine AS runtime
 
 # ─── 系统依赖 & PHP 扩展 ───
 RUN apk add --no-cache --virtual .build-deps \
