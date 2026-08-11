@@ -10,7 +10,10 @@ return new class extends Migration
     {
         Schema::create('tasks', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('project_id')->constrained()->cascadeOnDelete();
+            // NOTE: 外键延迟到 2026_06_14_170000_add_foreign_key_indexes 建立。
+            // 原因：本迁移与 create_projects_table 共享时间戳 144729，Linux scandir 顺序不确定，
+            // 内联 ->constrained() 会偶发在 projects 建表前执行 → CI 报 "relation projects does not exist"。
+            $table->foreignId('project_id')->cascadeOnDelete();
             $table->string('external_id')->nullable();
             $table->string('title');
             $table->text('description')->nullable();
