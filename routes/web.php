@@ -151,6 +151,7 @@ if (! app()->environment('production')) {
         } else {
             Auth::loginUsingId($userId);
         }
+
         return redirect('/');
     })->middleware('web');
 }

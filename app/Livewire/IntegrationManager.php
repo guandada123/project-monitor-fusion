@@ -6,6 +6,7 @@ use App\Models\Integration;
 use App\Services\IntegrationService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 use Livewire\Component;
 
 /**
@@ -180,7 +181,7 @@ class IntegrationManager extends Component
         }
 
         $rule = [$fieldMap['input'] => $this->editingId ? 'nullable|string' : 'required|string'];
-        $validator = \Illuminate\Support\Facades\Validator::make(request()->only($fieldMap['input']), $rule);
+        $validator = Validator::make(request()->only($fieldMap['input']), $rule);
 
         if ($validator->fails()) {
             foreach ($validator->errors()->toArray() as $field => $messages) {
@@ -188,6 +189,7 @@ class IntegrationManager extends Component
                     $this->addError($field, $msg);
                 }
             }
+
             return false;
         }
 
@@ -293,6 +295,7 @@ class IntegrationManager extends Component
                 'error' => $e->getMessage(),
             ]);
             session()->flash('error', '连接测试异常: '.e($e->getMessage()));
+
             return;
         }
 
@@ -318,6 +321,7 @@ class IntegrationManager extends Component
                 'error' => $e->getMessage(),
             ]);
             session()->flash('error', '同步异常: '.e($e->getMessage()));
+
             return;
         }
 

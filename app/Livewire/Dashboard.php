@@ -6,7 +6,6 @@ use App\Models\Project;
 use App\Models\Risk;
 use App\Models\Task;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +19,7 @@ class Dashboard extends Component
     private const DEFAULT_TREND_DAYS = 7;
 
     private const int TREND_OFFSET = self::DEFAULT_TREND_DAYS - 1; // 6
+
     // ——— Filter state (URL-persisted via Livewire 3 #[Url]) ———
     #[Url(as: 'status', history: true)]
     public string $filterStatus = 'all';
@@ -91,11 +91,30 @@ class Dashboard extends Component
     }
 
     // ——— Filter update hooks: mark dirty so render() dispatches again ———
-    public function updatedFilterStatus(): void    { $this->needsDispatch = true; }
-    public function updatedFilterSource(): void    { $this->needsDispatch = true; }
-    public function updatedFilterDateStart(): void { $this->needsDispatch = true; }
-    public function updatedFilterDateEnd(): void   { $this->needsDispatch = true; }
-    public function updatedSearch(): void          { $this->needsDispatch = true; }
+    public function updatedFilterStatus(): void
+    {
+        $this->needsDispatch = true;
+    }
+
+    public function updatedFilterSource(): void
+    {
+        $this->needsDispatch = true;
+    }
+
+    public function updatedFilterDateStart(): void
+    {
+        $this->needsDispatch = true;
+    }
+
+    public function updatedFilterDateEnd(): void
+    {
+        $this->needsDispatch = true;
+    }
+
+    public function updatedSearch(): void
+    {
+        $this->needsDispatch = true;
+    }
 
     // ——— Active filter count (for badge) ———
     public function getActiveFilterCountProperty(): int
@@ -123,7 +142,7 @@ class Dashboard extends Component
     // ——— Filtered data loading (with 60s Cache::remember) ———
     protected function loadStats(): void
     {
-        $cacheKey = 'dashboard_stats:' . auth()->id() . ':' . md5(implode('|', [
+        $cacheKey = 'dashboard_stats:'.auth()->id().':'.md5(implode('|', [
             $this->filterStatus,
             $this->filterSource,
             $this->filterDateStart ?? '',

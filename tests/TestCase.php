@@ -34,7 +34,7 @@ abstract class TestCase extends BaseTestCase
 
         // Resolve relative paths against the project root
         if (! str_starts_with($database, '/')) {
-            $database = dirname(__DIR__) . '/' . $database;
+            $database = dirname(__DIR__).'/'.$database;
         }
 
         if (! file_exists($database)) {

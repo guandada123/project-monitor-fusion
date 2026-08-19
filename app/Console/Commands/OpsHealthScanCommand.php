@@ -9,12 +9,13 @@ use Illuminate\Support\Facades\Log;
 class OpsHealthScanCommand extends Command
 {
     protected $signature = 'ops:health-scan';
+
     protected $description = '外部项目健康探测（原 Ops Center）';
 
     private array $targets = [
-        'qts_engine'  => ['host' => '127.0.0.1', 'port' => 8000, 'path' => '/health'],
+        'qts_engine' => ['host' => '127.0.0.1', 'port' => 8000, 'path' => '/health'],
         'qts_backtest' => ['host' => '127.0.0.1', 'port' => 8001, 'path' => '/health'],
-        'qts_monitor'  => ['host' => '127.0.0.1', 'port' => 8002, 'path' => '/health'],
+        'qts_monitor' => ['host' => '127.0.0.1', 'port' => 8002, 'path' => '/health'],
     ];
 
     public function handle(): int
@@ -36,10 +37,11 @@ class OpsHealthScanCommand extends Command
         // 输出
         $this->table(
             ['Service', 'Status', 'Detail'],
-            collect($results)->map(fn($r, $k) => [$k, $r['status'], $r['detail']])->toArray()
+            collect($results)->map(fn ($r, $k) => [$k, $r['status'], $r['detail']])->toArray()
         );
 
         Log::channel('daily')->info('OpsHealthScan', $results);
+
         return Command::SUCCESS;
     }
 
@@ -47,6 +49,7 @@ class OpsHealthScanCommand extends Command
     {
         try {
             $resp = Http::timeout(3)->get("http://{$cfg['host']}:{$cfg['port']}{$cfg['path']}");
+
             return ['status' => $resp->successful() ? 'UP' : 'DEGRADED', 'detail' => "HTTP {$resp->status()}"];
         } catch (\Throwable $e) {
             return ['status' => 'DOWN', 'detail' => $e->getMessage()];
@@ -57,8 +60,9 @@ class OpsHealthScanCommand extends Command
     {
         $output = [];
         exec("pgrep -f {$filter} 2>/dev/null", $output, $exitCode);
+
         return $exitCode === 0
-            ? ['status' => 'UP', 'detail' => 'PID: ' . implode(',', $output)]
+            ? ['status' => 'UP', 'detail' => 'PID: '.implode(',', $output)]
             : ['status' => 'DOWN', 'detail' => 'process not found'];
     }
 
@@ -66,6 +70,7 @@ class OpsHealthScanCommand extends Command
     {
         $output = [];
         exec("du -sh {$path} 2>/dev/null", $output, $exitCode);
+
         return $exitCode === 0
             ? ['status' => 'OK', 'detail' => trim($output[0] ?? '')]
             : ['status' => 'ERR', 'detail' => 'path not accessible'];

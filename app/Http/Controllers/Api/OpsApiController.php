@@ -20,8 +20,8 @@ use Illuminate\Support\Facades\Http;
 class OpsApiController extends Controller
 {
     private const WORKBUDDY_DB = '/Users/guan/.workbuddy/workbuddy.db';
+
     private const AI_COST_LOG = '/Users/guan/.ai_cost_log.jsonl';
-    private const HOME = '/Users/guan/WorkBuddy';
 
     private array $projects = [
         'qts' => [
@@ -80,8 +80,8 @@ class OpsApiController extends Controller
         ];
 
         // Claw
-        $clawScripts = is_dir($this->projects['claw']['path'] . '/scripts')
-            ? count(scandir($this->projects['claw']['path'] . '/scripts')) - 2 : 0;
+        $clawScripts = is_dir($this->projects['claw']['path'].'/scripts')
+            ? count(scandir($this->projects['claw']['path'].'/scripts')) - 2 : 0;
         $projects['claw'] = [
             'name' => 'Claw',
             'status' => 'healthy',
@@ -137,6 +137,7 @@ class OpsApiController extends Controller
     public function automations(): JsonResponse
     {
         $data = $this->getDbAutomations();
+
         return ApiResponse::success($data);
     }
 
@@ -147,6 +148,7 @@ class OpsApiController extends Controller
     {
         $cost = $this->getCostData();
         $monthly = $cost ? $cost['total_cost'] : 0;
+
         return ApiResponse::success([
             'monthly_estimate' => $monthly,
             'target' => 30,
@@ -182,7 +184,7 @@ class OpsApiController extends Controller
                 [
                     'name' => '成本控制',
                     'target' => '¥30/月',
-                    'current' => '¥' . number_format($currentCost, 1) . '/月',
+                    'current' => '¥'.number_format($currentCost, 1).'/月',
                     'progress' => $currentCost <= 30 ? min(100 - intval($currentCost / 30 * 100), 100) : 20,
                 ],
                 [
@@ -233,14 +235,15 @@ class OpsApiController extends Controller
     public function state(): JsonResponse
     {
         $path = '/Users/guan/.workbuddy/cross_project_state.json';
-        if (!file_exists($path)) {
+        if (! file_exists($path)) {
             return ApiResponse::success(['error' => 'state_anchor_not_found']);
         }
         $raw = file_get_contents($path);
         $data = json_decode($raw, true);
-        if (!$data) {
+        if (! $data) {
             return ApiResponse::success(['error' => 'state_anchor_parse_failed']);
         }
+
         // 只暴露安全字段（不泄露 absolute path 等敏感元数据）
         return ApiResponse::success([
             'updated_at' => $data['updated_at'] ?? null,
@@ -258,6 +261,7 @@ class OpsApiController extends Controller
     {
         try {
             $resp = Http::timeout(3)->get("http://127.0.0.1:{$port}{$path}");
+
             return $resp->successful();
         } catch (\Throwable $e) {
             return false;
@@ -266,35 +270,38 @@ class OpsApiController extends Controller
 
     private function pidRunning(string $filter): bool
     {
-        $output = shell_exec("pgrep -f " . escapeshellarg($filter) . " 2>/dev/null");
-        return !empty(trim($output ?? ''));
+        $output = shell_exec('pgrep -f '.escapeshellarg($filter).' 2>/dev/null');
+
+        return ! empty(trim($output ?? ''));
     }
 
     private function dirSize(string $path): string
     {
-        if (!is_dir($path)) {
+        if (! is_dir($path)) {
             return '0 MB';
         }
-        $output = shell_exec("du -sm " . escapeshellarg($path) . " 2>/dev/null");
+        $output = shell_exec('du -sm '.escapeshellarg($path).' 2>/dev/null');
         if (preg_match('/^\s*(\d+)/', (string) $output, $m)) {
             $mb = (int) $m[1];
             if ($mb >= 1024) {
-                return round($mb / 1024, 1) . ' GB';
+                return round($mb / 1024, 1).' GB';
             }
-            return $mb . ' MB';
+
+            return $mb.' MB';
         }
+
         return '0 MB';
     }
 
     private function getDbAutomations(): array
     {
-        if (!file_exists(self::WORKBUDDY_DB)) {
+        if (! file_exists(self::WORKBUDDY_DB)) {
             return ['count' => 0, 'active' => 0, 'paused' => 0, 'deleted' => 0, 'error' => 'db_not_found'];
         }
         try {
-            $pdo = new \PDO('sqlite:' . self::WORKBUDDY_DB);
+            $pdo = new \PDO('sqlite:'.self::WORKBUDDY_DB);
             $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
-            $rows = $pdo->query("SELECT status, COUNT(*) AS c FROM automations GROUP BY status")->fetchAll(\PDO::FETCH_ASSOC);
+            $rows = $pdo->query('SELECT status, COUNT(*) AS c FROM automations GROUP BY status')->fetchAll(\PDO::FETCH_ASSOC);
             $count = $active = $paused = $deleted = 0;
             foreach ($rows as $r) {
                 $count += (int) $r['c'];
@@ -306,6 +313,7 @@ class OpsApiController extends Controller
                     $deleted += (int) $r['c'];
                 }
             }
+
             return ['count' => $count, 'active' => $active, 'paused' => $paused, 'deleted' => $deleted];
         } catch (\Throwable $e) {
             return ['count' => 0, 'error' => $e->getMessage()];
@@ -314,7 +322,7 @@ class OpsApiController extends Controller
 
     private function getCostData(): ?array
     {
-        if (!file_exists(self::AI_COST_LOG)) {
+        if (! file_exists(self::AI_COST_LOG)) {
             return null;
         }
         $thisMonth = now()->format('Y-m');
@@ -323,12 +331,12 @@ class OpsApiController extends Controller
         $totalOutput = 0;
         $recordCount = 0;
         $fh = fopen(self::AI_COST_LOG, 'r');
-        if (!$fh) {
+        if (! $fh) {
             return null;
         }
         while (($line = fgets($fh)) !== false) {
             $line = trim($line);
-            if (!$line) {
+            if (! $line) {
                 continue;
             }
             try {
@@ -336,7 +344,7 @@ class OpsApiController extends Controller
             } catch (\JsonException $e) {
                 continue;
             }
-            if (!isset($rec['date']) || !str_starts_with($rec['date'], $thisMonth)) {
+            if (! isset($rec['date']) || ! str_starts_with($rec['date'], $thisMonth)) {
                 continue;
             }
             $totalCost += (float) ($rec['cost_cny'] ?? 0);
@@ -345,6 +353,7 @@ class OpsApiController extends Controller
             $recordCount++;
         }
         fclose($fh);
+
         return [
             'total_records' => $recordCount,
             'total_tokens' => $totalInput + $totalOutput,
@@ -366,6 +375,7 @@ class OpsApiController extends Controller
             return 100;
         }
         $progress = 100 - intval($mb / $targetMb * 100);
+
         return max(0, min(100, $progress));
     }
 }
