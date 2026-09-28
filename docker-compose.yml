@@ -38,6 +38,13 @@ services:
       APP_KEY: "${APP_KEY:-}"
     volumes:
       - app-storage:/var/www/storage
+      # 宿主数据只读挂载（2026-09-28）：容器里看不到宿主路径，这正是
+      # `ops:health-scan` 6/6 恒失败、面板体积恒 0 的根因。路径可用 env 覆盖，
+      # 见 config/ops.php。改这两处要保持 app 与 scheduler **一致**（同一份探测逻辑两处跑）。
+      - /Users/guan/.workbuddy/workbuddy.db:/host/workbuddy.db:ro
+      - /Users/guan/.ai_cost_log.jsonl:/host/ai_cost_log.jsonl:ro
+      - /Users/guan/.workbuddy/cross_project_state.json:/host/cross_project_state.json:ro
+      - ${WORKBUDDY_ROOT:-/Volumes/ZHITAI/WorkBuddy}:/host/WorkBuddy:ro
     networks:
       - project-monitor
     healthcheck:
@@ -153,6 +160,12 @@ services:
     command: [ "php", "artisan", "schedule:work" ]
     volumes:
       - app-storage:/var/www/storage
+      # 与 app 服务保持**同一份**宿主只读挂载：`ops:health-scan` 由本服务跑，
+      # 少了这几行命令会退化成"全 N/A"（2026-09-28 修 6/6 恒失败时统一加上的）
+      - /Users/guan/.workbuddy/workbuddy.db:/host/workbuddy.db:ro
+      - /Users/guan/.ai_cost_log.jsonl:/host/ai_cost_log.jsonl:ro
+      - /Users/guan/.workbuddy/cross_project_state.json:/host/cross_project_state.json:ro
+      - ${WORKBUDDY_ROOT:-/Volumes/ZHITAI/WorkBuddy}:/host/WorkBuddy:ro
     networks:
       - project-monitor
     deploy:

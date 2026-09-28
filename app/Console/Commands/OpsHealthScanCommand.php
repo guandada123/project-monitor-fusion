@@ -2,37 +2,59 @@
 
 namespace App\Console\Commands;
 
+use App\Support\Ops\OpsProbe;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * 外部项目健康探测（原 Ops Center）。
+ *
+ * 2026-09-28 重写：原实现把 `127.0.0.1` 与宿主绝对路径写死，而本命令跑在容器里 →
+ * **6/6 检查结构性恒失败**（ops-health.log 13 万行全是失败，从建成起就没查过任何东西）。
+ * 现改为：探测走 config('ops.probe_host')、宿主数据走只读挂载、路径全部可 env 覆盖。
+ */
 class OpsHealthScanCommand extends Command
 {
     protected $signature = 'ops:health-scan';
 
     protected $description = '外部项目健康探测（原 Ops Center）';
 
-    private array $targets = [
-        'qts_engine' => ['host' => '127.0.0.1', 'port' => 8000, 'path' => '/health'],
-        'qts_backtest' => ['host' => '127.0.0.1', 'port' => 8001, 'path' => '/health'],
-        'qts_monitor' => ['host' => '127.0.0.1', 'port' => 8002, 'path' => '/health'],
-    ];
-
     public function handle(): int
     {
         $results = [];
 
-        // 1) HTTP 服务探测
-        foreach ($this->targets as $name => $cfg) {
-            $results[$name] = $this->httpProbe($cfg);
+        // 0) 输入自证 —— 先答"我的输入还在不在"。
+        //    否则下面报出来的 DOWN 会把人引去查服务，而真因是"探测入口/挂载没配"。
+        $self = OpsProbe::selfCheck();
+        $inputOk = $self['probe_host_resolvable'] && empty($self['missing_inputs']);
+        $results['probe_input'] = [
+            'status' => $inputOk ? 'OK' : 'MISCONFIG',
+            'detail' => sprintf(
+                'probe_host=%s resolvable=%s missing=%s',
+                $self['probe_host'],
+                $self['probe_host_resolvable'] ? 'yes' : 'no',
+                $self['missing_inputs'] ? implode(',', $self['missing_inputs']) : '-'
+            ),
+        ];
+
+        // 1) HTTP 服务探测（目标见 config/ops.php）
+        foreach (OpsProbe::httpTargets() as $name => $cfg) {
+            $results[$name] = OpsProbe::httpProbe((int) $cfg['port'], $cfg['path'] ?? '/health');
         }
 
-        // 2) 进程探测（Marvis Bridge）
-        $results['marvis_watcher'] = $this->pidProbe('file_watcher.sh');
-        $results['marvis_consumer'] = $this->pidProbe('workbuddy_consumer');
+        // 2) 仓库体积（宿主目录只读挂载；取不到 → N/A，**不谎报 0**）
+        foreach (['claw', 'qts', 'stockinsight'] as $key) {
+            $path = OpsProbe::repoPath($key);
+            $mb = $path ? OpsProbe::dirSizeMb($path) : null;
+            $results["repo_{$key}_size"] = $mb === null
+                ? ['status' => 'N/A', 'detail' => "路径不可达: {$path}（未挂载？见 compose 的 /host/*）"]
+                : ['status' => 'OK', 'detail' => OpsProbe::human($mb)];
+        }
 
-        // 3) 仓库体积
-        $results['repo_claw_size'] = $this->dirSize('/Users/guan/WorkBuddy/Claw');
+        // 说明：原先还有 marvis_watcher / marvis_consumer 两个 `pgrep` 探测，已移除 ——
+        //   ① 容器 PID namespace 隔离，pgrep **看不到宿主进程** → 在本部署下结构上永远 DOWN；
+        //   ② 目标本身已休眠：宿主实测 `pgrep -fl "file_watcher.sh|workbuddy_consumer"` 为空。
+        //   要监控宿主进程应放在**宿主侧**（统一巡检中枢 / launchd），而不是容器里。
 
         // 输出
         $this->table(
@@ -43,36 +65,5 @@ class OpsHealthScanCommand extends Command
         Log::channel('daily')->info('OpsHealthScan', $results);
 
         return Command::SUCCESS;
-    }
-
-    private function httpProbe(array $cfg): array
-    {
-        try {
-            $resp = Http::timeout(3)->get("http://{$cfg['host']}:{$cfg['port']}{$cfg['path']}");
-
-            return ['status' => $resp->successful() ? 'UP' : 'DEGRADED', 'detail' => "HTTP {$resp->status()}"];
-        } catch (\Throwable $e) {
-            return ['status' => 'DOWN', 'detail' => $e->getMessage()];
-        }
-    }
-
-    private function pidProbe(string $filter): array
-    {
-        $output = [];
-        exec("pgrep -f {$filter} 2>/dev/null", $output, $exitCode);
-
-        return $exitCode === 0
-            ? ['status' => 'UP', 'detail' => 'PID: '.implode(',', $output)]
-            : ['status' => 'DOWN', 'detail' => 'process not found'];
-    }
-
-    private function dirSize(string $path): array
-    {
-        $output = [];
-        exec("du -sh {$path} 2>/dev/null", $output, $exitCode);
-
-        return $exitCode === 0
-            ? ['status' => 'OK', 'detail' => trim($output[0] ?? '')]
-            : ['status' => 'ERR', 'detail' => 'path not accessible'];
     }
 }

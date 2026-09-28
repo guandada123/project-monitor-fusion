@@ -4,129 +4,120 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Responses\ApiResponse;
+use App\Support\Ops\OpsProbe;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Http;
 
 /**
  * OpsApiController — 原 ops-center (Flask) 监控能力迁移至 pmf
  *
  * 公开路由（无 auth:sanctum），供 public/ops/ 前端面板调用。
- * 数据来源与 ops-center/app.py 一致：
- *   - overview: HTTP probe 各项目服务端口 + 目录体积
- *   - automations: ~/.workbuddy/workbuddy.db (SQLite)
- *   - cost: ~/.ai_cost_log.jsonl 当月汇总
- *   - roadmap: 组合 cost + automations + dir_size 进度计算
+ *
+ * 2026-09-28 重写：本控制器与 `OpsHealthScanCommand` 原先各自**抄了一份**写死
+ * `127.0.0.1` + 宿主绝对路径的探测逻辑，而二者都跑在容器里 → 面板全瞎
+ * （探测恒 unhealthy、体积恒 '0 MB'、state/cost/db 恒 not_found），
+ * 且改一处不改另一处。现统一走 `App\Support\Ops\OpsProbe` + `config/ops.php`（单一真源）。
+ *
+ * 两处刻意的"不撒谎"：
+ *   · 体积取不到 → `n/a`（而不是 `0 MB`）—— 旧实现把 0 喂给 sizeProgress，
+ *     roadmap 直接显示**体积目标 100% 完成**，把"取不到证"渲染成了"很好"。
+ *   · 探测入口本身不通 → 报 `unknown` + `probe_input` 说明，而不是把服务标成 unhealthy
+ *     （那是"我连不出去"，不是"它挂了"）。
  */
 class OpsApiController extends Controller
 {
-    private const WORKBUDDY_DB = '/Users/guan/.workbuddy/workbuddy.db';
-
-    private const AI_COST_LOG = '/Users/guan/.ai_cost_log.jsonl';
-
-    private array $projects = [
-        'qts' => [
-            'name' => 'QuantTradingSystem',
-            'path' => '/Volumes/ZHITAI/WorkBuddy/QuantTradingSystem',
-            'services' => [
-                ['name' => 'qts_engine', 'port' => 8000, 'path' => '/health'],
-                ['name' => 'qts_backtest', 'port' => 8001, 'path' => '/health'],
-                ['name' => 'qts_monitor', 'port' => 8002, 'path' => '/health'],
-            ],
-        ],
-        'claw' => [
-            'name' => 'Claw',
-            'path' => '/Volumes/ZHITAI/WorkBuddy/Claw',
-        ],
-        'stockinsight' => [
-            'name' => 'StockInsight',
-            'path' => '/Volumes/ZHITAI/WorkBuddy/StockInsight',
-            'services' => [],
-        ],
-        'marvis' => [
-            'name' => 'Marvis Bridge',
-            'path' => '/Volumes/ZHITAI/WorkBuddy/marvis_bridge',
-        ],
-    ];
-
     /**
      * GET /api/ops/overview — 跨项目聚合状态
      */
     public function overview(): JsonResponse
     {
         $projects = [];
+        $self = OpsProbe::selfCheck();
 
-        // QTS
+        // ── QTS ──
         $qtsServices = [];
         $qtsOk = 0;
-        foreach ($this->projects['qts']['services'] as $svc) {
-            $ok = $this->httpProbe($svc['port'], $svc['path']);
+        $qtsMisconfig = 0;
+        foreach (OpsProbe::httpTargets() as $name => $cfg) {
+            $r = OpsProbe::httpProbe((int) $cfg['port'], $cfg['path'] ?? '/health');
             $qtsServices[] = [
-                'name' => $svc['name'],
-                'port' => $svc['port'],
-                'status' => $ok ? 'healthy' : 'unhealthy',
+                'name' => $name,
+                'port' => (int) $cfg['port'],
+                'status' => match ($r['status']) {
+                    'UP' => 'healthy',
+                    'DEGRADED' => 'degraded',
+                    'MISCONFIG' => 'unknown',
+                    default => 'unhealthy',
+                },
+                'detail' => $r['detail'],
             ];
-            if ($ok) {
+            if ($r['status'] === 'UP') {
                 $qtsOk++;
+            }
+            if ($r['status'] === 'MISCONFIG') {
+                $qtsMisconfig++;
             }
         }
         $qtsTotal = count($qtsServices);
+        $qtsPath = OpsProbe::repoPath('qts');
         $projects['qts'] = [
             'name' => 'QuantTradingSystem',
             'services_healthy' => $qtsOk,
             'services_total' => $qtsTotal,
-            'status' => $qtsTotal === 0 ? 'unknown' : ($qtsOk === $qtsTotal ? 'healthy' : ($qtsOk > 0 ? 'degraded' : 'unhealthy')),
+            'status' => match (true) {
+                // 全都探不出去（探测入口不可用）→ unknown，**不是** unhealthy
+                $qtsMisconfig > 0 && $qtsMisconfig === $qtsTotal => 'unknown',
+                $qtsTotal === 0 => 'unknown',
+                $qtsOk === $qtsTotal => 'healthy',
+                $qtsOk > 0 => 'degraded',
+                default => 'unhealthy',
+            },
             'services' => $qtsServices,
-            'size' => $this->dirSize($this->projects['qts']['path']),
+            'size' => $qtsPath ? OpsProbe::dirSizeHuman($qtsPath) : 'n/a',
         ];
 
-        // Claw
-        $clawScripts = is_dir($this->projects['claw']['path'].'/scripts')
-            ? count(scandir($this->projects['claw']['path'].'/scripts')) - 2 : 0;
+        // ── Claw ──
+        $clawPath = OpsProbe::repoPath('claw');
+        $clawVisible = (bool) ($clawPath && is_dir($clawPath));
+        $clawScripts = $clawVisible && is_dir($clawPath.'/scripts')
+            ? max(0, count(scandir($clawPath.'/scripts')) - 2) : null;
         $projects['claw'] = [
             'name' => 'Claw',
-            'status' => 'healthy',
+            'status' => $clawVisible ? 'healthy' : 'unknown',
             'scripts' => $clawScripts,
-            'size' => $this->dirSize($this->projects['claw']['path']),
+            'note' => $clawVisible ? null : '宿主目录未挂载（见 docker-compose /host/*）',
+            'size' => $clawPath ? OpsProbe::dirSizeHuman($clawPath) : 'n/a',
         ];
 
-        // StockInsight
-        $siServices = [];
-        $siOk = 0;
-        foreach ($this->projects['stockinsight']['services'] as $svc) {
-            $ok = $this->httpProbe($svc['port'], $svc['path']);
-            $siServices[] = [
-                'name' => $svc['name'],
-                'port' => $svc['port'],
-                'status' => $ok ? 'healthy' : 'unhealthy',
-            ];
-            if ($ok) {
-                $siOk++;
-            }
-        }
+        // ── StockInsight ──
+        $siPath = OpsProbe::repoPath('stockinsight');
         $projects['stockinsight'] = [
             'name' => 'StockInsight',
-            'services_healthy' => $siOk,
-            'services_total' => count($siServices),
-            'status' => $siOk > 0 ? 'healthy' : 'unhealthy',
-            'services' => $siServices,
-            'size' => $this->dirSize($this->projects['stockinsight']['path']),
+            'services_healthy' => 0,
+            'services_total' => 0,
+            'status' => $siPath && is_dir($siPath) ? 'healthy' : 'unknown',
+            'services' => [],
+            'size' => $siPath ? OpsProbe::dirSizeHuman($siPath) : 'n/a',
+            'note' => $siPath && is_dir($siPath) ? null : '宿主目录未挂载（见 docker-compose /host/*）',
         ];
 
-        // Marvis Bridge
-        $watcherOk = $this->pidRunning('file_watcher.sh');
-        $consumerOk = $this->pidRunning('workbuddy_consumer');
-        $marvisStatus = ($watcherOk || $consumerOk) ? ($watcherOk && $consumerOk ? 'healthy' : 'degraded') : 'unhealthy';
+        // ── Marvis Bridge ──
+        // 不再做 `pgrep` 宿主进程探测：容器 PID namespace 隔离看不到宿主进程（结构上永远 DOWN），
+        // 且目标本身已休眠（宿主实测 pgrep 为空）。要监控宿主进程请放宿主侧。
+        $marvisPath = OpsProbe::repoPath('marvis');
+        $marvisVisible = (bool) ($marvisPath && is_dir($marvisPath));
         $projects['marvis'] = [
             'name' => 'Marvis Bridge',
-            'status' => $marvisStatus,
-            'watcher_running' => $watcherOk,
-            'consumer_running' => $consumerOk,
-            'size' => $this->dirSize($this->projects['marvis']['path']),
+            'status' => 'n/a',
+            'note' => $marvisVisible
+                ? '宿主进程探测不在容器内可得（目标已休眠）；仅报体积'
+                : '宿主目录未挂载',
+            'size' => $marvisPath ? OpsProbe::dirSizeHuman($marvisPath) : 'n/a',
         ];
 
         return ApiResponse::success([
             'timestamp' => now()->toIso8601String(),
             'date' => now()->toDateString(),
+            'probe_input' => $self,     // 探测输入自证（前端可用来区分"服务挂"与"我连不出去"）
             'projects' => $projects,
         ]);
     }
@@ -136,9 +127,7 @@ class OpsApiController extends Controller
      */
     public function automations(): JsonResponse
     {
-        $data = $this->getDbAutomations();
-
-        return ApiResponse::success($data);
+        return ApiResponse::success($this->getDbAutomations());
     }
 
     /**
@@ -147,12 +136,13 @@ class OpsApiController extends Controller
     public function cost(): JsonResponse
     {
         $cost = $this->getCostData();
-        $monthly = $cost ? $cost['total_cost'] : 0;
+        $monthly = $cost ? $cost['total_cost'] : null;
 
         return ApiResponse::success([
             'monthly_estimate' => $monthly,
             'target' => 30,
             'details' => $cost,
+            'note' => $cost ? null : '成本日志不可读（未挂载？见 docker-compose /host/*）',
         ]);
     }
 
@@ -162,7 +152,7 @@ class OpsApiController extends Controller
     public function roadmap(): JsonResponse
     {
         $cost = $this->getCostData();
-        $currentCost = $cost ? $cost['total_cost'] : 0;
+        $currentCost = $cost ? $cost['total_cost'] : null;
         $automations = $this->getDbAutomations();
         $autoCount = $automations['count'] ?? 0;
 
@@ -175,8 +165,8 @@ class OpsApiController extends Controller
             default => 10,
         };
 
-        $qtsSize = $this->dirSize($this->projects['qts']['path']);
-        $siSize = $this->dirSize($this->projects['stockinsight']['path']);
+        $qtsMb = ($p = OpsProbe::repoPath('qts')) ? OpsProbe::dirSizeMb($p) : null;
+        $siMb = ($p = OpsProbe::repoPath('stockinsight')) ? OpsProbe::dirSizeMb($p) : null;
 
         return ApiResponse::success([
             'period' => '2026-07 ~ 2026-09',
@@ -184,8 +174,9 @@ class OpsApiController extends Controller
                 [
                     'name' => '成本控制',
                     'target' => '¥30/月',
-                    'current' => '¥'.number_format($currentCost, 1).'/月',
-                    'progress' => $currentCost <= 30 ? min(100 - intval($currentCost / 30 * 100), 100) : 20,
+                    'current' => $currentCost === null ? 'n/a' : '¥'.number_format($currentCost, 1).'/月',
+                    'progress' => $currentCost === null
+                        ? null : ($currentCost <= 30 ? min(100 - intval($currentCost / 30 * 100), 100) : 20),
                 ],
                 [
                     'name' => '自动化活跃数',
@@ -202,14 +193,15 @@ class OpsApiController extends Controller
                 [
                     'name' => 'QTS 仓库体积',
                     'target' => '≤ 700MB',
-                    'current' => $qtsSize,
-                    'progress' => $this->sizeProgress($qtsSize, 700),
+                    'current' => $qtsMb === null ? 'n/a' : OpsProbe::human($qtsMb),
+                    // 取不到体积 → progress = null（未知），**不是 100**
+                    'progress' => $this->sizeProgress($qtsMb, 700),
                 ],
                 [
                     'name' => 'StockInsight 体积',
                     'target' => '≤ 1.2GB',
-                    'current' => $siSize,
-                    'progress' => $this->sizeProgress($siSize, 1228.8),
+                    'current' => $siMb === null ? 'n/a' : OpsProbe::human($siMb),
+                    'progress' => $this->sizeProgress($siMb, 1228.8),
                 ],
             ],
         ]);
@@ -223,7 +215,7 @@ class OpsApiController extends Controller
         return ApiResponse::success([
             'status' => 'healthy',
             'service' => 'ops-api',
-            'version' => '1.0.0',
+            'version' => '1.1.0',
             'time' => now()->toIso8601String(),
         ]);
     }
@@ -234,12 +226,15 @@ class OpsApiController extends Controller
      */
     public function state(): JsonResponse
     {
-        $path = '/Users/guan/.workbuddy/cross_project_state.json';
-        if (! file_exists($path)) {
-            return ApiResponse::success(['error' => 'state_anchor_not_found']);
+        $path = (string) OpsProbe::path('state_anchor');
+        if (! $path || ! file_exists($path)) {
+            return ApiResponse::success([
+                'error' => 'state_anchor_not_found',
+                'path' => $path,
+                'note' => '状态锚不可读（未挂载？见 docker-compose /host/*）',
+            ]);
         }
-        $raw = file_get_contents($path);
-        $data = json_decode($raw, true);
+        $data = json_decode((string) file_get_contents($path), true);
         if (! $data) {
             return ApiResponse::success(['error' => 'state_anchor_parse_failed']);
         }
@@ -257,49 +252,16 @@ class OpsApiController extends Controller
 
     // ── 私有辅助 ──
 
-    private function httpProbe(int $port, string $path): bool
-    {
-        try {
-            $resp = Http::timeout(3)->get("http://127.0.0.1:{$port}{$path}");
-
-            return $resp->successful();
-        } catch (\Throwable $e) {
-            return false;
-        }
-    }
-
-    private function pidRunning(string $filter): bool
-    {
-        $output = shell_exec('pgrep -f '.escapeshellarg($filter).' 2>/dev/null');
-
-        return ! empty(trim($output ?? ''));
-    }
-
-    private function dirSize(string $path): string
-    {
-        if (! is_dir($path)) {
-            return '0 MB';
-        }
-        $output = shell_exec('du -sm '.escapeshellarg($path).' 2>/dev/null');
-        if (preg_match('/^\s*(\d+)/', (string) $output, $m)) {
-            $mb = (int) $m[1];
-            if ($mb >= 1024) {
-                return round($mb / 1024, 1).' GB';
-            }
-
-            return $mb.' MB';
-        }
-
-        return '0 MB';
-    }
-
     private function getDbAutomations(): array
     {
-        if (! file_exists(self::WORKBUDDY_DB)) {
-            return ['count' => 0, 'active' => 0, 'paused' => 0, 'deleted' => 0, 'error' => 'db_not_found'];
+        // 只读挂载的库是 WAL 模式、打不开 → 走「快照副本」（见 OpsProbe::workbuddyDbSnapshot）
+        $db = OpsProbe::workbuddyDbSnapshot();
+        if (! $db) {
+            return ['count' => 0, 'active' => 0, 'paused' => 0, 'deleted' => 0,
+                'error' => 'db_unavailable', 'path' => OpsProbe::path('workbuddy_db')];
         }
         try {
-            $pdo = new \PDO('sqlite:'.self::WORKBUDDY_DB);
+            $pdo = new \PDO('sqlite:'.$db);
             $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
             $rows = $pdo->query('SELECT status, COUNT(*) AS c FROM automations GROUP BY status')->fetchAll(\PDO::FETCH_ASSOC);
             $count = $active = $paused = $deleted = 0;
@@ -314,7 +276,12 @@ class OpsApiController extends Controller
                 }
             }
 
-            return ['count' => $count, 'active' => $active, 'paused' => $paused, 'deleted' => $deleted];
+            return [
+                'count' => $count, 'active' => $active, 'paused' => $paused, 'deleted' => $deleted,
+                // 如实标注数据来源与快照时刻（不是实时值，别让读者以为这是当前值）
+                'source' => 'snapshot',
+                'snapshot_at' => date(DATE_ATOM, (int) filemtime($db)),
+            ];
         } catch (\Throwable $e) {
             return ['count' => 0, 'error' => $e->getMessage()];
         }
@@ -322,7 +289,8 @@ class OpsApiController extends Controller
 
     private function getCostData(): ?array
     {
-        if (! file_exists(self::AI_COST_LOG)) {
+        $log = (string) OpsProbe::path('ai_cost_log');
+        if (! $log || ! file_exists($log)) {
             return null;
         }
         $thisMonth = now()->format('Y-m');
@@ -330,7 +298,7 @@ class OpsApiController extends Controller
         $totalInput = 0;
         $totalOutput = 0;
         $recordCount = 0;
-        $fh = fopen(self::AI_COST_LOG, 'r');
+        $fh = fopen($log, 'r');
         if (! $fh) {
             return null;
         }
@@ -361,21 +329,21 @@ class OpsApiController extends Controller
         ];
     }
 
-    private function sizeProgress(string $sizeStr, float $targetMb): int
+    /**
+     * 体积目标进度。**取不到体积（null）就返回 null（未知）**。
+     *
+     * 旧实现接收 "0 MB" 这类字符串，解析不出时 `return 100` —— 于是"路径不可达"
+     * 被渲染成"体积目标 100% 完成"。取不到证 ≠ 达标。
+     */
+    private function sizeProgress(?int $mb, float $targetMb): ?int
     {
-        // 解析 "X MB" / "X.X GB"
-        if (preg_match('/([\d.]+)\s*GB/i', $sizeStr, $m)) {
-            $mb = (float) $m[1] * 1024;
-        } elseif (preg_match('/(\d+)\s*MB/i', $sizeStr, $m)) {
-            $mb = (float) $m[1];
-        } else {
-            return 100;
+        if ($mb === null) {
+            return null;
         }
         if ($mb <= 0) {
             return 100;
         }
-        $progress = 100 - intval($mb / $targetMb * 100);
 
-        return max(0, min(100, $progress));
+        return max(0, min(100, 100 - intval($mb / $targetMb * 100)));
     }
 }
