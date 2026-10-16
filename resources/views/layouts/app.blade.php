@@ -23,7 +23,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>@yield('title', 'Project Monitor') — PM</title>
+    {{-- 2026-10-16 审计修复（P1）：Livewire 页面组件 ->title() 走的是
+         vendor/livewire/livewire/src/Features/SupportPageComponents/SupportPageComponents.php
+         里的 View::macro('title', fn ($t) => mergeParams(['title' => $t]))，
+         而布局是以 Blade 组件形式渲染的（同文件 renderContentsIntoLayout() →
+         @component($layout->view, $layout->params)），所以标题只以 $title「组件变量」
+         形式出现，@yield('title') 永远拿不到 —— 全站标题此前恒为默认值。
+         全仓 grep 无 ->layoutData(...) / ->section(...) 调用，app/Livewire/*.php 的
+         14 处 ->title() 末段统一为「— Project Monitor」，故此处直接透传 $title，
+         缺省时才补品牌后缀，避免出现「… — Project Monitor — PM」双后缀。 --}}
+    <title>{{ $title ?? 'Project Monitor — PM' }}</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
@@ -174,7 +183,10 @@
                            border-color: var(--glass-border);">
                 <div class="flex items-center gap-4 min-w-0">
                     <h1 class="text-lg font-semibold tracking-tight flex-shrink-0" style="color: var(--color-text-primary);">
-                        @yield('page-title', '仪表板')
+                        {{-- 同上：页头标题由 $title 去掉「— Project Monitor」品牌后缀派生。
+                             Livewire 侧没有任何 ->layoutData(['page-title' => …]) 来源，
+                             故不再使用 @yield('page-title')。 --}}
+                        {{ isset($title) ? trim(\Illuminate\Support\Str::before($title, '—')) : '仪表板' }}
                     </h1>
                     <!-- Global Search -->
                     @livewire('global-search')

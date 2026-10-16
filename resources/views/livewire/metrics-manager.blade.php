@@ -214,7 +214,7 @@
           default  => 'rgba(16,185,129,0.3)',
         };
       @endphp
-      <div data-animate style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:{{ $bgColors }};border:1px solid {{ $borderColors }};border-radius:12px;transition:all .2s;gap:12px;flex-wrap:wrap;" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.06)'" onmouseout="this.style.boxShadow='none'">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:{{ $bgColors }};border:1px solid {{ $borderColors }};border-radius:12px;transition:all .2s;gap:12px;flex-wrap:wrap;" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.06)'" onmouseout="this.style.boxShadow='none'">
         <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
           <span style="font-size:11px;padding:3px 8px;border-radius:6px;font-weight:600;{{ $metric->kind === 'system' ? 'background:rgba(124,58,237,0.15);color:var(--accent);' : 'background:rgba(16,185,129,0.15);color:var(--success);' }}">{{ $metric->kind === 'system' ? '系统' : '自定义' }}</span>
           <div style="min-width:0;">
