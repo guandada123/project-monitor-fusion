@@ -34,6 +34,11 @@
     @fluxAppearance
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+    {{-- 2026-10-16 审计修复（P0）：本布局此前没有任何 @stack，导致 6 个视图的
+         @push('styles'/'scripts') 全部被丢弃 —— 看板页 x-data="kanbanBoard()"、
+         仪表板/甘特/慢查询趋势图初始化、报表与对比页的飞书推送按钮均因此失效。 --}}
+    @stack('styles')
     @livewireStyles
     @livewireNavigation
     <style>
@@ -221,6 +226,12 @@
     @auth
         @livewire('export-panel')
     @endauth
+
+    {{-- 2026-10-16 审计修复（P0）：@push('scripts') 的输出位置。
+         必须早于 @livewireScripts —— 推入的多是 Alpine x-data 所引用的函数定义
+         （kanbanBoard() 等），需在 Alpine 初始化前存在；已核实这些脚本内无顶层
+         Livewire./Alpine. 调用，故前置安全。 --}}
+    @stack('scripts')
 
     @livewireScripts
     @fluxScripts
