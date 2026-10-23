@@ -89,9 +89,20 @@ class Project extends Model
         return $query->where('source', $source);
     }
 
-    // Computed — 所有 Accessor 优先使用预加载集合，避免 N+1
+    // Computed — 所有 Accessor 优先使用预加载集合 / withCount 预计算值，避免 N+1
     public function getCompletionRateAttribute(): float
     {
+        // 快速路径：调用方用了 withCount(['tasks', 'tasks as done_tasks_count'])
+        // 时零查询。两个计数必须同时存在才采用，否则会静默算出错误比率。
+        if (isset($this->attributes['tasks_count'], $this->attributes['done_tasks_count'])) {
+            $total = (int) $this->attributes['tasks_count'];
+            if ($total === 0) {
+                return 0;
+            }
+
+            return round(((int) $this->attributes['done_tasks_count'] / $total) * 100, 2);
+        }
+
         if ($this->relationLoaded('tasks')) {
             $total = $this->tasks->count();
             $done = $this->tasks->whereIn('status', static::COMPLETED_STATUSES)->count();

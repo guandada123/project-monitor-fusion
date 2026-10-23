@@ -465,3 +465,22 @@ test('updateStatus rejects invalid status value', function () {
     $response->assertStatus(422)
         ->assertJsonValidationErrors(['status']);
 });
+
+test('completion rate is identical with precomputed counts and query fallback', function () {
+    // 回归（2026-10-24）：ProjectList 用 withCount 提供 done_tasks_count 让
+    // completion_rate 零查询计算（此前每项目 2 条 count，N+1）。
+    // 快路径与查询路径必须给出同一结果，否则宁可慢也不能静默算错。
+    $project = Project::factory()->active()->create();
+    Task::factory()->count(4)->create(['project_id' => $project->id, 'status' => 'done']);
+    Task::factory()->count(2)->create(['project_id' => $project->id, 'status' => 'todo']);
+
+    $withCounts = Project::withCount([
+        'tasks',
+        'tasks as done_tasks_count' => fn ($q) => $q->whereIn('status', Project::COMPLETED_STATUSES),
+    ])->findOrFail($project->id);
+
+    $plain = Project::findOrFail($project->id);
+
+    expect($withCounts->completion_rate)->toBe(66.67)
+        ->and($withCounts->completion_rate)->toBe($plain->completion_rate);
+});
