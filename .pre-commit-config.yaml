@@ -38,7 +38,9 @@ repos:
 
       - id: phpstan
         name: PHPStan
-        entry: ./vendor/bin/phpstan analyse --no-progress --no-interaction
+        # 必须显式加大内存：默认 128M 会让 PHPStan 直接崩溃退出，
+        # 与 CI 同一根因（见 .github/workflows/pmf-ci.yml 的 PHPStan job）。
+        entry: ./vendor/bin/phpstan analyse --no-progress --no-interaction --memory-limit=1G
         language: script
         files: \.php$
         pass_filenames: false

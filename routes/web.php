@@ -49,14 +49,17 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/projects', ProjectList::class)
         ->middleware('permission:view_projects')
         ->name('projects');
-    Route::get('/projects/{slug}', ProjectDetail::class)
-        ->middleware('permission:view_projects')
-        ->name('project.detail');
-
-    // pm-dash merged features
+    // 静态路径必须先于 /projects/{slug} 声明，否则会被 slug 通配捕获
+    // （原顺序下 /projects/compare 实际命中 project.detail 对比页不可达）
     Route::get('/projects/compare', ProjectCompare::class)
         ->middleware('permission:view_projects')
         ->name('projects.compare');
+
+    Route::get('/projects/{slug}', ProjectDetail::class)
+        ->middleware('permission:view_projects')
+        ->where('slug', '[A-Za-z0-9._-]+')
+        ->name('project.detail');
+
     Route::get('/projects/{slug}/report', ProjectReport::class)
         ->middleware('permission:view_projects')
         ->name('projects.report');
@@ -66,12 +69,14 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/projects/{slug}/report.pdf', [ReportController::class, 'pdf'])
         ->middleware('permission:view_projects')
         ->name('projects.report.pdf');
-    Route::post('/projects/{slug}/push-feishu', [ReportController::class, 'pushToFeishu'])
-        ->middleware('permission:view_projects')
-        ->name('projects.push-feishu');
+    // 同样先声明 compare 静态段，避免被 {slug} 捕获
     Route::post('/projects/compare/push-feishu', [ReportController::class, 'pushCompareToFeishu'])
         ->middleware('permission:view_projects')
         ->name('projects.compare.push-feishu');
+    Route::post('/projects/{slug}/push-feishu', [ReportController::class, 'pushToFeishu'])
+        ->middleware('permission:view_projects')
+        ->where('slug', '[A-Za-z0-9._-]+')
+        ->name('projects.push-feishu');
     Route::get('/projects/{slug}/metrics', MetricsManager::class)
         ->middleware('permission:view_projects')
         ->name('projects.metrics');

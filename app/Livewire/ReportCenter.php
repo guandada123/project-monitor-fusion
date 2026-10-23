@@ -46,6 +46,18 @@ class ReportCenter extends Component
     {
         $projects = Project::with('owner')->whereIn('id', $this->selectedProjects)->get();
         $dateRange = $this->getDateRange();
+        $projectIds = $projects->pluck('id')->map(fn ($id) => (int) $id);
+
+        // 批量取任务与风险并按 project_id 归组，替代原先循环内逐项目查询（N+1）
+        // 键统一转 int：不同数据库驱动对整型列的返回值可能是 string
+        $tasksByProject = Task::whereIn('project_id', $projectIds)
+            ->when($dateRange, fn ($q) => $q->whereBetween('created_at', $dateRange))
+            ->get()
+            ->groupBy(fn (Task $t) => (int) $t->project_id);
+
+        $risksByProject = Risk::whereIn('project_id', $projectIds)
+            ->get()
+            ->groupBy(fn (Risk $r) => (int) $r->project_id);
 
         $data = [
             'title' => $this->reportType === 'weekly' ? '项目周报' : '月度汇总',
@@ -63,12 +75,8 @@ class ReportCenter extends Component
         ];
 
         foreach ($projects as $project) {
-            $tasks = Task::where('project_id', $project->id)
-                ->when($dateRange, function ($q) use ($dateRange) {
-                    $q->whereBetween('created_at', $dateRange);
-                })->get();
-
-            $risks = Risk::where('project_id', $project->id)->get();
+            $tasks = $tasksByProject->get((int) $project->id, collect());
+            $risks = $risksByProject->get((int) $project->id, collect());
 
             $projectData = [
                 'name' => $project->name,
@@ -95,8 +103,11 @@ class ReportCenter extends Component
             $data['summary']['total_tasks'] += $projectData['task_stats']['total'];
             $data['summary']['completed_tasks'] += $projectData['task_stats']['done'];
             $data['summary']['overdue_tasks'] += $projectData['task_stats']['overdue'];
-            $data['summary']['active_risks'] += $risks->where('status', 'active')->count();
-            $data['summary']['severe_risks'] += $risks->where('severity', 'severe')->count();
+            // 口径必须对齐 Risk 模型：status 取值 open/acknowledged/resolved，
+            // severity 取值 high/medium/low/critical。原实现写的是 'active'/'severe'，
+            // 这两个值在库中不存在，导致汇总卡片的"活跃风险/严重风险"恒为 0
+            $data['summary']['active_risks'] += $risks->whereIn('status', ['open', 'acknowledged'])->count();
+            $data['summary']['severe_risks'] += $risks->whereIn('severity', ['high', 'critical'])->count();
         }
 
         // Team workload
@@ -204,7 +215,8 @@ class ReportCenter extends Component
                 if (! empty($p['risks'])) {
                     $lines[] = '- 风险:';
                     foreach ($p['risks'] as $r) {
-                        $sev = ['low' => '🟢', 'medium' => '🟡', 'high' => '🟠', 'severe' => '🔴'][$r['severity']] ?? '⚪';
+                        // severity 真实取值域为 critical/high/medium/low（见 create_risks_table 迁移注释）
+                        $sev = ['critical' => '🔴', 'high' => '🟠', 'medium' => '🟡', 'low' => '🟢'][$r['severity']] ?? '⚪';
                         $lines[] = "  - {$sev} {$r['title']} ({$r['status']})";
                     }
                 }

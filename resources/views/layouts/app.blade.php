@@ -35,9 +35,20 @@
     <title>{{ $title ?? 'Project Monitor — PM' }}</title>
 
     <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800&display=swap" rel="stylesheet" />
-    <link href="https://fonts.bunny.net/css?family=jetbrains-mono:400,500&display=swap" rel="stylesheet" />
+    {{-- 原先是 2 个独立 <link rel="stylesheet">，均为渲染阻塞资源：
+         浏览器必须先下载并解析完这两个 CSS 才能绘制首屏。
+         改为：① 合并为单个请求（少一次 DNS/TLS/往返）
+               ② media="print" + onload 切换为 all，使其异步加载、不阻塞首屏
+               ③ <noscript> 兜底，禁用 JS 时仍正常加载字体 --}}
+    <link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
+    <link rel="preload" as="style"
+          href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800&family=jetbrains-mono:400,500&display=swap">
+    <link rel="stylesheet" media="print" onload="this.media='all'"
+          href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800&family=jetbrains-mono:400,500&display=swap">
+    <noscript>
+        <link rel="stylesheet"
+              href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800&family=jetbrains-mono:400,500&display=swap">
+    </noscript>
 
     <!-- Flux Appearance (handles dark mode class on <html>) -->
     @fluxAppearance

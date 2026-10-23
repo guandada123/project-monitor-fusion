@@ -16,10 +16,15 @@ describe('SlowQueryMonitor component', function () {
     });
 
     it('shows stats with data', function () {
-        SlowQuery::factory()->count(5)->create(['captured_at' => now()->subHour()]);
+        // time 必须显式固定：factory 默认生成 100~3000ms 随机值，
+        // 而组件默认 filterMinDuration=500ms，随机值会导致 stats.total 每次不同
+        SlowQuery::factory()->count(5)->create([
+            'captured_at' => now()->subHour(),
+            'time' => 1200,
+        ]);
 
         Livewire::test(SlowQueryMonitor::class)
-            ->assertSee('5');
+            ->assertSet('stats.total', 5);
     });
 
     it('filters by time range', function () {
@@ -51,12 +56,25 @@ describe('SlowQueryMonitor component', function () {
     });
 
     it('searches by SQL content', function () {
-        SlowQuery::factory()->create(['query' => 'SELECT * FROM users', 'captured_at' => now()->subHour()]);
-        SlowQuery::factory()->create(['query' => 'DELETE FROM logs', 'captured_at' => now()->subHour()]);
+        // 必须固定 time >= 组件默认 filterMinDuration(500ms)，
+        // 否则随机耗时会让记录被默认过滤掉，命中数量随机 → 断言时好时坏
+        SlowQuery::factory()->create([
+            'query' => 'SELECT * FROM users',
+            'captured_at' => now()->subHour(),
+            'time' => 1200,
+        ]);
+        SlowQuery::factory()->create([
+            'query' => 'DELETE FROM logs',
+            'captured_at' => now()->subHour(),
+            'time' => 1200,
+        ]);
 
+        // 同时断言"命中"与"未命中"：只 assertSee('SELECT') 是假阳性断言，
+        // 即使搜索完全失效，另一条 DELETE 记录外泄到页面上断言依然会通过
         Livewire::test(SlowQueryMonitor::class)
             ->set('search', 'SELECT')
-            ->assertSee('SELECT');
+            ->assertSee('SELECT * FROM users')
+            ->assertDontSee('DELETE FROM logs');
     });
 
     it('toggles sort field', function () {
@@ -110,9 +128,15 @@ describe('SlowQueryMonitor component', function () {
     });
 
     it('paginates results', function () {
-        SlowQuery::factory()->count(25)->create(['captured_at' => now()->subHour()]);
+        // 同上：固定 time 以避开默认 500ms 过滤，并直接断言统计值
+        // 原实现用 assertSee('25') 匹配整个 HTML，属假阳性断言——
+        // 只要页面任意位置出现 "25" 子串就通过，统计真的错了也发现不了
+        SlowQuery::factory()->count(25)->create([
+            'captured_at' => now()->subHour(),
+            'time' => 1200,
+        ]);
 
         Livewire::test(SlowQueryMonitor::class)
-            ->assertSee('25'); // stats show total 25
+            ->assertSet('stats.total', 25);
     });
 });
