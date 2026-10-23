@@ -133,19 +133,34 @@ Laravel 12 · Livewire 3 · FluxUI 组件库 · Tailwind v4（CSS-first，无 ta
 
 ---
 
-## 五、验证结果（全部本地实测）
+## 五、验证结果（本地 + CI 双重实测）
 
 | 门禁 | 命令 | 结果 |
 |---|---|---|
-| 测试 | `vendor/bin/pest --colors=never` | **375 passed (956 assertions)**，exit 0 |
+| 测试 | `vendor/bin/pest --colors=never` | **375 passed (958 assertions)**，exit 0 |
 | 代码风格 | `vendor/bin/pint --test` | **PASS**（181 files），exit 0 |
 | 静态分析 | `vendor/bin/phpstan analyse --memory-limit=1G` | **[OK] No errors**，exit 0 |
 | 前端构建 | `npm run build` | ✅ 64 modules / 1.77s，exit 0 |
+| 依赖安全 | `npm audit --audit-level=high` | ✅ **0 vulnerabilities**（修复后） |
 
 **额外证据**：
 - flaky 测试修复前后对比：修复前 `SlowQueryMonitorTest` 10 跑 2 败；修复后 15 连过 + 全量 10 连过。
 - 口径测试证伪：撤回修复 → FAIL；恢复修复 → PASS。
 - 路由修复实测：`/projects/compare` 与 `/projects/{slug}` 均命中正确路由名。
+- pre-commit 钩子实际安装且全过（Pint/PHPStan/gitleaks）——不再是历史"钩子缺失"问题。
+
+**CI 回读（推送后两次真实运行）**：
+
+| 运行 | 提交 | 结论 | 测试 job 实际输出 |
+|---|---|---|---|
+| 39988715249 | 9eebec4 | ✅ 6/6 jobs success | **375 passed** — 测试首次在 CI 真正执行 |
+| 39990682490 | 32eb9ad | ✅ 6/6 jobs success | **375 passed** + npm audit **0 vulnerabilities** |
+
+> 推送前的历史 CI "全绿"是假象：`|| echo "::warning::"` 掩盖了 `phpunit` 命令必失败的事实。收紧后连续两次真实运行验证了门禁的真实性。
+
+**推送后新发现（已处置）**：
+- 🔴→✅ **npm audit 门禁同样被 warning 掩盖**（漏修的第 5 处）：2 个 high 漏洞（follow-redirects 1.16.0 凭据头暴露 / vite ≤6.4.3 dev-server 注入）。已 `npm audit fix` 修至 **follow-redirects 1.16.1 + vite 6.4.5**（均补丁级，`package.json` 无需改动，构建产物哈希不变），门禁收紧为硬阻断，CI 实测 0 漏洞。
+- 🟡 **Dusk 门禁维持"照跑上报不硬阻断"**：5~6 个存量失败（`/risks` 浏览器端渲染 + 导出面板 JS），经两次 CI 对比确认为**存量问题**（上一提交 6 failed → 本次 5 failed，失败同一批；服务端 Feature 测试已验证 `/risks` 页面渲染正确，属浏览器环境特有）。根因需专项排查，已在 workflow 配置中留痕。收紧此门禁前须先定位 `/risks` 根因。
 
 ---
 
@@ -162,15 +177,24 @@ Laravel 12 · Livewire 3 · FluxUI 组件库 · Tailwind v4（CSS-first，无 ta
 | `tests/Feature/SlowQueryMonitorTest.php` | 固定数据 + 精确断言（P0-7） |
 | `tests/Feature/IntegrationManagerTest.php` | **新增** 7 项集成测试（P0-2/3） |
 | `tests/Feature/ReportTest.php` | **新增** 口径测试（P0-6） |
-| `.github/workflows/pmf-ci.yml` | 门禁收紧 + 测试命令修正 + 内存限制（P0-4/5） |
+| `.github/workflows/pmf-ci.yml` | 门禁收紧 + 测试命令修正 + 内存限制（P0-4/5）+ npm audit 收紧 + Dusk 留痕 |
+| `.pre-commit-config.yaml` | PHPStan 钩子同步加 `--memory-limit=1G`（P0-5） |
+| `package-lock.json` | follow-redirects 1.16.1 + vite 6.4.5（补丁级漏洞修复） |
 | `resources/views/layouts/app.blade.php` | 字体合并 + 异步加载（P1-1） |
 | `.gitignore` | 敏感信息隔离（P0-8） |
+
+**提交**：`9eebec4`（优化主体，14 files）+ `32eb9ad`（npm audit 修复 + 门禁收紧，2 files），均已推送。
 
 ---
 
 ## 七、下一步动作项
 
-1. **P2-2**：Settings.php webhook 明文回填——先补测试契约再改实现（单独立项）。
-2. **P2-1**：CSS 248 KB——评估 Flux 组件按需引入的可行性。
-3. **提交与推送**：本次改动尚未 commit；建议按"先本地 commit → 推送 → 回读 CI 实际状态"的顺序收口（CI 收紧后的首次真实运行结果需要回读确认）。
-4. **监控**：观察 CI 收紧后首个真实绿灯，确认 375 项测试在 CI 环境（非本地）同样通过。
+**已完成**：
+- ✅ 提交与推送：`9eebec4`（优化主体）+ `32eb9ad`（npm audit 修复 + 门禁收紧），均已推送并回读远端。
+- ✅ CI 真实运行验证：连续两次 6/6 jobs success，375 项测试在 CI 环境真实执行通过，npm audit 0 漏洞。
+
+**待办（按优先级）**：
+1. **Dusk 存量失败根因**（新发现，建议优先）：`/risks` 页浏览器端渲染异常 + 导出面板 JS 错误（`Cannot read properties of undefined (reading 'click')`）。服务端已验证无罪，需在浏览器环境复现定位。修复后可收紧 Dusk 门禁为硬阻断。
+2. **P2-2**：Settings.php webhook 明文回填——先补测试契约再改实现（单独立项）。
+3. **P2-1**：CSS 248 KB——评估 Flux 组件按需引入的可行性。
+4. **P2-3**：导航/信息架构体验优化（对标 Uptime Kuma/Gatus）。
