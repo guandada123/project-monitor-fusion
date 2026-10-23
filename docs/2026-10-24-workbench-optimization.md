@@ -247,9 +247,15 @@ Laravel 12 · Livewire 3 · FluxUI 组件库 · Tailwind v4（CSS-first，无 ta
 
 - ✅ **Settings.php 凭据修复**（commit `33dfc6b`）：`mount()` 曾把 webhook 真实值回填 public 属性，每次打开 /settings 明文随 Livewire 快照下发浏览器（掩码只是障眼法，明文在同一份 HTML 里）。修复：属性仅承载用户输入、掩码由服务端从存储值计算、新增 `hasStoredWebhook` 布尔、留空保存=保留原值、显式 `clearStoredWebhook`+保存才清除、`testPush` 空输入回落已存配置。测试契约改写 4 项 + 新增 3 项（核心是「渲染 HTML 不含明文 token」的 `assertDontSee` 回归）
 - ✅ **附带修复 Dusk 登录竞态**（commit `e02e0f6`）：CI 暴露 `login remembers the user with remember me` 偶发 30s 超时——`<form wire:submit>` 在 Livewire 尚未 hydrate 时点击会退化为原生提交、停在 /login。4 处登录测试补充 `initialRenderIsFinished` 等待（官方 Dusk 宏未注册，直接等同一信号）；本地 auth 连跑 5 轮 10/10、全套 Dusk 37 passed
-- ⏳ CSS 体积评估（Flux 按需引入可行性 + 实测首屏数据）——待用户提供痛点后启动
-- ⏳ 导航/IA 优化（对标 Uptime Kuma/Gatus）——待用户提供痛点后启动
-- **产出（已完成部分）**：凭据安全补齐 + 对应回归测试；CI 稳定（浏览器门禁不再因竞态误红）
+- ✅ **CSS 248KB 结论：不优化（有数据支撑）**（实测）：
+  - 压缩后真实体积：**gzip 33.5 KB / brotli 25.8 KB**（248.9 KB 是未压缩数）
+  - 部署侧已到位：`docker/nginx/default.conf` 已开 gzip（level 6，types 含 text/css、application/javascript），`/build/` 带 `expires 1y + immutable`——仅哈希变化才重新下载
+  - `three-background`（504 KB）与 `vendor-apex`（588 KB）均为 **dynamic import**（manifest `isDynamicEntry=true`），不阻塞首屏
+  - 结论：真实首屏 ≈ 66 KB（CSS+JS 压缩后）+ 字体；为省 10~20 KB 而重构 Flux 组件引入方式，风险收益不成立
+- ✅ **N+1 修复：项目列表**（commit `ea38ddd`）：实测 N=1→10 时 `/projects` 查询数 8→44（+4/项目），其余页面持平。根因是视图调用 `completion_rate` 访问器、`withCount` 未提供其所需数据 → 每项目 2 条 count。修复后 5 项目时 **26 → 6 条**，且补了「快路径与查询路径结果一致」的回归测试
+- 📋 **PHPStan level 6 评估：暂不升级**（实测 357 errors，全为 `missingType.generics` / `missingType.iterableValue` 的 docblock 标注，机械劳动为主、几乎无新增 bug 捕获价值；level 5 已覆盖未定义方法/类型错误）
+- ⏳ 导航/IA 优化（对标 Uptime Kuma/Gatus）——属产品决策，待用户提供真实痛点后启动
+- **产出（已完成部分）**：凭据安全补齐 + N+1 修复 + 性能结论有测量数据支撑
 
 ### 待确认问题
 
