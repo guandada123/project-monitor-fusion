@@ -73,7 +73,11 @@ class TaskBoard extends Component
             return;
         }
 
-        $project = Project::with(['tasks.assignee'])->findOrFail($this->projectId);
+        // 依 sort_order 排序（拖拽排序的持久化结果），id 兜底保证稳定
+        $project = Project::with([
+            'tasks' => fn ($q) => $q->orderBy('sort_order')->orderBy('id'),
+            'tasks.assignee',
+        ])->findOrFail($this->projectId);
         $tasks = $project->tasks;
 
         // Apply assignee filter

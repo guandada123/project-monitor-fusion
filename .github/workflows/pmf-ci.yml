@@ -90,6 +90,17 @@ jobs:
           sed -i 's/APP_ENV=local/APP_ENV=testing/' .env
           sed -i 's/CACHE_STORE=file/CACHE_STORE=array/' .env
           sed -i 's/LOG_LEVEL=debug/LOG_LEVEL=error/' .env
+      - name: Create test database
+        # 2026-10-24：测试库从 SQLite 切到 pgsql（phpunit.xml 强制
+        # DB_DATABASE=project_monitor_test），必须独立建库：
+        # RefreshDatabase 会 migrate:fresh，绝不能指向业务库。
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -tAc \
+            "SELECT 1 FROM pg_database WHERE datname='project_monitor_test'" \
+            | grep -q 1 \
+            || psql -h localhost -U postgres -c "CREATE DATABASE project_monitor_test"
       - name: Run database migrations & seed
         run: php artisan migrate --seed
       - name: Run Pest tests

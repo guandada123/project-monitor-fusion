@@ -988,7 +988,13 @@ describe('RiskManager (Livewire)', function () {
         $this->actingAs($user);
 
         Livewire::test(RiskManager::class)
-            ->assertSet('ruleOptions', ['overdue_tasks', 'team_overload']);
+            // 顺序不构成契约：distinct 查询在 SQLite 按插入序、pgsql 按哈希序返回。
+            // 断言集合相等（并显式排序以稳定比较）。
+            ->tap(function ($component) {
+                $options = $component->get('ruleOptions');
+                sort($options);
+                expect($options)->toBe(['overdue_tasks', 'team_overload']);
+            });
     });
 
     test('applySuggestion through livewire marks risk as acknowledged', function () {

@@ -65,11 +65,15 @@ Route::middleware(['auth:sanctum', 'throttle:300,1'])->group(function () {
     // Tasks — view_board for reads, manage_projects for writes (tasks are project work items)
     Route::get('/tasks', [TaskController::class, 'index'])->middleware('permission:view_board');
     Route::post('/tasks', [TaskController::class, 'store'])->middleware('permission:manage_projects');
-    Route::get('/tasks/{task}', [TaskController::class, 'show'])->middleware('permission:view_board');
-    Route::put('/tasks/{task}', [TaskController::class, 'update'])->middleware('permission:manage_projects');
-    Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->middleware('permission:manage_projects');
+    // 静态路径必须先于 /tasks/{task} 声明，否则会被参数路由劫持
+    // （2026-10-24：/tasks/reorder 曾被 PUT /tasks/{task} 捕获 —— pgsql 报
+    //  invalid bigint "reorder"，sqlite 静默 404，接口两驱动下均不可用）
     Route::patch('/tasks/batch-status', [TaskController::class, 'batchUpdateStatus'])->middleware('permission:manage_projects');
     Route::put('/tasks/reorder', [TaskController::class, 'reorder'])->middleware('permission:manage_projects');
+    // {task} 限定数字，防止任何静态段被误捕（纵深防御）
+    Route::get('/tasks/{task}', [TaskController::class, 'show'])->where('task', '[0-9]+')->middleware('permission:view_board');
+    Route::put('/tasks/{task}', [TaskController::class, 'update'])->where('task', '[0-9]+')->middleware('permission:manage_projects');
+    Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->where('task', '[0-9]+')->middleware('permission:manage_projects');
 
     // Risks — view_risks for reads, manage_risks for writes
     Route::get('/risks', [RiskController::class, 'index'])->middleware('permission:view_risks');

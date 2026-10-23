@@ -23,8 +23,14 @@
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="CACHE_STORE" value="array"/>
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value="database/testing.sqlite"/>
+        <!-- 2026-10-24：测试库从 SQLite 切到 PostgreSQL（独立库 project_monitor_test）。
+             原因：/risks 500 事故——pgsql 会把未加引号的 SQL 别名折叠为小写，
+             而 SQLite 保留大小写，导致驱动差异类 bug 在测试层完全不可见。
+             测试库必须与生产（pgsql）同驱动；DB_HOST/USERNAME/PASSWORD 仍沿用 .env。
+             本地前置：createdb project_monitor_test；CI 由 workflow 建库。
+             连接前缀（DB_）不可用 env 覆盖：phpunit 的 <env> 优先级高于 .env。 -->
+        <env name="DB_CONNECTION" value="pgsql"/>
+        <env name="DB_DATABASE" value="project_monitor_test"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="QUEUE_CONNECTION" value="sync"/>

@@ -24,12 +24,13 @@ class Task extends Model
 
     protected $fillable = [
         'project_id', 'external_id', 'title', 'description',
-        'assignee_id', 'status', 'priority',
+        'assignee_id', 'status', 'priority', 'sort_order',
         'estimate', 'spent', 'start_at', 'due_at', 'completed_at',
         'tags', 'meta',
     ];
 
     protected $casts = [
+        'sort_order' => 'integer',
         'estimate' => 'decimal:2',
         'spent' => 'decimal:2',
         'start_at' => 'date',

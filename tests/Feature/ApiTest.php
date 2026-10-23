@@ -266,6 +266,53 @@ test('api board returns grouped tasks', function () {
         ->assertJsonCount(1, 'data.columns.done');
 });
 
+test('api board orders tasks by sort_order', function () {
+    // 回归（2026-10-24）：sort_order 曾无迁移。SQLite 把不存在的双引号标识符
+    // 当字符串字面量 → 排序静默失效且测试绿灯；pgsql 直接 500。
+    $user = User::factory()->admin()->create();
+    $token = $user->createToken('API');
+    $project = Project::factory()->create(['owner_id' => $user->id]);
+
+    Task::factory()->create(['project_id' => $project->id, 'status' => 'todo', 'title' => '第三', 'sort_order' => 30]);
+    Task::factory()->create(['project_id' => $project->id, 'status' => 'todo', 'title' => '第一', 'sort_order' => 10]);
+    Task::factory()->create(['project_id' => $project->id, 'status' => 'todo', 'title' => '第二', 'sort_order' => 20]);
+
+    $response = $this->withToken($token->plainTextToken)
+        ->getJson('/api/board?project_id='.$project->id);
+
+    $response->assertOk();
+    $titles = collect($response->json('data.columns.todo'))->pluck('title')->all();
+
+    expect($titles)->toBe(['第一', '第二', '第三']);
+});
+
+test('api reorder persists sort_order and affects board order', function () {
+    $user = User::factory()->admin()->create();
+    $token = $user->createToken('API');
+    $project = Project::factory()->create(['owner_id' => $user->id]);
+
+    $a = Task::factory()->create(['project_id' => $project->id, 'status' => 'todo', 'title' => 'A', 'sort_order' => 10]);
+    $b = Task::factory()->create(['project_id' => $project->id, 'status' => 'todo', 'title' => 'B', 'sort_order' => 20]);
+
+    $this->withToken($token->plainTextToken)
+        ->putJson('/api/tasks/reorder', ['tasks' => [
+            ['id' => $a->id, 'sort_order' => 50],
+            ['id' => $b->id, 'sort_order' => 5],
+        ]])
+        ->assertOk();
+
+    expect($a->fresh()->sort_order)->toBe(50)
+        ->and($b->fresh()->sort_order)->toBe(5);
+
+    $titles = collect(
+        $this->withToken($token->plainTextToken)
+            ->getJson('/api/board?project_id='.$project->id)
+            ->json('data.columns.todo')
+    )->pluck('title')->all();
+
+    expect($titles)->toBe(['B', 'A']);
+});
+
 // ─── API: Aggregate ───
 
 test('api aggregate returns cross-project stats', function () {

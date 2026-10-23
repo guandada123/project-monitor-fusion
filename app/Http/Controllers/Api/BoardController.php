@@ -23,7 +23,8 @@ class BoardController extends Controller
             $query->where('project_id', $request->project_id);
         }
 
-        $tasks = $query->orderBy('sort_order')->get()->groupBy('status');
+        // sort_order 为拖拽排序持久化列（2026-10-24 补迁移），id 兜底保证稳定顺序
+        $tasks = $query->orderBy('sort_order')->orderBy('id')->get()->groupBy('status');
 
         $columns = ['todo', 'in_progress', 'review', 'done', 'blocked'];
         $board = collect($columns)->mapWithKeys(function ($status) use ($tasks) {
