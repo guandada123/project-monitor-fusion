@@ -55,6 +55,11 @@ test('user can log in with valid credentials', function () {
         $browser->visit('/')
             ->assertPathIs('/login')
             ->waitFor('input[name="email"]', 10)
+            // 等 Livewire 完成首屏 hydrate：否则 wire:submit 尚未注册，
+            // 点击提交会落到原生提交（停在 /login）→ 偶发 30s 超时。
+            // 等 Livewire 完成首屏 hydrate（官方 Dusk 宏未注册，直接用同一信号）：
+            // 否则 wire:submit 尚未注册，点击会落到原生提交（停在 /login）
+            ->waitUntil('typeof window.Livewire !== "undefined" && window.Livewire.initialRenderIsFinished === true', 15)
             ->type('email', $user->email)
             ->type('password', 'password')
             ->click('button[type="submit"]')
@@ -76,6 +81,11 @@ test('login remembers the user with remember me', function () {
             ->visit('/')
             ->assertPathIs('/login')
             ->waitFor('input[name="email"]', 10)
+            // 等 Livewire 完成首屏 hydrate：否则 wire:submit 尚未注册，
+            // 点击提交会落到原生提交（停在 /login）→ 偶发 30s 超时。
+            // 等 Livewire 完成首屏 hydrate（官方 Dusk 宏未注册，直接用同一信号）：
+            // 否则 wire:submit 尚未注册，点击会落到原生提交（停在 /login）
+            ->waitUntil('typeof window.Livewire !== "undefined" && window.Livewire.initialRenderIsFinished === true', 15)
             ->type('email', $user->email)
             ->type('password', 'password')
             ->check('input[wire\\:model="remember"]')
@@ -91,6 +101,9 @@ test('login with invalid credentials shows error', function () {
     $this->browse(function (Browser $browser) {
         $browser->visit('/login')
             ->waitFor('input[name="email"]', 10)
+            // 等 Livewire 完成首屏 hydrate（官方 Dusk 宏未注册，直接用同一信号）：
+            // 否则 wire:submit 尚未注册，点击会落到原生提交（停在 /login）
+            ->waitUntil('typeof window.Livewire !== "undefined" && window.Livewire.initialRenderIsFinished === true', 15)
             ->type('email', 'wrong@example.com')
             ->type('password', 'wrongpassword')
             ->click('button[type="submit"]')
@@ -106,6 +119,9 @@ test('login with empty fields shows validation error', function () {
     $this->browse(function (Browser $browser) {
         $browser->visit('/login')
             ->waitFor('button[type="submit"]', 10)
+            // 等 Livewire 完成首屏 hydrate（官方 Dusk 宏未注册，直接用同一信号）：
+            // 否则 wire:submit 尚未注册，点击会落到原生提交（停在 /login）
+            ->waitUntil('typeof window.Livewire !== "undefined" && window.Livewire.initialRenderIsFinished === true', 15)
             ->click('button[type="submit"]')
             ->pause(3000)
             // After failed validation, should still be on login page
