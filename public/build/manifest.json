@@ -11,7 +11,7 @@
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-BKUX5jLC.js",
+    "file": "assets/app-pdEsJNQz.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -22,7 +22,7 @@
     ]
   },
   "resources/js/three-background.js": {
-    "file": "assets/three-background-D0WvskJp.js",
+    "file": "assets/three-background-Cp7I1bzo.js",
     "name": "three-background",
     "src": "resources/js/three-background.js",
     "isDynamicEntry": true
