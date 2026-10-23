@@ -243,11 +243,13 @@ Laravel 12 · Livewire 3 · FluxUI 组件库 · Tailwind v4（CSS-first，无 ta
 - 测试自身缺陷 1 处：`ruleOptions` 依赖 DB 返回顺序 → 改集合断言
 - 验证：pgsql 全量 **378 passed (968 assertions)**；Pint PASS(182)；PHPStan 0 error
 
-**M3 体验与性能深化**（预计 1~2 天，部分需用户输入）
-- Settings.php 凭据修复（先补测试契约，再改实现）
-- CSS 体积评估（Flux 按需引入可行性 + 实测首屏数据）
-- 导航/IA 优化（对标 Uptime Kuma/Gatus；建议先收集 1 周真实使用痛点再动结构）
-- **产出**：凭据安全补齐；首屏体积与 IA 的改进方案（含 A/B 或前后对比数据）
+**M3 体验与性能深化**（部分完成：凭据修复 ✅ / CSS·IA 待用户输入）
+
+- ✅ **Settings.php 凭据修复**（commit `33dfc6b`）：`mount()` 曾把 webhook 真实值回填 public 属性，每次打开 /settings 明文随 Livewire 快照下发浏览器（掩码只是障眼法，明文在同一份 HTML 里）。修复：属性仅承载用户输入、掩码由服务端从存储值计算、新增 `hasStoredWebhook` 布尔、留空保存=保留原值、显式 `clearStoredWebhook`+保存才清除、`testPush` 空输入回落已存配置。测试契约改写 4 项 + 新增 3 项（核心是「渲染 HTML 不含明文 token」的 `assertDontSee` 回归）
+- ✅ **附带修复 Dusk 登录竞态**（commit `e02e0f6`）：CI 暴露 `login remembers the user with remember me` 偶发 30s 超时——`<form wire:submit>` 在 Livewire 尚未 hydrate 时点击会退化为原生提交、停在 /login。4 处登录测试补充 `initialRenderIsFinished` 等待（官方 Dusk 宏未注册，直接等同一信号）；本地 auth 连跑 5 轮 10/10、全套 Dusk 37 passed
+- ⏳ CSS 体积评估（Flux 按需引入可行性 + 实测首屏数据）——待用户提供痛点后启动
+- ⏳ 导航/IA 优化（对标 Uptime Kuma/Gatus）——待用户提供痛点后启动
+- **产出（已完成部分）**：凭据安全补齐 + 对应回归测试；CI 稳定（浏览器门禁不再因竞态误红）
 
 ### 待确认问题
 
