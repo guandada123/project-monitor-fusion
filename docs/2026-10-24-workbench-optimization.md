@@ -160,7 +160,7 @@ Laravel 12 · Livewire 3 · FluxUI 组件库 · Tailwind v4（CSS-first，无 ta
 
 **推送后新发现（已处置）**：
 - 🔴→✅ **npm audit 门禁同样被 warning 掩盖**（漏修的第 5 处）：2 个 high 漏洞（follow-redirects 1.16.0 凭据头暴露 / vite ≤6.4.3 dev-server 注入）。已 `npm audit fix` 修至 **follow-redirects 1.16.1 + vite 6.4.5**（均补丁级，`package.json` 无需改动，构建产物哈希不变），门禁收紧为硬阻断，CI 实测 0 漏洞。
-- 🟡 **Dusk 门禁维持"照跑上报不硬阻断"**：5~6 个存量失败（`/risks` 浏览器端渲染 + 导出面板 JS），经两次 CI 对比确认为**存量问题**（上一提交 6 failed → 本次 5 failed，失败同一批；服务端 Feature 测试已验证 `/risks` 页面渲染正确，属浏览器环境特有）。根因需专项排查，已在 workflow 配置中留痕。收紧此门禁前须先定位 `/risks` 根因。
+- 🔴→✅ **Dusk 存量失败根因定位并修复**（本次最大收获）：`/risks` 页在 PostgreSQL 下持续 **500**。根因是 PostgreSQL 将未加引号的 SQL 别名折叠为小写——`RiskManager::loadStats()` 的 `selectRaw` 别名 `withSuggestion/noSuggestion` 在 pgsql 下返回 `withsuggestion/nosuggestion`，视图访问 `$stats['noSuggestion']` 抛 `Undefined array key` → ViewException → 500 错误页（Livewire/Alpine 均不加载，侧边栏点击全部失效）。该 bug 被**两层掩盖**：① Feature/Unit 测试跑在 SQLite（`phpunit.xml`），保留别名大小写，375 个测试无一暴露；② Dusk 门禁 `|| echo warning` 掩盖失败。**影响面：/risks 在生产 pgsql（本地面板 8088 / docker 部署）一直不可用。** 修复：`loadStats()` 显式归一化 8 个统计键（驱动无关）+ 视图 `?? 0` 防御 + 回归测试。本地 pgsql 实测 Dusk **37/37**，CI 收紧后真实运行 **37 passed (126 assertions)**。
 
 ---
 
@@ -177,24 +177,27 @@ Laravel 12 · Livewire 3 · FluxUI 组件库 · Tailwind v4（CSS-first，无 ta
 | `tests/Feature/SlowQueryMonitorTest.php` | 固定数据 + 精确断言（P0-7） |
 | `tests/Feature/IntegrationManagerTest.php` | **新增** 7 项集成测试（P0-2/3） |
 | `tests/Feature/ReportTest.php` | **新增** 口径测试（P0-6） |
-| `.github/workflows/pmf-ci.yml` | 门禁收紧 + 测试命令修正 + 内存限制（P0-4/5）+ npm audit 收紧 + Dusk 留痕 |
+| `.github/workflows/pmf-ci.yml` | 门禁收紧 + 测试命令修正 + 内存限制（P0-4/5）+ npm audit 收紧 + Dusk 收紧为硬阻断 |
 | `.pre-commit-config.yaml` | PHPStan 钩子同步加 `--memory-limit=1G`（P0-5） |
 | `package-lock.json` | follow-redirects 1.16.1 + vite 6.4.5（补丁级漏洞修复） |
+| `app/Livewire/RiskManager.php` | **/risks 500 修复**：loadStats() 统计键驱动无关归一化 |
+| `resources/views/livewire/risk-manager.blade.php` | `?? 0` 防御 + 颜色映射（P0-6） |
 | `resources/views/layouts/app.blade.php` | 字体合并 + 异步加载（P1-1） |
 | `.gitignore` | 敏感信息隔离（P0-8） |
 
-**提交**：`9eebec4`（优化主体，14 files）+ `32eb9ad`（npm audit 修复 + 门禁收紧，2 files），均已推送。
+**提交**：`9eebec4`（优化主体，14 files）→ `32eb9ad`（npm audit 修复 + 门禁收紧，2 files）→ `f6d58af`（/risks 500 修复 + Dusk 门禁收紧，4 files），均已推送。
 
 ---
 
 ## 七、下一步动作项
 
 **已完成**：
-- ✅ 提交与推送：`9eebec4`（优化主体）+ `32eb9ad`（npm audit 修复 + 门禁收紧），均已推送并回读远端。
-- ✅ CI 真实运行验证：连续两次 6/6 jobs success，375 项测试在 CI 环境真实执行通过，npm audit 0 漏洞。
+- ✅ 提交与推送：`9eebec4`（优化主体）→ `32eb9ad`（npm audit 修复 + 门禁收紧）→ `f6d58af`（/risks 500 修复 + Dusk 门禁收紧），均已推送并回读远端。
+- ✅ CI 真实运行验证：连续四次 6/6 jobs success；Pest 376 项、Dusk 37 项在 CI 环境（pgsql）真实执行通过，npm audit 0 漏洞。
+- ✅ **Dusk 存量失败根因**：定位并修复（PostgreSQL SQL 别名大小写折叠致 /risks 500），门禁已收紧为硬阻断。
 
 **待办（按优先级）**：
-1. **Dusk 存量失败根因**（新发现，建议优先）：`/risks` 页浏览器端渲染异常 + 导出面板 JS 错误（`Cannot read properties of undefined (reading 'click')`）。服务端已验证无罪，需在浏览器环境复现定位。修复后可收紧 Dusk 门禁为硬阻断。
-2. **P2-2**：Settings.php webhook 明文回填——先补测试契约再改实现（单独立项）。
-3. **P2-1**：CSS 248 KB——评估 Flux 组件按需引入的可行性。
-4. **P2-3**：导航/信息架构体验优化（对标 Uptime Kuma/Gatus）。
+1. **P2-2**：Settings.php webhook 明文回填——先补测试契约再改实现（单独立项）。
+2. **P2-1**：CSS 248 KB——评估 Flux 组件按需引入的可行性。
+3. **P2-3**：导航/信息架构体验优化（对标 Uptime Kuma/Gatus）。
+4. **测试库与生产库对齐**（本次教训）：Feature/Unit 测试跑 SQLite、生产跑 pgsql，驱动差异（如标识符大小写折叠）会系统性漏 bug。建议评估测试库切换 pgsql 或增加 pgsql 维度的契约测试。
