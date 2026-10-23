@@ -144,7 +144,10 @@ jobs:
       - name: npm audit
         run: |
           npm ci
-          npm audit --audit-level=high || echo "::warning::npm audit 发现高/严重漏洞"
+          # 2026-10-24 收紧：此前 || echo warning 掩盖了 2 个 high 漏洞
+          # （follow-redirects 1.16.0 / vite ≤6.4.3）。已通过 npm audit fix
+          # 修到 follow-redirects 1.16.1 + vite 6.4.5（均为补丁级），本地复验 0 漏洞。
+          npm audit --audit-level=high
       - name: Check for secrets (gitleaks)
         uses: gitleaks/gitleaks-action@v3
         with:
@@ -247,6 +250,11 @@ jobs:
         # 浏览器测试存在存量失败（NotificationExport/SpaNavigation/TaskRisk，
         # UI 演进致选择器/JS 组件失配，被 06-24 起的 seeder bug 掩盖未暴露）；
         # 与 PHPUnit 同策略：照跑上报但不硬阻断，失败截图自动上传 artifacts
+        #
+        # 2026-10-24 回读证据：run 39988715249（9eebec4）= 5 failed / 36 passed；
+        # 上一提交 run 38983449101（00852cd）= 6 failed / 31 passed，失败同一批
+        # （均涉及 /risks 页的浏览器端渲染 + 导出面板 JS），确认为存量问题，
+        # 非本次改动引入。收紧此门禁前需先定位 /risks 浏览器端根因。
         run: php artisan dusk || echo "::warning::Dusk 浏览器测试存在失败（非阻断，见 artifacts 截图）"
       - name: Upload Dusk failure screenshots
         if: failure()
