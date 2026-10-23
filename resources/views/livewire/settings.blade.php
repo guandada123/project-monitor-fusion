@@ -85,22 +85,29 @@
                         <label class="text-sm font-medium block mb-2" style="color: var(--color-text-secondary);">Webhook URL</label>
 
                         @if($editingWebhook)
-                            {{-- 编辑模式：显示明文输入框 --}}
+                            {{-- 编辑模式：从空白开始输入（已存明文绝不回填进快照） --}}
                             <div class="flex items-center gap-2">
                                 <input type="url" wire:model="feishuWebhookUrl"
-                                       placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..."
+                                       placeholder="{{ $hasStoredWebhook ? '已配置，留空则不修改' : 'https://open.feishu.cn/open-apis/bot/v2/hook/...' }}"
                                        class="flex-1 px-4 py-2.5 rounded-xl text-sm transition-all duration-200 border
                                               focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 focus:border-[var(--color-accent)]"
                                        style="background: var(--color-bg-primary); color: var(--color-text-primary); border-color: var(--color-border);">
+                                @if($hasStoredWebhook)
+                                    <button type="button" wire:click="clearStoredWebhook"
+                                            class="btn-ghost text-sm py-2.5 px-3 whitespace-nowrap flex-shrink-0"
+                                            style="color: var(--color-danger);">
+                                        清除
+                                    </button>
+                                @endif
                                 <button type="button" wire:click="cancelWebhookEdit"
                                         class="btn-ghost text-sm py-2.5 px-3 whitespace-nowrap flex-shrink-0">
                                     取消
                                 </button>
                             </div>
                         @else
-                            {{-- 展示模式：显示脱敏 URL --}}
+                            {{-- 展示模式：显示脱敏 URL（掩码由服务端从存储值计算） --}}
                             <div class="flex items-center gap-2">
-                                @if($feishuWebhookUrl)
+                                @if($hasStoredWebhook && ! $clearWebhook)
                                     <div class="flex-1 px-4 py-2.5 rounded-xl text-sm font-mono tracking-wider truncate"
                                          style="background: var(--color-bg-tertiary); color: var(--color-text-secondary); border: 1px solid var(--color-border);">
                                         {{ $this->maskedUrl }}
@@ -108,6 +115,15 @@
                                     <button type="button" wire:click="revealWebhook"
                                             class="btn-ghost text-sm py-2.5 px-3 whitespace-nowrap flex-shrink-0">
                                         编辑
+                                    </button>
+                                @elseif($clearWebhook)
+                                    <div class="flex-1 px-4 py-2.5 rounded-xl text-sm"
+                                         style="background: color-mix(in srgb, var(--color-danger) 8%, transparent); color: var(--color-danger); border: 1px solid color-mix(in srgb, var(--color-danger) 25%, transparent);">
+                                        已标记清除，保存后生效
+                                    </div>
+                                    <button type="button" wire:click="cancelWebhookEdit"
+                                            class="btn-ghost text-sm py-2.5 px-3 whitespace-nowrap flex-shrink-0">
+                                        撤销
                                     </button>
                                 @else
                                     <div class="flex-1 px-4 py-2.5 rounded-xl text-sm"
@@ -346,14 +362,14 @@
                          style="background: var(--color-bg-tertiary);">
                         <span style="color: var(--color-text-secondary);">Webhook 状态</span>
                         <span class="text-[10px] px-1.5 py-0.5 rounded font-medium"
-                              style="background: color-mix(in srgb, {{ $feishuWebhookUrl ? 'var(--color-success)' : 'var(--color-warning)' }} 12%, transparent);
-                                     color: {{ $feishuWebhookUrl ? 'var(--color-success)' : 'var(--color-warning)' }};">
-                            {{ $feishuWebhookUrl ? '已配置' : '未配置' }}
+                              style="background: color-mix(in srgb, {{ $hasStoredWebhook && ! $clearWebhook ? 'var(--color-success)' : 'var(--color-warning)' }} 12%, transparent);
+                                     color: {{ $hasStoredWebhook && ! $clearWebhook ? 'var(--color-success)' : 'var(--color-warning)' }};">
+                            {{ $hasStoredWebhook && ! $clearWebhook ? '已配置' : '未配置' }}
                         </span>
                     </div>
                 </div>
 
-                @if($feishuWebhookUrl)
+                @if($hasStoredWebhook && ! $clearWebhook)
                 <div class="mt-4 px-4 py-3 rounded-xl text-xs leading-relaxed"
                      style="background: color-mix(in srgb, var(--color-info) 6%, transparent); color: var(--color-text-secondary); border: 1px solid color-mix(in srgb, var(--color-info) 12%, transparent);">
                     <p class="font-medium mb-1" style="color: var(--color-text-primary);">💡 部署提示</p>
