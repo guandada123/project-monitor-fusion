@@ -220,7 +220,7 @@ Laravel 12 · Livewire 3 · FluxUI 组件库 · Tailwind v4（CSS-first，无 ta
 
 | # | 事项 | 性质 | 说明 |
 |---|---|---|---|
-| 1 | **依赖安全债** | 安全 | Dependabot 共 **41 条告警**（high 21 / medium 16 / low 4；composer 26 + npm 15）。3 个 PR 挂起 2.5 个月，且其绿灯是 **8-12 旧结果**（当时门禁被掩盖），main 已领先 15 提交，**合并前必须重新验证** |
+| 1 | ~~依赖安全债~~ ✅ **已清** | 安全 | 口径修正：41 条告警**全部是 `fixed` 历史状态，open = 0**。真实待办只有 composer audit 的 3 条（livewire medium + 2 个 symfony CVE），已修至 0。3 个存量 PR 已更新分支、在新门禁下重验通过并合并 |
 | 2 | **测试库驱动不一致** | 基础设施 | phpunit.xml 强制 SQLite、生产 pgsql——`/risks` 500 正是该差异的产物，属系统性漏 bug 根因 |
 | 3 | Settings.php webhook 明文回填 | 安全 | 与 P0-2 同类（mount 回填真实值进 public 属性），改它会动 SystemTest 既有契约 |
 | 4 | CSS 248 KB | 性能 | FluxUI 1775 个 `.dark:*` 变体组合爆炸，组件库固有成本 |
@@ -229,15 +229,19 @@ Laravel 12 · Livewire 3 · FluxUI 组件库 · Tailwind v4（CSS-first，无 ta
 
 ### 后续路线图
 
-**M1 依赖安全收敛**（预计 0.5 天）
-- 对 3 个存量 PR 重新触发 CI（`gh pr merge` 前先更新分支拿新门禁下的真实结论）；nanoid 3→6 是**大版本**，需单独评估 breaking 风险后再定
-- 分批处理 21 个 high（composer 侧 26 条优先，`composer audit` 定位）
-- **产出**：告警从 41 降至 <10；PR 全部合并或有关闭结论
+**M1 依赖安全收敛** ✅ 已完成（commit `70bc232` / `39012e3` / PR #20-22）
+- composer：livewire 4.4.7→4.4.8、symfony/expression-language 7.4.8→7.4.21、symfony/yaml 7.4.13→7.4.21（均约束内补丁级），`composer audit` 3→0
+- npm：`npm audit fix` 已在此前完成（vite 6.4.5 / follow-redirects 1.16.1），0 漏洞
+- 3 个存量 Dependabot PR：更新分支 → **新门禁下 6/6 全绿** → 合并（playwright 1.62.1 / nanoid 6.0.1 / three 0.185.1）
+- 构建产物同步：three 升级后重建 public/build（three-background hash 变更），manifest 引用完整性已校验
 
-**M2 测试基础设施对齐**（预计 1 天，防再犯的核心）
-- 主方案：`phpunit.xml` 的 `DB_CONNECTION` 切 pgsql（CI 已有 postgres service，本地本就跑 pgsql）——让测试库与生产驱动一致，`/risks` 类 bug 可在测试层暴露
-- 备选：保留 sqlite，增加 pgsql 维度契约测试（低成本但覆盖窄）
-- **产出**：驱动差异有守卫；全量测试在新库上回归通过
+**M2 测试基础设施对齐** ✅ 已完成（commit `f7443a3`，测试库 SQLite → PostgreSQL）
+- `phpunit.xml` 切 pgsql + 独立库 `project_monitor_test`；CI 增加幂等建库步骤
+- **切换当场抓获 2 个被 SQLite 掩盖的生产 bug**：
+  1. `tasks.sort_order` 从未有迁移——SQLite 把不存在的双引号标识符当字符串字面量（排序静默失效、测试绿灯），pgsql 直接 500。已补迁移 + `$fillable` + id 兜底排序
+  2. `PUT /api/tasks/reorder` 被 `PUT /api/tasks/{task}` 路由劫持（同 P0-1 类），pgsql 500 / sqlite 静默 404，且零测试覆盖。已修路由顺序 + `{task}` 数字约束 + 补 2 项测试
+- 测试自身缺陷 1 处：`ruleOptions` 依赖 DB 返回顺序 → 改集合断言
+- 验证：pgsql 全量 **378 passed (968 assertions)**；Pint PASS(182)；PHPStan 0 error
 
 **M3 体验与性能深化**（预计 1~2 天，部分需用户输入）
 - Settings.php 凭据修复（先补测试契约，再改实现）
