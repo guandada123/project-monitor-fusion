@@ -28,7 +28,6 @@ Schedule::command('daily:report')
 Schedule::command('metrics:collect')
     ->hourly()
     ->withoutOverlapping(10)
-    ->runInBackground()
     ->appendOutputTo(storage_path('logs/metrics-collect.log'))
     ->description('指标快照自动采集');
 
@@ -36,7 +35,6 @@ Schedule::command('metrics:collect')
 Schedule::command('risk:scan --no-push')
     ->everyThirtyMinutes()
     ->withoutOverlapping(5)
-    ->runInBackground()
     ->appendOutputTo(storage_path('logs/risk-scan.log'))
     ->description('风险自动扫描');
 
@@ -44,7 +42,6 @@ Schedule::command('risk:scan --no-push')
 Schedule::command('github:sync')
     ->everyThirtyMinutes()
     ->withoutOverlapping(15)
-    ->runInBackground()
     ->appendOutputTo(storage_path('logs/github-sync.log'))
     ->description('GitHub 数据自动同步');
 

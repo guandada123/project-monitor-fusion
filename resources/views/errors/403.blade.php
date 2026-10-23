@@ -1,22 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}"
-      x-data="{
-          theme: localStorage.getItem('pm_theme') || 'system',
-          init() {
-              this.applyTheme();
-              this.$watch('theme', () => {
-                  localStorage.setItem('pm_theme', this.theme);
-                  this.applyTheme();
-              });
-              window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-                  if (this.theme === 'system') this.applyTheme();
-              });
-          },
-          applyTheme() {
-              const isDark = this.theme === 'dark' || (this.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-              document.documentElement.classList.toggle('dark', isDark);
-          }
-      }">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -208,18 +191,18 @@
 </head>
 <body>
     <!-- Theme Toggle -->
-    <div class="theme-toggle" x-cloak>
-        <button @click="theme = 'light'" :class="theme === 'light' ? 'active' : ''" title="浅色">
+    <div class="theme-toggle">
+        <button type="button" data-theme-btn="light" title="浅色">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
             </svg>
         </button>
-        <button @click="theme = 'dark'" :class="theme === 'dark' ? 'active' : ''" title="深色">
+        <button type="button" data-theme-btn="dark" title="深色">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
             </svg>
         </button>
-        <button @click="theme = 'system'" :class="theme === 'system' ? 'active' : ''" title="跟随系统">
+        <button type="button" data-theme-btn="system" title="跟随系统">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
             </svg>
@@ -256,6 +239,44 @@
         </div>
     </div>
 
-    <script defer src="//unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    {{-- 2026-10-16 审计修复（P1）：原先此处从 //unpkg.com/alpinejs@3.x.x 加载未固定版本
+         的 Alpine —— 既引入第三方 CDN 依赖（版本漂移 + 供应链风险），又被本页 CSP
+         （script-src 'self' 'unsafe-inline'）拦截，主题切换实际从未生效。改用不依赖
+         任何框架的内联普通脚本，兼容原 localStorage key（pm_theme）。 --}}
+    <script>
+    (function () {
+        'use strict';
+        var KEY = 'pm_theme';
+        var media = window.matchMedia('(prefers-color-scheme: dark)');
+        var root = document.documentElement;
+        var buttons = document.querySelectorAll('[data-theme-btn]');
+
+        function isDark(mode) {
+            return mode === 'dark' || (mode === 'system' && media.matches);
+        }
+
+        function apply(mode) {
+            root.classList.toggle('dark', isDark(mode));
+            buttons.forEach(function (btn) {
+                btn.classList.toggle('active', btn.dataset.themeBtn === mode);
+            });
+        }
+
+        var mode = localStorage.getItem(KEY) || 'system';
+        apply(mode);
+
+        buttons.forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                mode = btn.dataset.themeBtn;
+                localStorage.setItem(KEY, mode);
+                apply(mode);
+            });
+        });
+
+        media.addEventListener('change', function () {
+            if (mode === 'system') apply(mode);
+        });
+    })();
+    </script>
 </body>
 </html>

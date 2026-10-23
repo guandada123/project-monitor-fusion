@@ -25,6 +25,10 @@ RUN npm run build
 FROM php:8.5-fpm-alpine AS runtime
 
 # ─── 系统依赖 & PHP 扩展 ───
+# ⚠️ 刻意不装 `opcache`（2026-09-28）：**基础镜像已内置**（`php -m` 里有 `Zend OPcache v8.5.11`）。
+# 再 `docker-php-ext-install opcache` 会在 `install-modules` 阶段产不出 `modules/*` →
+# `cp: can't stat 'modules/*'` → **整个镜像重建失败**（基础镜像刷新后必现，
+# 等于这个服务谁都重新部署不了）。实测 pdo_pgsql/pgsql/bcmath/zip/sockets 全 OK，只有 opcache 挂。
 RUN apk add --no-cache --virtual .build-deps \
         autoconf \
         dpkg-dev \
@@ -53,7 +57,6 @@ RUN apk add --no-cache --virtual .build-deps \
         bcmath \
         zip \
         sockets \
-        opcache \
     && pecl install redis \
     && docker-php-ext-enable redis \
     && apk del .build-deps

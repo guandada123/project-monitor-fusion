@@ -196,7 +196,7 @@
                 @if($formType === 'github')
                 <div>
                     <label class="text-sm font-medium block mb-1.5" style="color: var(--color-text-secondary);">Personal Access Token</label>
-                    <input type="password" name="gh_token"
+                    <input type="password" wire:model="ghToken"
                            class="w-full px-3 py-2.5 rounded-xl border text-sm font-mono focus:ring-2 focus:ring-offset-0 focus:outline-none transition-all duration-200"
                            style="background: var(--color-bg-tertiary); border-color: var(--color-border); color: var(--color-text-primary); --tw-ring-color: var(--color-accent);"
                            placeholder="{{ $editingId ? '留空则不修改' : 'ghp_...' }}">
@@ -223,10 +223,13 @@
                 @if($formType === 'lark')
                 <div>
                     <label class="text-sm font-medium block mb-1.5" style="color: var(--color-text-secondary);">Webhook URL</label>
+                    {{-- 仅承载「用户本次输入」：编辑态不回填数据库已有值，
+                         避免凭据明文随 Livewire 快照下发浏览器。留空则在
+                         handleUpdate() 中保留原值。 --}}
                     <input type="url" wire:model="larkWebhook"
                            class="w-full px-3 py-2.5 rounded-xl border text-sm font-mono focus:ring-2 focus:ring-offset-0 focus:outline-none transition-all duration-200"
                            style="background: var(--color-bg-tertiary); border-color: var(--color-border); color: var(--color-text-primary); --tw-ring-color: var(--color-accent);"
-                           placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/...">
+                           placeholder="{{ $webhookHint ?: 'https://open.feishu.cn/open-apis/bot/v2/hook/...' }}">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
@@ -237,7 +240,7 @@
                     </div>
                     <div>
                         <label class="text-sm font-medium block mb-1.5" style="color: var(--color-text-secondary);">App Secret</label>
-                        <input type="password" name="lark_app_secret"
+                        <input type="password" wire:model="larkAppSecret"
                                class="w-full px-3 py-2.5 rounded-xl border text-sm focus:ring-2 focus:ring-offset-0 focus:outline-none transition-all duration-200"
                                style="background: var(--color-bg-tertiary); border-color: var(--color-border); color: var(--color-text-primary); --tw-ring-color: var(--color-accent);"
                                placeholder="{{ $editingId ? '留空则不修改' : '请输入 App Secret' }}">
@@ -249,14 +252,15 @@
                 @if($formType === 'dingtalk')
                 <div>
                     <label class="text-sm font-medium block mb-1.5" style="color: var(--color-text-secondary);">Webhook URL</label>
+                    {{-- 同上：仅承载输入，编辑态不回填已有值 --}}
                     <input type="url" wire:model="dtWebhook"
                            class="w-full px-3 py-2.5 rounded-xl border text-sm font-mono focus:ring-2 focus:ring-offset-0 focus:outline-none transition-all duration-200"
                            style="background: var(--color-bg-tertiary); border-color: var(--color-border); color: var(--color-text-primary); --tw-ring-color: var(--color-accent);"
-                           placeholder="https://oapi.dingtalk.com/robot/send?access_token=...">
+                           placeholder="{{ $webhookHint ?: 'https://oapi.dingtalk.com/robot/send?access_token=...' }}">
                 </div>
                 <div>
                     <label class="text-sm font-medium block mb-1.5" style="color: var(--color-text-secondary);">加签密钥 (可选)</label>
-                    <input type="password" name="dt_secret"
+                    <input type="password" wire:model="dtSecret"
                            class="w-full px-3 py-2.5 rounded-xl border text-sm focus:ring-2 focus:ring-offset-0 focus:outline-none transition-all duration-200"
                            style="background: var(--color-bg-tertiary); border-color: var(--color-border); color: var(--color-text-primary); --tw-ring-color: var(--color-accent);"
                            placeholder="{{ $editingId ? '留空则不修改' : 'SEC...' }}">

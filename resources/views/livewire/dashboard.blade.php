@@ -1,4 +1,9 @@
-<div wire:poll.30s x-data="{ mounted: false, filtersOpen: true }" x-init="mounted = true">
+{{-- 2026-10-16 审计修复（P2）：轮询周期由 30s 调为 60s，与后端数据缓存 TTL 对齐
+     （app/Livewire/Dashboard.php 的 Cache::remember($cacheKey, 60, …)）。原来的 30s
+     意味着每两次轮询里必有一次命中缓存却仍触发整组件重渲染（含 2 张图表重建）。
+     图表重建现由 initTrendChart/initKpiTrendChart 内的数据签名比对进一步收敛：
+     数据未变化时直接跳过 destroy+rebuild。 --}}
+<div wire:poll.60s x-data="{ mounted: false, filtersOpen: true }" x-init="mounted = true">
     {{-- ============================================= --}}
     {{-- Advanced Filter Bar — Premium Glass --}}
     {{-- ============================================= --}}
@@ -504,10 +509,24 @@
 
     function initTrendChart() {
         const el = document.getElementById('trend-chart');
-        if (!el || !window.ApexCharts) return;
+        if (!el) return;
 
+        // 2026-10-16 审计修复（P1）：ApexCharts 已改为按需动态加载（vendor-apex chunk），
+        // 未就绪时等待加载完成再重入本函数，避免「静默不渲染」。
+        if (!window.ApexCharts) {
+            if (typeof window.pmLoadApexCharts === 'function') window.pmLoadApexCharts().then(initTrendChart, () => {});
+            return;
+        }
+
+        const dataEl = document.getElementById('trend-chart-data');
         const trendData = readJsonData('trend-chart-data');
         if (!trendData || !trendData.length) return;
+
+        // 2026-10-16 审计修复（P2）：轮询重渲染时若数据未变化，跳过 destroy+rebuild；
+        // 容器带 wire:ignore，dataset 不会被 morph 抹掉，可安全作为缓存标志。
+        const sig = dataEl ? dataEl.textContent : '';
+        if (el.dataset.chartSig === sig) return;
+        el.dataset.chartSig = sig;
 
         const dark = isDark();
 
@@ -577,10 +596,21 @@
 
     function initKpiTrendChart() {
         const el = document.getElementById('kpi-trend-chart');
-        if (!el || !window.ApexCharts) return;
+        if (!el) return;
 
+        // 同上：ApexCharts 按需加载，未就绪时等待后重入
+        if (!window.ApexCharts) {
+            if (typeof window.pmLoadApexCharts === 'function') window.pmLoadApexCharts().then(initKpiTrendChart, () => {});
+            return;
+        }
+
+        const dataEl = document.getElementById('kpi-trend-data');
         const data = readJsonData('kpi-trend-data');
         if (!data || !data.kpiDates) return;
+
+        const sig = dataEl ? dataEl.textContent : '';
+        if (el.dataset.chartSig === sig) return;
+        el.dataset.chartSig = sig;
 
         const kpiDates = data.kpiDates;
         const kpiTrend = data.kpiTrendData;

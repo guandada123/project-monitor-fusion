@@ -1,6 +1,6 @@
 <div class="min-h-screen">
     {{-- Page Header --}}
-    <div class="glass-card p-6 mb-6" data-animate>
+    <div class="glass-card p-6 mb-6">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
             <div>
                 <h1 class="text-2xl font-bold">📊 项目对比分析</h1>
@@ -63,14 +63,14 @@
 
     @if($selectedCount === 0)
         {{-- Empty State --}}
-        <div class="glass-card p-12 text-center" data-animate>
+        <div class="glass-card p-12 text-center">
             <div class="text-5xl mb-4">📋</div>
             <h2 class="text-lg font-semibold text-gray-500 dark:text-gray-400 mb-2">请选择要对比的项目</h2>
             <p class="text-sm text-gray-400 dark:text-gray-500">点击上方项目标签开始对比分析</p>
         </div>
     @else
         {{-- KPI Comparison Matrix --}}
-        <div class="glass-card p-6 mb-6" data-animate>
+        <div class="glass-card p-6 mb-6">
             <h2 class="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-4 uppercase tracking-wide">关键指标矩阵</h2>
             <div class="table-scroll">
                 <table class="w-full text-sm">
@@ -149,19 +149,19 @@
 
         {{-- SVG Comparison Charts Grid --}}
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-            <div class="glass-card p-6 flex flex-col items-center justify-center" data-animate>
+            <div class="glass-card p-6 flex flex-col items-center justify-center">
                 <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">📈 完成率对比</h3>
                 <div class="overflow-x-auto w-full flex justify-center">
                     {!! $completionChart !!}
                 </div>
             </div>
-            <div class="glass-card p-6 flex flex-col items-center justify-center" data-animate data-animate-delay="60">
+            <div class="glass-card p-6 flex flex-col items-center justify-center">
                 <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">📋 任务分布对比</h3>
                 <div class="overflow-x-auto w-full flex justify-center">
                     {!! $tasksChart !!}
                 </div>
             </div>
-            <div class="glass-card p-6 flex flex-col items-center justify-center" data-animate data-animate-delay="120">
+            <div class="glass-card p-6 flex flex-col items-center justify-center">
                 <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">⚠️ 风险分布对比</h3>
                 <div class="overflow-x-auto w-full flex justify-center">
                     {!! $risksChart !!}
@@ -172,7 +172,7 @@
         {{-- Per-Project Detail Cards --}}
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
             @foreach($comparisons as $comp)
-                <div class="glass-card p-5" data-animate data-animate-delay="{{ $loop->index * 40 }}" style="border-left:4px solid {{ $comp['color'] }};">
+                <div class="glass-card p-5" style="border-left:4px solid {{ $comp['color'] }};">
                     <div class="flex items-center gap-2 mb-3">
                         <span class="w-3 h-3 rounded-full flex-shrink-0" style="background:{{ $comp['color'] }};"></span>
                         <a href="/projects/{{ $comp['project']->slug }}" class="font-semibold text-sm hover:underline hover:text-blue-600 dark:hover:text-blue-400 transition-colors">

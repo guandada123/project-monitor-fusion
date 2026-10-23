@@ -618,6 +618,29 @@ describe('RiskManager (Livewire)', function () {
             ->assertSet('stats.closed', 1);
     });
 
+    test('stats keys are complete and camelCase normalized', function () {
+        // 回归测试（2026-10-24）：PostgreSQL 会把未加引号的 SQL 别名折叠为小写，
+        // withSuggestion/noSuggestion 在 pgsql 下变成 withsuggestion/nosuggestion。
+        // loadStats() 若不归一化，视图访问 $stats['noSuggestion'] 会抛
+        // Undefined array key → /risks 页 500。SQLite 测试环境保留别名大小写，
+        // 无法暴露该问题；pgsql 下的守卫是 Dusk 套件（已收紧为 CI 硬门禁）。
+        $user = User::factory()->admin()->create();
+        $this->actingAs($user);
+
+        $expectedKeys = [
+            'total', 'open', 'acknowledged', 'closed',
+            'critical', 'high', 'withSuggestion', 'noSuggestion',
+        ];
+
+        Livewire::test(RiskManager::class)
+            ->assertSet('stats.total', 0)
+            ->assertSet('stats.noSuggestion', 0)
+            ->assertSet('stats.withSuggestion', 0)
+            ->tap(function ($component) use ($expectedKeys) {
+                expect(array_keys($component->get('stats')))->toBe($expectedKeys);
+            });
+    });
+
     test('shows risk list', function () {
         $project = Project::factory()->create(['name' => '测试项目']);
         $risks = Risk::factory()->open()->count(3)->create([

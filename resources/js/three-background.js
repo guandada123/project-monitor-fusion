@@ -15,6 +15,9 @@ let particles = [];
 let mouseX = 0, mouseY = 0;
 let frameId = null;
 let isLowPerf = false;
+// 主题变更观察者。2026-10-16 审计修复（P1）：必须登记为模块级变量，
+// 原先它是 init 内的局部 const，destroy 时无从 disconnect —— 每次导航泄漏一个。
+let themeObserver = null;
 
 // ── Configuration ──────────────────────────────────────────────
 const CONFIG = {
@@ -271,12 +274,15 @@ export function initThreeBackground() {
 
     animate(0);
 
-    // Bind events
+    // Bind events —— 先摘后挂，使本函数幂等：重复 init 不会叠加监听
+    window.removeEventListener('resize', onResize);
+    window.removeEventListener('mousemove', onMouseMove);
     window.addEventListener('resize', onResize);
     window.addEventListener('mousemove', onMouseMove);
 
     // Watch for theme changes (MutationObserver on <html> class)
-    const themeObserver = new MutationObserver((mutations) => {
+    themeObserver?.disconnect();
+    themeObserver = new MutationObserver((mutations) => {
         for (const m of mutations) {
             if (m.attributeName === 'class') {
                 onThemeChange();
@@ -284,18 +290,7 @@ export function initThreeBackground() {
             }
         }
     });
-    themeObserver.observe(document.documentElement, { attributes: true });
-
-    // Livewire navigation clean-up
-    document.addEventListener('livewire:navigating', () => {
-        destroyThreeBackground();
-    });
-    document.addEventListener('livewire:navigated', () => {
-        // Re-create after navigation if needed
-        if (!renderer) {
-            initThreeBackground();
-        }
-    });
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 }
 
 export function destroyThreeBackground() {
@@ -311,6 +306,16 @@ export function destroyThreeBackground() {
     });
     particles = [];
 
+    // 2026-10-16 审计修复（P1）：摘掉主题观察者，否则每次导航累积一个
+    themeObserver?.disconnect();
+    themeObserver = null;
+
+    // renderer.dispose() 只释放 GPU 资源，不会把 canvas 从 DOM 移除；
+    // 不显式摘掉的话，每次导航都会在 #three-background 里留下一个废弃 canvas
+    if (renderer?.domElement?.parentNode) {
+        renderer.domElement.parentNode.removeChild(renderer.domElement);
+    }
+
     renderer?.dispose();
     renderer = null;
     scene = null;
@@ -318,6 +323,22 @@ export function destroyThreeBackground() {
 
     window.removeEventListener('resize', onResize);
     window.removeEventListener('mousemove', onMouseMove);
+}
+
+// ── Livewire SPA lifecycle ─────────────────────────────────────
+// 2026-10-16 审计修复（P1）：原先这两个监听注册在 initThreeBackground() 内部，
+// 每导航一次就多两个常驻监听（destroy 并不摘它们，且 destroy→init 循环会再度注册）。
+// 改为模块级注册一次。
+if (typeof document !== 'undefined') {
+    document.addEventListener('livewire:navigating', () => {
+        destroyThreeBackground();
+    });
+    document.addEventListener('livewire:navigated', () => {
+        // Re-create after navigation if needed
+        if (!renderer) {
+            initThreeBackground();
+        }
+    });
 }
 
 // Auto-init

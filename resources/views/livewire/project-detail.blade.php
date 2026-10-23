@@ -294,7 +294,14 @@
 
     function initGanttChart() {
         const el = document.getElementById('gantt-chart');
-        if (!el || !window.ApexCharts) return;
+        if (!el) return;
+
+        // 2026-10-16 审计修复（P1）：ApexCharts 改为按需动态加载（vendor-apex chunk），
+        // 未就绪时等待加载完成再重入本函数，避免「静默不渲染」。
+        if (!window.ApexCharts) {
+            if (typeof window.pmLoadApexCharts === 'function') window.pmLoadApexCharts().then(initGanttChart, () => {});
+            return;
+        }
 
         const ganttData = @json($ganttData);
         const series = ganttData.map(t => ({
@@ -349,7 +356,13 @@
 
     function initTaskDistributionChart() {
         const el = document.getElementById('task-distribution-chart');
-        if (!el || !window.ApexCharts) return;
+        if (!el) return;
+
+        // 同上：ApexCharts 按需加载，未就绪时等待后重入
+        if (!window.ApexCharts) {
+            if (typeof window.pmLoadApexCharts === 'function') window.pmLoadApexCharts().then(initTaskDistributionChart, () => {});
+            return;
+        }
 
         const td = @json($taskDistribution);
         const statusLabels = { todo: '待办', in_progress: '进行中', review: '审核中', done: '已完成', blocked: '阻塞' };

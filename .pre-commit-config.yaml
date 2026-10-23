@@ -2,6 +2,10 @@
 # Install: pip install pre-commit && pre-commit install
 # Run: pre-commit run --all-files
 
+# 2026-10-16：构建产物必须与 Vite 输出逐字节一致，否则每次 `npm run build`
+# 都会产生新 diff（trailing-whitespace / end-of-file-fixer 会往压缩产物写换行）。
+# 排除该目录；密钥扫描不受影响 —— gitleaks 钩子为 pass_filenames:false，自行扫描暂存区。
+exclude: ^public/build/
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
@@ -34,7 +38,9 @@ repos:
 
       - id: phpstan
         name: PHPStan
-        entry: ./vendor/bin/phpstan analyse --no-progress --no-interaction
+        # 必须显式加大内存：默认 128M 会让 PHPStan 直接崩溃退出，
+        # 与 CI 同一根因（见 .github/workflows/pmf-ci.yml 的 PHPStan job）。
+        entry: ./vendor/bin/phpstan analyse --no-progress --no-interaction --memory-limit=1G
         language: script
         files: \.php$
         pass_filenames: false
@@ -49,3 +55,8 @@ repos:
         language: system
         stages: [commit]
         always_run: true
+        # 2026-10-16 修复：原先缺 pass_filenames: false —— pre-commit 会把暂存文件名
+        # 追加为参数，而 `gitleaks git` 只接受 ≤1 个位置参数（仓库路径）→ 任何多文件
+        # 提交都会 FTL "accepts at most 1 arg(s), received N"。gitleaks 的
+        # `git --pre-commit` 模式本就自行扫描暂存区，无需文件名参数。
+        pass_filenames: false
