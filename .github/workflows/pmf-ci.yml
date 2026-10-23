@@ -247,15 +247,14 @@ jobs:
           grep APP_ENV .env
           curl -s http://localhost:8000/up 2>/dev/null | head -20
       - name: Run Dusk tests
-        # 浏览器测试存在存量失败（NotificationExport/SpaNavigation/TaskRisk，
-        # UI 演进致选择器/JS 组件失配，被 06-24 起的 seeder bug 掩盖未暴露）；
-        # 与 PHPUnit 同策略：照跑上报但不硬阻断，失败截图自动上传 artifacts
-        #
-        # 2026-10-24 回读证据：run 39988715249（9eebec4）= 5 failed / 36 passed；
-        # 上一提交 run 38983449101（00852cd）= 6 failed / 31 passed，失败同一批
-        # （均涉及 /risks 页的浏览器端渲染 + 导出面板 JS），确认为存量问题，
-        # 非本次改动引入。收紧此门禁前需先定位 /risks 浏览器端根因。
-        run: php artisan dusk || echo "::warning::Dusk 浏览器测试存在失败（非阻断，见 artifacts 截图）"
+        # 2026-10-24：存量失败已修复，门禁收紧为硬阻断。
+        # 根因：PostgreSQL 将未加引号的 SQL 别名折叠为小写，RiskManager::loadStats()
+        # 的 selectRaw 别名 withSuggestion/noSuggestion 在 pgsql 下返回
+        # withsuggestion/nosuggestion，视图访问 $stats['noSuggestion'] 抛
+        # Undefined array key → /risks 页 500（SQLite 测试环境保留大小写故无法暴露）。
+        # 修复：loadStats() 显式归一化键名（驱动无关）+ 视图加 ?? 0 防御。
+        # 本地 pgsql 实测 37/37 通过；pgsql 覆盖由本 job 承担。
+        run: php artisan dusk
       - name: Upload Dusk failure screenshots
         if: failure()
         uses: actions/upload-artifact@v7

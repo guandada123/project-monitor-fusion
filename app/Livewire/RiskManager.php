@@ -89,12 +89,23 @@ class RiskManager extends Component
             COUNT(CASE WHEN status = 'open' AND suggestion IS NULL THEN 1 END) as noSuggestion
         ")->first();
 
-        $this->stats = $row
-            ? (array) $row
-            : [
-                'total' => 0, 'open' => 0, 'acknowledged' => 0, 'closed' => 0,
-                'critical' => 0, 'high' => 0, 'withSuggestion' => 0, 'noSuggestion' => 0,
-            ];
+        // 驱动无关的键规范化：PostgreSQL 会把未加引号的标识符折叠为小写，
+        // SQL 别名 withSuggestion/noSuggestion 在 pgsql 下返回
+        // withsuggestion/nosuggestion（SQLite 则保留原样）。若不归一化，
+        // 视图访问 $stats['noSuggestion'] 会抛 "Undefined array key" → 500。
+        // （2026-10-24：/risks 页在生产 pgsql 下持续 500，SQLite 测试环境无法暴露）
+        $get = fn (string $key) => (int) ($row->{$key} ?? $row->{strtolower($key)} ?? 0);
+
+        $this->stats = [
+            'total' => $get('total'),
+            'open' => $get('open'),
+            'acknowledged' => $get('acknowledged'),
+            'closed' => $get('closed'),
+            'critical' => $get('critical'),
+            'high' => $get('high'),
+            'withSuggestion' => $get('withSuggestion'),
+            'noSuggestion' => $get('noSuggestion'),
+        ];
     }
 
     /**
