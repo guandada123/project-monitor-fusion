@@ -18,12 +18,12 @@ class CheckPermission
     {
         if (! $request->user() || ! $request->user()->hasPermission($permission)) {
             Log::warning('权限拒绝', [
-                'user_id'    => $request->user()?->id,
-                'email'      => $request->user()?->email,
+                'user_id' => $request->user()?->id,
+                'email' => $request->user()?->email,
                 'permission' => $permission,
-                'route'      => $request->route()?->uri(),
-                'method'     => $request->method(),
-                'ip'         => $request->ip(),
+                'route' => $request->route()?->uri(),
+                'method' => $request->method(),
+                'ip' => $request->ip(),
             ]);
             abort(403, '您没有执行此操作的权限。');
         }

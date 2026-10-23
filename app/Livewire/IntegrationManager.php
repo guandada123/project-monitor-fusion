@@ -27,6 +27,12 @@ class IntegrationManager extends Component
     public string $formStatus = 'active';
 
     // GitHub specific
+    // 安全约定：下面这些 public 属性**只承载用户本次输入**，
+    // 编辑态一律不回填数据库中已有值 —— 因为 public 属性会随 Livewire
+    // 快照下发到浏览器，回填即等于把持久化的凭据明文暴露到 DOM。
+    // 留空保留原值的合并逻辑见 handleUpdate()。
+    public string $ghToken = '';
+
     public string $ghOrg = '';
 
     public string $ghRepo = '';
@@ -36,27 +42,23 @@ class IntegrationManager extends Component
 
     public string $larkAppId = '';
 
-    // larkAppSecret 不绑定到 Livewire 属性（防止序列化到前端）
+    public string $larkAppSecret = '';
 
     // DingTalk specific
     public string $dtWebhook = '';
 
-    // dtSecret 不绑定到 Livewire 属性（防止序列化到前端）
+    public string $dtSecret = '';
+
+    /** 已配置的敏感字段提示（仅用于表单 placeholder，不含凭据明文） */
+    public string $webhookHint = '';
+
+    public string $secretHint = '';
 
     /** 集成类型显示标签 */
     private const TYPE_LABELS = [
         'github' => 'GitHub',
         'lark' => '飞书',
         'dingtalk' => '钉钉',
-    ];
-
-    /** 各集成类型的密钥字段映射: formType → [input名, config key]
-     *  input: 前端 input name（用于 validateSecrets/buildConfig）
-     *  key:   config 数组中的键名（用于 handleUpdate 合并已有密钥） */
-    private const SECRET_INPUT_MAP = [
-        'github' => ['input' => 'gh_token', 'key' => 'token'],
-        'lark' => ['input' => 'lark_app_secret', 'key' => 'app_secret'],
-        'dingtalk' => ['input' => 'dt_secret', 'key' => 'secret'],
     ];
 
     public function mount()
@@ -77,11 +79,16 @@ class IntegrationManager extends Component
         $this->formName = '';
         $this->formConfig = [];
         $this->formStatus = 'active';
+        $this->ghToken = '';
         $this->ghOrg = '';
         $this->ghRepo = '';
         $this->larkWebhook = '';
         $this->larkAppId = '';
+        $this->larkAppSecret = '';
         $this->dtWebhook = '';
+        $this->dtSecret = '';
+        $this->webhookHint = '';
+        $this->secretHint = '';
         $this->resetValidation();
     }
 
@@ -114,15 +121,10 @@ class IntegrationManager extends Component
             ]),
         };
 
-        // 清除密钥字段，防止 Livewire 序列化到前端（密钥通过 request()->input() 单独传递）
-        $secretKey = match ($integration->type) {
-            'github' => 'token',
-            'lark' => 'app_secret',
-            'dingtalk' => 'secret',
-            default => null,
-        };
-        if ($secretKey !== null) {
-            unset($this->formConfig[$secretKey]);
+        // 清除敏感字段（密钥 + Webhook），防止 Livewire 序列化到前端
+        // 这些值一律通过 request()->input() 单独传递
+        foreach ($this->sensitiveKeys() as $key) {
+            unset($this->formConfig[$key]);
         }
 
         $this->showModal = true;
@@ -130,68 +132,61 @@ class IntegrationManager extends Component
 
     private function loadGitHubForm(array $config): void
     {
-        // ghToken 不加载到前端 — 空值表示"保留原值"
         $this->ghOrg = $config['org'] ?? '';
         $this->ghRepo = $config['repo'] ?? '';
+
+        // 不回填已有 token 明文
+        $this->ghToken = '';
+        $this->secretHint = ! empty($config['token']) ? '已配置，留空则不修改' : '';
     }
 
     private function loadLarkForm(array $config): void
     {
-        $this->larkWebhook = $config['webhook_url'] ?? '';
         $this->larkAppId = $config['app_id'] ?? '';
-        // larkAppSecret 不加载到前端 — 空值表示"保留原值"
+
+        // 不回填已有 webhook / app_secret 明文
+        $this->larkWebhook = '';
+        $this->larkAppSecret = '';
+        $this->webhookHint = ! empty($config['webhook_url']) ? '已配置，留空则不修改' : '';
+        $this->secretHint = ! empty($config['app_secret']) ? '已配置，留空则不修改' : '';
     }
 
     private function loadDingTalkForm(array $config): void
     {
-        $this->dtWebhook = $config['webhook_url'] ?? '';
-        // dtSecret 不加载到前端 — 空值表示"保留原值"
+        // 不回填已有 webhook 明文（secret 本就可选，无需回填）
+        $this->dtWebhook = '';
+        $this->dtSecret = '';
+        $this->webhookHint = ! empty($config['webhook_url']) ? '已配置，留空则不修改' : '';
     }
 
-    /** 校验非敏感专属字段 */
+    /**
+     * 校验当前 formType 的专属字段（含凭据类字段）。
+     *
+     * 安全约定：凭据字段（token / app_secret / webhook_url / secret）必须是 public 属性
+     * 才能被 wire:model 绑定，但**编辑态不回填**数据库已有值，
+     * 因此这里统一用 nullable —— 留空即由 handleUpdate() 保留原值，新建态则必填。
+     */
     private function validateTypeFields(): void
     {
-        $this->validate(match ($this->formType) {
+        $rules = match ($this->formType) {
             'github' => [
+                'ghToken' => $this->editingId ? 'nullable|string' : 'required|string',
                 'ghOrg' => 'required|string',
                 'ghRepo' => 'required|string',
             ],
             'lark' => [
-                'larkWebhook' => 'required|url',
+                'larkWebhook' => $this->editingId ? 'nullable|url' : 'required|url',
                 'larkAppId' => 'required|string',
+                'larkAppSecret' => $this->editingId ? 'nullable|string' : 'required|string',
             ],
             'dingtalk' => [
-                'dtWebhook' => 'required|url',
+                'dtWebhook' => $this->editingId ? 'nullable|url' : 'required|url',
+                'dtSecret' => 'nullable|string',
             ],
             default => throw new \InvalidArgumentException("未知的集成类型: {$this->formType}"),
-        });
-    }
+        };
 
-    /**
-     * 校验敏感字段（通过 request()->input()，不走 Livewire 属性防止序列化泄漏）
-     *
-     * @return bool true=通过 false=有错误
-     */
-    private function validateSecrets(): bool
-    {
-        $fieldMap = self::SECRET_INPUT_MAP[$this->formType] ?? null;
-        if (! $fieldMap) {
-            return true;
-        }
-
-        $rule = [$fieldMap['input'] => $this->editingId ? 'nullable|string' : 'required|string'];
-        $validator = \Illuminate\Support\Facades\Validator::make(request()->only($fieldMap['input']), $rule);
-
-        if ($validator->fails()) {
-            foreach ($validator->errors()->toArray() as $field => $messages) {
-                foreach ($messages as $msg) {
-                    $this->addError($field, $msg);
-                }
-            }
-            return false;
-        }
-
-        return true;
+        $this->validate($rules);
     }
 
     public function save()
@@ -203,10 +198,6 @@ class IntegrationManager extends Component
         ]);
 
         $this->validateTypeFields();
-
-        if (! $this->validateSecrets()) {
-            return;
-        }
 
         $config = $this->buildConfig();
 
@@ -225,9 +216,12 @@ class IntegrationManager extends Component
     {
         $integration = Integration::findOrFail($this->editingId);
         $existingConfig = $integration->config ?? [];
-        $secretKey = (self::SECRET_INPUT_MAP[$this->formType] ?? [])['key'] ?? null;
-        if ($secretKey && empty($config[$secretKey]) && ! empty($existingConfig[$secretKey] ?? null)) {
-            $config[$secretKey] = $existingConfig[$secretKey];
+
+        // 所有敏感字段统一合并：新值为空时保留数据库中的原值
+        foreach ($this->sensitiveKeys() as $key) {
+            if (empty($config[$key]) && ! empty($existingConfig[$key] ?? null)) {
+                $config[$key] = $existingConfig[$key];
+            }
         }
         $integration->update([
             'name' => $this->formName,
@@ -251,22 +245,39 @@ class IntegrationManager extends Component
         session()->flash('message', '集成已添加');
     }
 
+    /**
+     * 当前 formType 下所有"凭据类"的 config 键名。
+     * 用于 handleUpdate() 的「留空即保留原值」合并。
+     * 单一真源：新增凭据字段只需改这里。
+     *
+     * @return list<string>
+     */
+    private function sensitiveKeys(): array
+    {
+        return match ($this->formType) {
+            'github' => ['token'],
+            'lark' => ['webhook_url', 'app_secret'],
+            'dingtalk' => ['webhook_url', 'secret'],
+            default => [],
+        };
+    }
+
     private function buildConfig(): array
     {
         return match ($this->formType) {
             'github' => [
-                'token' => request()->input('gh_token', ''),
+                'token' => $this->ghToken,
                 'org' => $this->ghOrg,
                 'repo' => $this->ghRepo,
             ],
             'lark' => [
                 'webhook_url' => $this->larkWebhook,
                 'app_id' => $this->larkAppId,
-                'app_secret' => request()->input('lark_app_secret', ''),
+                'app_secret' => $this->larkAppSecret,
             ],
             'dingtalk' => [
                 'webhook_url' => $this->dtWebhook,
-                'secret' => request()->input('dt_secret', ''),
+                'secret' => $this->dtSecret,
             ],
             default => throw new \InvalidArgumentException("未知的集成类型: {$this->formType}"),
         };
@@ -293,6 +304,7 @@ class IntegrationManager extends Component
                 'error' => $e->getMessage(),
             ]);
             session()->flash('error', '连接测试异常: '.e($e->getMessage()));
+
             return;
         }
 
@@ -318,6 +330,7 @@ class IntegrationManager extends Component
                 'error' => $e->getMessage(),
             ]);
             session()->flash('error', '同步异常: '.e($e->getMessage()));
+
             return;
         }
 

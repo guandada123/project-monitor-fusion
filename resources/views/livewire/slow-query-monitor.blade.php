@@ -286,7 +286,14 @@
 
     function initSlowQueryTrendChart() {
         const el = document.getElementById('slow-query-trend-chart');
-        if (!el || !window.ApexCharts) return;
+        if (!el) return;
+
+        // 2026-10-16 审计修复（P1）：ApexCharts 改为按需动态加载（vendor-apex chunk），
+        // 未就绪时等待加载完成再重入本函数，避免「静默不渲染」。
+        if (!window.ApexCharts) {
+            if (typeof window.pmLoadApexCharts === 'function') window.pmLoadApexCharts().then(initSlowQueryTrendChart, () => {});
+            return;
+        }
 
         const trendData = @json($trendChart);
         const dark = isDark();

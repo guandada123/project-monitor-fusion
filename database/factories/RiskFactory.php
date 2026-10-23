@@ -56,7 +56,16 @@ class RiskFactory extends Factory
 
     public function open(): static
     {
-        return $this->state(fn (array $attrs) => ['status' => 'open']);
+        // 必须同时清空 acknowledged_at / closed_at / suggestion_applied_at：
+        // definition() 会按随机概率给这些字段填值，若只覆盖 status，
+        // 「open」记录可能同时带着已确认/已关闭/已应用建议的时间戳，语义自相矛盾，
+        // 也会让依赖 open() 的断言时好时坏（flaky）
+        return $this->state(fn (array $attrs) => [
+            'status' => 'open',
+            'acknowledged_at' => null,
+            'closed_at' => null,
+            'suggestion_applied_at' => null,
+        ]);
     }
 
     public function acknowledged(): static

@@ -20,6 +20,7 @@ class GitHubWebhookController
         // 重放攻击防护: 同一 delivery ID 在 10 分钟内重复请求直接拒绝
         if (Cache::has("webhook:delivery:{$id}")) {
             Log::warning('GitHub webhook replay detected', ['id' => $id, 'event' => $event]);
+
             return response()->json(['message' => 'duplicate delivery'], Response::HTTP_OK);
         }
 

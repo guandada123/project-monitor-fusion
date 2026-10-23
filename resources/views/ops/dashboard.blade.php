@@ -6,7 +6,8 @@
     <meta name="color-scheme" content="light dark">
     <meta name="description" content="Ops Center — 全项目统一监控看板">
     <title>Ops Center · 项目监控</title>
-    <link rel="stylesheet" href="/static/style.css">
+    {{-- 2026-10-16 审计修复：资源实际位于 public/ops/，原 /static/ 前缀 404 --}}
+    <link rel="stylesheet" href="/ops/style.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🔭</text></svg>">
 </head>
 <body>
@@ -109,6 +110,6 @@
         <p class="footer-timestamp">最近更新: <span id="lastUpdateTime">--:--:--</span></p>
     </footer>
 
-    <script src="/static/app.js"></script>
+    <script src="/ops/app.js"></script>
 </body>
 </html>

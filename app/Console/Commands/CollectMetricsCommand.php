@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Metric;
 use App\Services\MetricCollector;
 use Illuminate\Console\Command;
 
@@ -30,7 +31,7 @@ class CollectMetricsCommand extends Command
             if ($key) {
                 $this->line("  将采集指标: {$key}");
             } else {
-                $count = \App\Models\Metric::system()->count();
+                $count = Metric::system()->count();
                 $this->line("  metrics: {$count} 条系统指标待采集");
             }
 
@@ -46,6 +47,7 @@ class CollectMetricsCommand extends Command
         // 指标不存在
         if (isset($result['message'])) {
             $this->error($result['message']);
+
             return self::FAILURE;
         }
 

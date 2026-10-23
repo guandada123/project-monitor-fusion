@@ -269,20 +269,23 @@ function renderRoadmap(data) {
     let html = '';
     data.goals.forEach(g => {
         const isInverted = g.name.includes('体积');
+        // progress === null 表示"数值不可得（未评判）"——不许当 0 或 100 画
+        const unknown = g.progress === null || g.progress === undefined;
+        const pct = unknown ? 0 : g.progress;
         let fillClass = '';
-        if (isInverted) {
-            if (g.progress >= 60) fillClass = ' progress-fill-ok';
-            else if (g.progress >= 40) fillClass = ' progress-fill-warn';
+        if (isInverted && !unknown) {
+            if (pct >= 60) fillClass = ' progress-fill-ok';
+            else if (pct >= 40) fillClass = ' progress-fill-warn';
             else fillClass = ' progress-fill-bad';
         }
         html += `
             <div class="progress-item">
                 <div class="progress-header">
                     <span class="progress-name">${g.name}</span>
-                    <span class="progress-stats">${g.current} → ${g.target}</span>
+                    <span class="progress-stats">${g.current} → ${g.target}${unknown ? '（数值不可得，未评判）' : ''}</span>
                 </div>
                 <div class="progress-track">
-                    <div class="progress-fill${fillClass}" style="width: ${g.progress}%"></div>
+                    <div class="progress-fill${fillClass}" style="width: ${pct}%"></div>
                 </div>
             </div>`;
     });

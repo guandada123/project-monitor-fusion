@@ -6,6 +6,7 @@ use App\Models\Project;
 use App\Models\Task;
 use App\Services\GitHubService;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
 
@@ -454,7 +455,7 @@ describe('getPaginated multi-page traversal', function () {
         $issues = $service->fetchIssues('all', 30);
 
         expect($issues)->toHaveCount(3);
-        Http::assertSent(function (\Illuminate\Http\Client\Request $request) {
+        Http::assertSent(function (Request $request) {
             return str_contains($request->url(), 'repos/o/r/issues');
         });
     });
