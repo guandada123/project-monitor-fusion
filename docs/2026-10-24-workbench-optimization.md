@@ -201,3 +201,54 @@ Laravel 12 · Livewire 3 · FluxUI 组件库 · Tailwind v4（CSS-first，无 ta
 2. **P2-1**：CSS 248 KB——评估 Flux 组件按需引入的可行性。
 3. **P2-3**：导航/信息架构体验优化（对标 Uptime Kuma/Gatus）。
 4. **测试库与生产库对齐**（本次教训）：Feature/Unit 测试跑 SQLite、生产跑 pgsql，驱动差异（如标识符大小写折叠）会系统性漏 bug。建议评估测试库切换 pgsql 或增加 pgsql 维度的契约测试。
+
+---
+
+## 八、阶段结论与后续路线图（2026-10-24 收尾）
+
+### 阶段结论：第一阶段（质量门禁 + 真实 bug 修复）已完成
+
+| 维度 | 结论 |
+|---|---|
+| 质量门禁 | CI 从"假绿"恢复为"真绿"：测试命令修正（phpunit→pest，367→376 项首次真实执行）、4 处 warning 掩盖全部清除（Pint/PHPStan/测试/npm audit）、PHPStan 内存限制修复、Dusk 收紧为硬阻断 |
+| 真实 bug | 修复 3 个：① 项目对比页路由劫持（功能不可达）② 集成密钥保存损坏 + webhook 凭据下发浏览器（安全）③ **`/risks` 页 pgsql 下持续 500（生产不可用，被 SQLite 测试库 + warning 门禁两层掩盖）** |
+| 测试健康 | 2 个存量 flaky 修复（factory 随机性），本地 10~15 连过验证 |
+| 性能/安全基线 | 字体阻塞请求消除；.gitignore 敏感隔离；依赖高危清零（npm） |
+| 验证 | Pest 376 passed / Dusk 37 passed（pgsql）/ Pint PASS / PHPStan 0 error / build OK；远端 4 个提交（`9eebec4`→`0c7b088`），CI 连续 5 次 6/6 jobs success |
+
+### 尚未完成 / 需深化
+
+| # | 事项 | 性质 | 说明 |
+|---|---|---|---|
+| 1 | **依赖安全债** | 安全 | Dependabot 共 **41 条告警**（high 21 / medium 16 / low 4；composer 26 + npm 15）。3 个 PR 挂起 2.5 个月，且其绿灯是 **8-12 旧结果**（当时门禁被掩盖），main 已领先 15 提交，**合并前必须重新验证** |
+| 2 | **测试库驱动不一致** | 基础设施 | phpunit.xml 强制 SQLite、生产 pgsql——`/risks` 500 正是该差异的产物，属系统性漏 bug 根因 |
+| 3 | Settings.php webhook 明文回填 | 安全 | 与 P0-2 同类（mount 回填真实值进 public 属性），改它会动 SystemTest 既有契约 |
+| 4 | CSS 248 KB | 性能 | FluxUI 1775 个 `.dark:*` 变体组合爆炸，组件库固有成本 |
+| 5 | 导航/信息架构 | 体验 | 未做，且缺用户实际痛点数据 |
+| 6 | Dusk 硬门禁的 flaky 风险 | 运维 | 浏览器套件有偶发性（修复前失败集在 5~6 间波动），收紧后偶发 flake 会红 CI |
+
+### 后续路线图
+
+**M1 依赖安全收敛**（预计 0.5 天）
+- 对 3 个存量 PR 重新触发 CI（`gh pr merge` 前先更新分支拿新门禁下的真实结论）；nanoid 3→6 是**大版本**，需单独评估 breaking 风险后再定
+- 分批处理 21 个 high（composer 侧 26 条优先，`composer audit` 定位）
+- **产出**：告警从 41 降至 <10；PR 全部合并或有关闭结论
+
+**M2 测试基础设施对齐**（预计 1 天，防再犯的核心）
+- 主方案：`phpunit.xml` 的 `DB_CONNECTION` 切 pgsql（CI 已有 postgres service，本地本就跑 pgsql）——让测试库与生产驱动一致，`/risks` 类 bug 可在测试层暴露
+- 备选：保留 sqlite，增加 pgsql 维度契约测试（低成本但覆盖窄）
+- **产出**：驱动差异有守卫；全量测试在新库上回归通过
+
+**M3 体验与性能深化**（预计 1~2 天，部分需用户输入）
+- Settings.php 凭据修复（先补测试契约，再改实现）
+- CSS 体积评估（Flux 按需引入可行性 + 实测首屏数据）
+- 导航/IA 优化（对标 Uptime Kuma/Gatus；建议先收集 1 周真实使用痛点再动结构）
+- **产出**：凭据安全补齐；首屏体积与 IA 的改进方案（含 A/B 或前后对比数据）
+
+### 待确认问题
+
+1. **依赖 PR 合并授权**：three/playwright（小版本，重验 CI 后可直接合）；nanoid（大版本）建议先单独验证——是否按此分级处理？
+2. **测试库切 pgsql**：会要求本地测试前置 pgsql 运行（你本机已满足）。是否授权切换？
+3. **Settings.php 修复**：需要更新 SystemTest 既有契约，是否授权？
+4. **CSS / 导航优化**：你有实际体验痛点（加载慢/找不到功能）还是接受现状？有数据才能排优先级。
+5. **Dusk 硬门禁策略**：宁可偶发误红也不漏失败（当前策略），还是对已知 flaky 项加容错？
