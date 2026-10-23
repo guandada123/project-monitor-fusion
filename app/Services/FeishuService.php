@@ -16,9 +16,9 @@ class FeishuService
     /**
      * Explicit settings passed to constructor (null = lazy-load from DB).
      *
-     * @var array<string, mixed>|null
+     * @var array<string, mixed>
      */
-    private ?array $settings;
+    private array $settings;
 
     /**
      * Whether settings have been loaded from the database.

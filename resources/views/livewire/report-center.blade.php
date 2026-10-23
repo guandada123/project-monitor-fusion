@@ -233,7 +233,7 @@
                         @foreach($project['risks'] as $risk)
                         <div class="flex items-center gap-2 text-xs py-1 px-2 rounded-lg transition-colors duration-150 hover:bg-red-50/30 dark:hover:bg-red-900/10">
                             <span class="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                                  style="background: {{ ['low' => 'var(--color-success)', 'medium' => 'var(--color-warning)', 'high' => '#f97316', 'severe' => 'var(--color-danger)'][$risk['severity']] ?? 'var(--color-text-tertiary)' }};"></span>
+                                  style="background: {{ ['critical' => 'var(--color-danger)', 'high' => '#f97316', 'medium' => 'var(--color-warning)', 'low' => 'var(--color-success)'][$risk['severity']] ?? 'var(--color-text-tertiary)' }};"></span>
                             <span class="flex-1 truncate" style="color: var(--color-text-secondary);">{{ $risk['title'] }}</span>
                             <span class="badge {{ $risk['status'] === 'open' ? 'badge-danger' : 'badge-info' }}" style="font-size: 0.6rem;">{{ $risk['status'] === 'open' ? '活跃' : '关闭' }}</span>
                         </div>

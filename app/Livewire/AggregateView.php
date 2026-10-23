@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\Project;
+use Illuminate\Support\Collection;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 
@@ -61,6 +62,7 @@ class AggregateView extends Component
             });
         }
 
+        /** @var \Illuminate\Database\Eloquent\Collection<int, Project> $projects */
         $projects = $query->limit(200)->get();
 
         // Compute aggregate stats
@@ -74,7 +76,8 @@ class AggregateView extends Component
             : 0;
 
         // Enrich project data for the view
-        $enrichedProjects = $projects->map(function ($project) {
+        /** @var Collection<int, object> $enrichedProjects */
+        $enrichedProjects = $projects->map(function (Project $project) {
             $riskCount = $project->risks_count;
 
             return (object) [

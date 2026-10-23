@@ -24,6 +24,7 @@ use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
 class MetricEngine
 {
     private ?ExpressionLanguage $expressionLanguage = null;
+
     /**
      * 计算单个指标并返回结果。
      */
@@ -199,7 +200,7 @@ class MetricEngine
     private function getExpressionLanguage(): ExpressionLanguage
     {
         if ($this->expressionLanguage === null) {
-            $language = new ExpressionLanguage();
+            $language = new ExpressionLanguage;
 
             // 注册 mod(a, b) 函数 — 兼容之前的 % 取模运算符
             $language->register('mod',

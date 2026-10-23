@@ -23,17 +23,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>@yield('title', 'Project Monitor') — PM</title>
+    {{-- 2026-10-16 审计修复（P1）：Livewire 页面组件 ->title() 走的是
+         vendor/livewire/livewire/src/Features/SupportPageComponents/SupportPageComponents.php
+         里的 View::macro('title', fn ($t) => mergeParams(['title' => $t]))，
+         而布局是以 Blade 组件形式渲染的（同文件 renderContentsIntoLayout() →
+         @component($layout->view, $layout->params)），所以标题只以 $title「组件变量」
+         形式出现，@yield('title') 永远拿不到 —— 全站标题此前恒为默认值。
+         全仓 grep 无 ->layoutData(...) / ->section(...) 调用，app/Livewire/*.php 的
+         14 处 ->title() 末段统一为「— Project Monitor」，故此处直接透传 $title，
+         缺省时才补品牌后缀，避免出现「… — Project Monitor — PM」双后缀。 --}}
+    <title>{{ $title ?? 'Project Monitor — PM' }}</title>
 
     <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800&display=swap" rel="stylesheet" />
-    <link href="https://fonts.bunny.net/css?family=jetbrains-mono:400,500&display=swap" rel="stylesheet" />
+    {{-- 原先是 2 个独立 <link rel="stylesheet">，均为渲染阻塞资源：
+         浏览器必须先下载并解析完这两个 CSS 才能绘制首屏。
+         改为：① 合并为单个请求（少一次 DNS/TLS/往返）
+               ② media="print" + onload 切换为 all，使其异步加载、不阻塞首屏
+               ③ <noscript> 兜底，禁用 JS 时仍正常加载字体 --}}
+    <link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
+    <link rel="preload" as="style"
+          href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800&family=jetbrains-mono:400,500&display=swap">
+    <link rel="stylesheet" media="print" onload="this.media='all'"
+          href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800&family=jetbrains-mono:400,500&display=swap">
+    <noscript>
+        <link rel="stylesheet"
+              href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800&family=jetbrains-mono:400,500&display=swap">
+    </noscript>
 
     <!-- Flux Appearance (handles dark mode class on <html>) -->
     @fluxAppearance
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+    {{-- 2026-10-16 审计修复（P0）：本布局此前没有任何 @stack，导致 6 个视图的
+         @push('styles'/'scripts') 全部被丢弃 —— 看板页 x-data="kanbanBoard()"、
+         仪表板/甘特/慢查询趋势图初始化、报表与对比页的飞书推送按钮均因此失效。 --}}
+    @stack('styles')
     @livewireStyles
     @livewireNavigation
     <style>
@@ -169,7 +194,10 @@
                            border-color: var(--glass-border);">
                 <div class="flex items-center gap-4 min-w-0">
                     <h1 class="text-lg font-semibold tracking-tight flex-shrink-0" style="color: var(--color-text-primary);">
-                        @yield('page-title', '仪表板')
+                        {{-- 同上：页头标题由 $title 去掉「— Project Monitor」品牌后缀派生。
+                             Livewire 侧没有任何 ->layoutData(['page-title' => …]) 来源，
+                             故不再使用 @yield('page-title')。 --}}
+                        {{ isset($title) ? trim(\Illuminate\Support\Str::before($title, '—')) : '仪表板' }}
                     </h1>
                     <!-- Global Search -->
                     @livewire('global-search')
@@ -221,6 +249,12 @@
     @auth
         @livewire('export-panel')
     @endauth
+
+    {{-- 2026-10-16 审计修复（P0）：@push('scripts') 的输出位置。
+         必须早于 @livewireScripts —— 推入的多是 Alpine x-data 所引用的函数定义
+         （kanbanBoard() 等），需在 Alpine 初始化前存在；已核实这些脚本内无顶层
+         Livewire./Alpine. 调用，故前置安全。 --}}
+    @stack('scripts')
 
     @livewireScripts
     @fluxScripts

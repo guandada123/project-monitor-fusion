@@ -7,8 +7,12 @@ use App\Models\Task;
 use App\Models\User;
 use Laravel\Sanctum\Sanctum;
 
+use function Pest\Laravel\deleteJson;
 use function Pest\Laravel\get;
-use function Pest\Laravel\{getJson, postJson, putJson, patchJson, deleteJson};
+use function Pest\Laravel\getJson;
+use function Pest\Laravel\patchJson;
+use function Pest\Laravel\postJson;
+use function Pest\Laravel\putJson;
 
 test('project list page loads', function () {
     $user = User::factory()->admin()->create();

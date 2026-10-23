@@ -52,8 +52,8 @@ class ProjectReport extends Component
 
         // Date-filtered, paginated task list for display table
         $tasks = $project->tasks()
-            ->when($this->dateFrom, fn($q) => $q->where('created_at', '>=', $this->dateFrom))
-            ->when($this->dateTo, fn($q) => $q->where('created_at', '<=', $this->dateTo.' 23:59:59'))
+            ->when($this->dateFrom, fn ($q) => $q->where('created_at', '>=', $this->dateFrom))
+            ->when($this->dateTo, fn ($q) => $q->where('created_at', '<=', $this->dateTo.' 23:59:59'))
             ->orderBy('due_at')
             ->paginate(50);
 
@@ -150,7 +150,7 @@ class ProjectReport extends Component
                 $tasks = $project->tasks()->with('assignee')->get();
                 $assigneeCounts = [];
                 foreach ($tasks->groupBy('assignee_id') as $uid => $group) {
-                    $name = $group->first()->assignee?->name ?? "用户#{$uid}";
+                    $name = $group->first()->assignee->name ?? "用户#{$uid}";
                     $assigneeCounts[] = ['label' => $name, 'value' => $group->count(), 'color' => '#6366f1'];
                 }
                 if (empty($assigneeCounts)) {
