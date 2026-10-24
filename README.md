@@ -1,6 +1,6 @@
 # 🚀 Project Monitor
 
-> **企业级项目管理监控平台** — Laravel 11 + Livewire 4 + PostgreSQL 16  
+> **企业级项目管理监控平台** — Laravel 11 + Livewire 4 + PostgreSQL 16
 > 一站式项目管理、任务追踪、风险预警、资源负载、指标大盘与自动化日报推送。
 
 ---
@@ -34,7 +34,7 @@
 | **Laravel 11** | 应用框架 |
 | **Livewire 4** | 全栈动态 UI（无 JavaScript 框架） |
 | **PostgreSQL 16** | 主数据库（生产） |
-| **SQLite** | 测试数据库（`:memory:`） |
+| **PostgreSQL** | 测试数据库（独立库 `project_monitor_test`，与生产同驱动） |
 | **DomPDF** | PDF 导出 |
 | **OpenSpout** | CSV/XLSX 导出 |
 
@@ -218,6 +218,17 @@ docker compose logs -f
 
 ## 🧪 测试
 
+### 前置：创建测试库（仅首次）
+
+测试跑在与生产同驱动的 PostgreSQL 上（`phpunit.xml` 固定 `DB_DATABASE=project_monitor_test`，
+`RefreshDatabase` 会对其执行 `migrate:fresh`，**绝不能用业务库**）：
+
+```bash
+createdb -h 127.0.0.1 -U <你的数据库用户> project_monitor_test
+```
+
+CI 里由 workflow 的「Create test database」步骤自动建库；本地缺失该库时测试会直接报连接错误。
+
 ### 运行全量测试
 
 ```bash
@@ -242,7 +253,7 @@ php artisan test --coverage
 
 | 指标 | 数值 |
 |------|------|
-| ✅ 全量测试 | 301 passed / 768 assertions |
+| ✅ 全量测试 | 382 passed / 982 assertions（2026-10-24，PostgreSQL 驱动） |
 | ⚡ 并行执行 | 7.14s（10 进程） |
 | 📁 测试文件 | 31 个 |
 | 🧩 测试范围 | Unit + Feature |
