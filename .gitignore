@@ -38,3 +38,6 @@ secrets/
 id_rsa*
 proxy.env
 *proxy*.env
+
+# 数据库快照的原子写入中间态（正常会被 trap 清掉，这里兜底防止误提交）
+/db/*.tmp
