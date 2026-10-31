@@ -4,6 +4,7 @@ use App\Models\SlowQuery;
 use App\Services\SlowQueryMonitor;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 // ─── SlowQuery Model ───
 
@@ -91,4 +92,20 @@ it('factory generates valid slow query', function () {
     expect($sq->query)->not->toBeEmpty();
     expect($sq->time)->toBeGreaterThanOrEqual(100);
     expect($sq->captured_at)->toBeInstanceOf(Carbon::class);
+});
+
+// ─── 2026-11-01：迁移期守卫（Dusk CI 真因）───
+// 建表迁移 >500ms → 慢查询监听器写 slow_queries → 表还不存在 → PG 事务被中止
+// → 后续建索引语句 25P02，Dusk job 在 migrate 阶段就死，看起来像浏览器 flaky。
+
+it('skips persistence when slow_queries table is not ready', function () {
+    $monitor = new SlowQueryMonitor;
+    $method = new ReflectionMethod($monitor, 'tableReady');
+    $method->setAccessible(true);
+
+    expect($method->invoke($monitor))->toBeTrue();
+
+    Schema::dropIfExists('slow_queries');
+
+    expect($method->invoke($monitor))->toBeFalse();
 });

@@ -6,6 +6,7 @@ use App\Models\SlowQuery;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Request;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * SQL 慢查询监控服务
@@ -64,27 +65,65 @@ class SlowQueryMonitor
         );
 
         // 2. 持久化到数据库
-        try {
-            SlowQuery::create([
-                'query' => $query->sql,
-                'bindings' => $bindings,
-                'time' => $query->time,
-                'connection_name' => $query->connectionName,
-                'caller' => $caller,
-                'request_uri' => Request::path(),
-                'request_method' => Request::method(),
-                'user_id' => auth()->id(),
-                'is_slow' => $isSlow,
-                'is_critical' => $isCritical,
-                'captured_at' => now(),
-            ]);
-        } catch (\Throwable $e) {
-            Log::error('慢查询持久化失败', ['error' => $e->getMessage()]);
+        // 🔴 2026-11-01 修（Dusk CI 真因，不是浏览器 flaky）：
+        //    Dusk job 在 `migrate` 阶段偶发 25P02「current transaction is aborted」，
+        //    报错位置在 0001_01_01_000002_create_jobs_table 的建索引语句，
+        //    PG 服务端日志才露出真因：此前有一条 `INSERT INTO slow_queries` 失败
+        //    （relation does not exist）。链条是：
+        //      建表迁移耗时 >500ms → DB::listen 命中 → 这里写 slow_queries
+        //      → 该表此刻还没建出来 → INSERT 报错 → **PostgreSQL 把当前事务标记为已中止**
+        //      → 后面任何语句都是 25P02。PHP 这里的 try/catch 拦不住，
+        //        因为捕到异常时事务已经废了（同「框架成功 ≠ 产出」：catch 只兜代码，兜不住 DB 语义）。
+        //    做法：表不存在就只写日志、不落库。监控不该有能力拖垮迁移。
+        if ($this->tableReady()) {
+            try {
+                SlowQuery::create([
+                    'query' => $query->sql,
+                    'bindings' => $bindings,
+                    'time' => $query->time,
+                    'connection_name' => $query->connectionName,
+                    'caller' => $caller,
+                    'request_uri' => Request::path(),
+                    'request_method' => Request::method(),
+                    'user_id' => auth()->id(),
+                    'is_slow' => $isSlow,
+                    'is_critical' => $isCritical,
+                    'captured_at' => now(),
+                ]);
+            } catch (\Throwable $e) {
+                Log::error('慢查询持久化失败', ['error' => $e->getMessage()]);
+            }
         }
 
         // 3. 超过 1000ms 的推送飞书告警
         if ($isCritical) {
             $this->pushFeishuAlert($query);
+        }
+    }
+
+    /**
+     * 慢查询落地表是否就绪。
+     *
+     * 迁移过程中（表还没建出来）返回 false —— 此时只写日志，不写库，
+     * 否则 INSERT 会把调用方的事务毒化（PG 事务中止不可撤销）。
+     *
+     * 用静态标志防重入：hasTable 本身也是一条查询，若它自己超过阈值就会递归。
+     */
+    private static bool $inspecting = false;
+
+    protected function tableReady(): bool
+    {
+        if (self::$inspecting) {
+            return false;
+        }
+
+        self::$inspecting = true;
+        try {
+            return Schema::hasTable('slow_queries');
+        } catch (\Throwable) {
+            return false;
+        } finally {
+            self::$inspecting = false;
         }
     }
 
