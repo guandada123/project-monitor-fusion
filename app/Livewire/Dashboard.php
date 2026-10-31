@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 
@@ -50,6 +51,12 @@ class Dashboard extends Component
     public array $kpiTrendData = [];
 
     public array $kpiDates = [];
+
+    // ——— Ops 快照（Claw 采集的系统健康与成本，2026-10-31 接入）———
+    // 数据源：/host/WorkBuddy/Claw/.workbuddy/data/ops_workbench/ops_snapshot.json
+    // 为什么不落库：快照本身就是最新真值，Claw 每次覆盖写；pmf 不需要存历史，
+    // 与 OpsApiController 读 /host/* 的做法一致。
+    public array $opsHealth = [];
 
     // ——— Filter metadata exposed to view ———
     public array $statusOptions = [];
@@ -232,6 +239,14 @@ class Dashboard extends Component
                     'slug' => $project->slug,
                     'status' => $project->status,
                     'completion_rate' => $total > 0 ? round(($done / $total) * 100, 1) : 0,
+                    // 区分「没有任务」与「任务完成 0%」——前者不该显示成 0%，那是拿未知冒充事实
+                    'has_tasks' => $total > 0,
+                    // tutor-init 进度画像（Claw 采集写入 meta.vibe）；无 .vibe 时为 null = 未接入
+                    'vibe' => is_array($project->meta) ? ($project->meta['vibe'] ?? null) : null,
+                    // 代码规模与活跃度（Claw 采集写入 meta.code）；非 git 项目为 null
+                    'code' => is_array($project->meta) ? ($project->meta['code'] ?? null) : null,
+                    'commits_7d' => is_array($project->meta) ? ($project->meta['commits_7d'] ?? null) : null,
+                    'last_commit' => is_array($project->meta) ? ($project->meta['head_ts'] ?? null) : null,
                     'overdue_rate' => $notDone > 0 ? round(($overdue / max($notDone, 1)) * 100, 1) : 0,
                     'open_risks' => $riskCountsByProject->get($project->id, 0),
                     'task_count' => $total,
@@ -382,9 +397,148 @@ class Dashboard extends Component
         return [$dates, $series];
     }
 
+    /**
+     * 读 Claw 采集的运维快照，提取「健康检查」与「成本/额度」。
+     *
+     * 快照不可读或陈旧时**显式标注**，不静默显示空值或旧值——
+     * 这是审计里反复强调的：不许把"未知"当"正常"。
+     */
+    protected function loadOpsSnapshot(): void
+    {
+        $path = (string) config('ops.paths.ops_snapshot', '');
+        $unavailable = [
+            'available' => false,
+            'note' => '快照路径未配置',
+            'stale' => false,
+            'age_hours' => null,
+            'generated_at' => null,
+            'counts' => ['total' => 0, 'pass' => 0, 'fail' => 0, 'observe' => 0],
+            'failing' => [],
+            'observing' => [],
+            'cost' => null,
+            'discovery' => null,
+            'credit' => null,
+        ];
+
+        if ($path === '' || ! is_file($path)) {
+            $this->opsHealth = array_merge($unavailable, ['note' => '快照文件不可读（Claw 是否已采集？）']);
+
+            return;
+        }
+
+        $raw = @file_get_contents($path);
+        $snap = $raw === false ? null : json_decode($raw, true);
+        if (! is_array($snap)) {
+            $this->opsHealth = array_merge($unavailable, ['note' => '快照 JSON 解析失败']);
+
+            return;
+        }
+
+        $checks = is_array($snap['checks'] ?? null) ? $snap['checks'] : [];
+        $items = is_array($checks['items'] ?? null) ? $checks['items'] : [];
+        $counts = is_array($checks['counts'] ?? null) ? $checks['counts'] : [];
+
+        // 只挑需要人看的：fail（必须处理）与 observe（观察中，不阻断但要可见）
+        $failing = [];
+        $observing = [];
+        foreach ($items as $it) {
+            if (! is_array($it)) {
+                continue;
+            }
+            $status = (string) ($it['status'] ?? '');
+            if ($status !== 'fail' && $status !== 'observe') {
+                continue;
+            }
+            $row = [
+                'name' => (string) ($it['name'] ?? '(未命名)'),
+                'status' => $status,
+                'alert_count' => (int) ($it['alert_count'] ?? 0),
+                'detail' => $this->firstAlertText($it),
+            ];
+            if ($status === 'fail') {
+                $failing[] = $row;
+            } else {
+                $observing[] = $row;
+            }
+        }
+
+        $generatedAt = $snap['generated_at'] ?? null;
+        $ageHours = null;
+        if (is_string($generatedAt) && ($ts = strtotime($generatedAt)) !== false) {
+            $ageHours = round((time() - $ts) / 3600, 1);
+        }
+
+        $cost = is_array($snap['cost'] ?? null) ? $snap['cost'] : [];
+        $costSummary = null;
+        if (isset($cost['by_class']) && is_array($cost['by_class'])) {
+            $human = is_array($cost['by_class']['human'] ?? null) ? $cost['by_class']['human'] : [];
+            $auto = is_array($cost['by_class']['auto'] ?? null) ? $cost['by_class']['auto'] : [];
+            $humanCny = (float) ($human['cny'] ?? 0);
+            $autoCny = (float) ($auto['cny'] ?? 0);
+            $costSummary = [
+                'month' => (string) ($cost['month'] ?? ''),
+                'human_cny' => $humanCny,
+                'auto_cny' => $autoCny,
+                'total_cny' => $humanCny + $autoCny,
+                'join_rate' => (float) ($cost['coverage']['join_rate'] ?? 0),
+                'source_ts' => (string) ($cost['source_ts'] ?? ''),
+            ];
+        }
+
+        $credit = is_array($snap['credit'] ?? null) ? $snap['credit'] : null;
+
+        // 发现回路：回答「有多少想法待我决策」。pool=池子总量，pending=等决策，landed=已落地
+        $disc = is_array($snap['discovery'] ?? null) ? $snap['discovery'] : [];
+        $discCounts = is_array($disc['counts'] ?? null) ? $disc['counts'] : [];
+        $discovery = empty($discCounts) ? null : [
+            'pool' => (int) ($discCounts['pool'] ?? 0),
+            'pending' => (int) ($discCounts['pending'] ?? 0),
+            'blocked' => (int) ($discCounts['blocked_pending'] ?? 0),
+            'new_7d' => (int) ($discCounts['new_7d'] ?? 0),
+            'landed' => (int) ($discCounts['landed'] ?? 0),
+            'landed_7d' => (int) ($discCounts['landed_7d'] ?? 0),
+        ];
+
+        $this->opsHealth = [
+            'available' => true,
+            'note' => null,
+            'stale' => $ageHours !== null && $ageHours > 6,
+            'age_hours' => $ageHours,
+            'generated_at' => is_string($generatedAt) ? $generatedAt : null,
+            'counts' => [
+                'total' => (int) ($counts['total'] ?? count($items)),
+                'pass' => (int) ($counts['pass'] ?? 0),
+                'fail' => (int) ($counts['fail'] ?? count($failing)),
+                'observe' => (int) ($counts['observe'] ?? count($observing)),
+            ],
+            'failing' => $failing,
+            'observing' => $observing,
+            'cost' => $costSummary,
+            'discovery' => $discovery,
+            'credit' => $credit === null ? null : [
+                'used' => (float) ($credit['used'] ?? 0),
+                'budget' => (float) ($credit['budget'] ?? 0),
+                'pct' => (float) ($credit['pct'] ?? 0),
+                'tier' => (string) ($credit['tier'] ?? ''),
+            ],
+        ];
+    }
+
+    /** 取告警第一条的前 120 字，避免整段证据挤爆列表。 */
+    protected function firstAlertText(array $item): string
+    {
+        $alerts = $item['alerts'] ?? [];
+        if (! is_array($alerts) || $alerts === []) {
+            return (string) ($item['note'] ?? '');
+        }
+
+        return (string) Str::limit((string) ($alerts[0] ?? ''), 120);
+    }
+
     public function render()
     {
         $this->loadStats();
+        $this->loadOpsSnapshot();
 
         if ($this->needsDispatch) {
             $this->dispatch('dashboard-refreshed');

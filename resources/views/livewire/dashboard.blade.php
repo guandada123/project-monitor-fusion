@@ -239,6 +239,107 @@
     </div>
 
     {{-- ============================================= --}}
+    {{-- 系统健康（Claw 采集快照，2026-10-31 接入）--}}
+    {{-- 数据源：ops_snapshot.json 的 checks / cost / credit --}}
+    {{-- ============================================= --}}
+    @if($opsHealth['available'] ?? false)
+    <div class="glass-card-intense p-6">
+        <div class="flex items-start justify-between mb-4 gap-4">
+            <div>
+                <h2 class="text-lg font-semibold tracking-tight" style="color: var(--color-text-primary);">系统健康</h2>
+                <p class="text-xs mt-0.5" style="color: var(--color-text-tertiary);">
+                    {{ $opsHealth['counts']['total'] }} 项检查 ·
+                    <span style="color:#10b981;">{{ $opsHealth['counts']['pass'] }} 通过</span>
+                    @if($opsHealth['counts']['fail'] > 0)
+                        · <span style="color:#ef4444;font-weight:600;">{{ $opsHealth['counts']['fail'] }} 失败</span>
+                    @endif
+                    @if($opsHealth['counts']['observe'] > 0)
+                        · <span style="color:#f59e0b;">{{ $opsHealth['counts']['observe'] }} 观察</span>
+                    @endif
+                </p>
+            </div>
+            <div class="text-right shrink-0">
+                @if($opsHealth['stale'])
+                    <span class="text-xs px-2 py-1 rounded" style="background:rgba(245,158,11,0.15); color:#92400e;">
+                        ⚠️ 数据滞后 {{ $opsHealth['age_hours'] }} 小时
+                    </span>
+                @else
+                    <span class="text-xs" style="color: var(--color-text-tertiary);">
+                        更新于 {{ str_replace('T', ' ', substr($opsHealth['generated_at'] ?? '', 0, 16)) }}
+                    </span>
+                @endif
+            </div>
+        </div>
+
+        @if(count($opsHealth['failing']) > 0)
+        <div class="space-y-2 mb-4">
+            @foreach($opsHealth['failing'] as $item)
+            <div class="rounded-lg p-3" style="background:rgba(239,68,68,0.06); border-left:3px solid #ef4444;">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <div class="text-sm font-medium" style="color: var(--color-text-primary);">{{ $item['name'] }}</div>
+                        @if(($item['detail'] ?? '') !== '')
+                        <div class="text-xs mt-1 leading-relaxed" style="color: var(--color-text-tertiary);">{{ $item['detail'] }}</div>
+                        @endif
+                    </div>
+                    @if($item['alert_count'] > 0)
+                    <span class="text-xs shrink-0" style="color:#ef4444;">{{ $item['alert_count'] }} 条告警</span>
+                    @endif
+                </div>
+            </div>
+            @endforeach
+        </div>
+        @else
+        <div class="rounded-lg p-3 mb-4 text-sm" style="background:rgba(16,185,129,0.06); color: var(--color-text-secondary);">
+            ✅ 全部检查通过，没有需要处理的项
+        </div>
+        @endif
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            @if($opsHealth['cost'])
+            <div class="rounded-lg p-3" style="background:var(--color-bg-secondary);">
+                <div class="text-xs mb-1" style="color: var(--color-text-tertiary);">{{ $opsHealth['cost']['month'] }} AI 成本</div>
+                <div class="text-xl font-semibold" style="color: var(--color-text-primary);">¥{{ number_format($opsHealth['cost']['total_cny'], 0) }}</div>
+                <div class="text-xs mt-1" style="color: var(--color-text-tertiary);">
+                    人工 ¥{{ number_format($opsHealth['cost']['human_cny'], 0) }} · 自动 ¥{{ number_format($opsHealth['cost']['auto_cny'], 0) }}
+                </div>
+            </div>
+            @endif
+            @if($opsHealth['credit'])
+            <div class="rounded-lg p-3" style="background:var(--color-bg-secondary);">
+                <div class="text-xs mb-1" style="color: var(--color-text-tertiary);">额度使用</div>
+                <div class="text-xl font-semibold" style="color:{{ $opsHealth['credit']['pct'] > 85 ? '#ef4444' : 'var(--color-text-primary)' }};">
+                    {{ number_format($opsHealth['credit']['pct'], 1) }}%
+                </div>
+                <div class="text-xs mt-1" style="color: var(--color-text-tertiary);">
+                    ¥{{ number_format($opsHealth['credit']['used'], 0) }} / ¥{{ number_format($opsHealth['credit']['budget'], 0) }}
+                </div>
+            </div>
+            @endif
+            @if(! empty($opsHealth['discovery']))
+            {{-- 发现回路：pending 是「等决策的想法数」，这是「有没有事要我做」的另一半 --}}
+            <div class="rounded-lg p-3" style="background:var(--color-bg-secondary);">
+                <div class="text-xs mb-1" style="color: var(--color-text-tertiary);">发现回路</div>
+                <div class="text-xl font-semibold" style="color:{{ $opsHealth['discovery']['pending'] > 0 ? 'var(--color-warning)' : 'var(--color-text-primary)' }};">
+                    {{ $opsHealth['discovery']['pending'] }} 条待处置
+                </div>
+                <div class="text-xs mt-1" style="color: var(--color-text-tertiary);">
+                    池 {{ $opsHealth['discovery']['pool'] }} · 已落地 {{ $opsHealth['discovery']['landed'] }} ·
+                    近 7 天 +{{ $opsHealth['discovery']['new_7d'] }}/−{{ $opsHealth['discovery']['landed_7d'] }}
+                </div>
+            </div>
+            @endif
+        </div>
+    </div>
+    @else
+    <div class="glass-card-intense p-4">
+        <div class="text-sm" style="color:#92400e;">
+            ⚠️ 系统健康数据不可用：{{ $opsHealth['note'] ?? '未知原因' }}
+        </div>
+    </div>
+    @endif
+
+    {{-- ============================================= --}}
     {{-- Two column premium layout --}}
     {{-- ============================================= --}}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -289,6 +390,81 @@
                             <span>来源: {{ $project['source'] }}</span>
                         </div>
 
+                        @php
+                            $vibe = $project['vibe'] ?? null;
+                            $vibeOk = is_array($vibe) && ! empty($vibe['available']);
+                            $mvpTotal = $vibeOk ? (int) ($vibe['mvp_total'] ?? 0) : 0;
+                            $mvpDone = $vibeOk ? (int) ($vibe['mvp_done'] ?? 0) : 0;
+                            $mvpPct = $mvpTotal > 0 ? (int) round($mvpDone / $mvpTotal * 100) : 0;
+
+                            $code = $project['code'] ?? null;
+                            $codeOk = is_array($code) && (int) ($code['total_loc'] ?? 0) > 0;
+                            // 万行缩短：123353 → 12.3 万，避免卡片被长数字撑破
+                            $fmtLoc = fn ($n) => ((int) $n) >= 10000
+                                ? round(((int) $n) / 10000, 1).' 万'
+                                : number_format((int) $n);
+                            $testRatio = ($codeOk && (int) $code['src_loc'] > 0)
+                                ? (int) round((int) $code['test_loc'] / (int) $code['src_loc'] * 100)
+                                : 0;
+                        @endphp
+
+                        @if($vibeOk)
+                        {{-- tutor-init 接入：显示 MVP 功能完成度 + 方法论步数（两个维度不同，别合并）--}}
+                        <div>
+                            <div class="flex items-center justify-between text-xs mb-1.5">
+                                <span style="color: var(--color-text-secondary);">MVP 进度</span>
+                                <span class="font-semibold tabular-nums" style="color: {{ $mvpPct >= 100 ? 'var(--color-success)' : 'var(--color-text-primary)' }};">
+                                    {{ $mvpDone }}/{{ $mvpTotal }}
+                                </span>
+                            </div>
+                            <div class="progress-bar" style="height: 5px;">
+                                <div class="progress-fill" style="width: {{ $mvpPct }}%;
+                                    background: linear-gradient(90deg, #6366f1, #818cf8);"></div>
+                            </div>
+                            <div class="flex items-center gap-1.5 text-xs mt-1.5 flex-wrap" style="color: var(--color-text-tertiary);">
+                                <span>方法论 {{ $vibe['step'] ?? '?' }}/{{ $vibe['total_steps'] ?? 14 }}</span>
+                                @if(! empty($vibe['stage']))
+                                    <span>·</span><span>{{ $vibe['stage'] }}</span>
+                                @endif
+                                @if(! empty($vibe['deadline']))
+                                    <span>·</span><span>截止 {{ $vibe['deadline'] }}</span>
+                                @endif
+                            </div>
+                        </div>
+                        @endif
+
+                        @if($codeOk)
+                        {{-- 代码规模与活跃度：回答"这个项目多大、还在不在动、还有多少没做完" --}}
+                        <div class="{{ $vibeOk ? 'mt-3 pt-3 border-t' : '' }}" style="border-color: var(--color-border);">
+                            <div class="flex items-center justify-between text-xs mb-1.5">
+                                <span style="color: var(--color-text-secondary);">代码规模</span>
+                                <span class="font-semibold tabular-nums" style="color: var(--color-text-primary);">
+                                    {{ $fmtLoc($code['total_loc']) }} 行
+                                </span>
+                            </div>
+                            <div class="flex items-center gap-1.5 text-xs flex-wrap" style="color: var(--color-text-tertiary);">
+                                <span>生产 {{ $fmtLoc($code['src_loc']) }}</span>
+                                <span>·</span>
+                                <span title="测试文件按 test_*/​*_test/*.test/*.spec 命名统计">
+                                    测试 {{ (int) $code['test_files'] }} 个{{ $testRatio > 0 ? '（'. $testRatio .'%）' : '' }}
+                                </span>
+                                @if((int) ($code['todos'] ?? 0) > 0)
+                                    <span>·</span>
+                                    <span style="color: var(--color-warning);">{{ (int) $code['todos'] }} 个 TODO</span>
+                                @endif
+                            </div>
+                            @if(! is_null($project['commits_7d']))
+                            <div class="flex items-center gap-1.5 text-xs mt-1" style="color: var(--color-text-tertiary);">
+                                <span>近 7 天 {{ (int) $project['commits_7d'] }} 次提交</span>
+                                @if(! empty($project['last_commit']))
+                                    <span>·</span><span>最后 {{ substr((string) $project['last_commit'], 0, 10) }}</span>
+                                @endif
+                            </div>
+                            @endif
+                        </div>
+                        @endif
+
+                        @if(! $vibeOk && ! $codeOk && $project['has_tasks'])
                         <div>
                             <div class="flex items-center justify-between text-xs mb-1.5">
                                 <span style="color: var(--color-text-secondary);">完成率</span>
@@ -303,6 +479,14 @@
                                         {{ $project['completion_rate'] >= 70 ? '#34d399' : ($project['completion_rate'] >= 40 ? '#fbbf24' : '#f87171') }});"></div>
                             </div>
                         </div>
+                        @endif
+
+                        @if(! $vibeOk && ! $codeOk && ! $project['has_tasks'])
+                        {{-- 既无 tutor-init 也无代码统计：明说没有数据，不显示 0%（0% 会被当成"做完了没进度"）--}}
+                        <div class="text-xs" style="color: var(--color-text-tertiary);">
+                            未接入 tutor-init · 无任务数据
+                        </div>
+                        @endif
 
                         @if($project['open_risks'] > 0)
                         <div class="mt-2.5 flex items-center gap-1.5 text-xs font-medium" style="color: var(--color-danger);">
