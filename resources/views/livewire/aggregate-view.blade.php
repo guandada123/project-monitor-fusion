@@ -108,16 +108,13 @@
                     <tbody>
                         @foreach($projects as $project)
                             @php
-                                // 2026-10-31：这里不能用 $project->has_task_data / ->code_loc。
-                                // 该视图的 $project 在运行时可能是 stdClass（Livewire 序列化后
-                                // 对象不再是 Eloquent 模型），访问器不存在 → ViewException。
-                                // 统一从原始字段取值，兼容 模型/数组/stdClass 三种形态。
-                                $pMeta = $project->meta ?? [];
-                                $pMeta = is_array($pMeta) ? $pMeta : (array) $pMeta;
-                                $pCode = (array) ($pMeta['code'] ?? []);
-                                $hasTasks  = (int) ($project->tasks_count ?? 0) > 0;
-                                $codeLoc   = (int) ($pCode['total_loc'] ?? 0);
-                                $commits7d = (int) ($pMeta['commits_7d'] ?? 0);
+                                // 2026-10-31 定稿：字段由 AggregateView::render() 的 map() 显式注入。
+                                // 这里曾误以为 $project 是 Eloquent 模型而直接调访问器 → ViewException；
+                                // 又误以为 meta 是 JSON 字符串 → 全部显示「未采集」。
+                                // 实际它是 map() 返回的**白名单 stdClass**，只有校验过的字段。
+                                $hasTasks  = (bool) ($project->has_task_data ?? false);
+                                $codeLoc   = (int) ($project->code_loc ?? 0);
+                                $commits7d = (int) ($project->commits_7d ?? 0);
                             @endphp
                         <tr class="transition-all duration-200 hover:brightness-110"
                             style="border-bottom: 1px solid var(--glass-border);">

@@ -93,6 +93,12 @@ class AggregateView extends Component
                 'completion_rate' => $project->completion_rate,
                 'health' => $this->computeHealth($riskCount, $project->completion_rate),
                 'created_at' => $project->created_at,
+                // 2026-10-31：补上代码规模与提交数。
+                // 这里返回的是**白名单对象**，不带 meta；视图中再怎么取
+                // $project->meta / ->code_loc 都拿不到值，只能显示「未采集」。
+                'has_task_data' => $project->has_task_data,
+                'code_loc' => $project->code_loc,
+                'commits_7d' => $project->commits7d,
             ];
         });
 
