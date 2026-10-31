@@ -48,13 +48,24 @@
             $overdueTasks = $project->tasks->filter(fn($t) => $t->is_overdue)->count();
             $openRisks = $project->risks->where('status', 'open')->count();
             $wipTasks = $project->tasks->whereIn('status', ['in_progress', 'review'])->count();
+
+            // 2026-10-31：tasks 表无数据时，完成率/延期率/在制品全部恒为 0 —— 那是
+            // 「没有数据源」不是「什么都没做」。无任务时改用采集快照里的真实指标。
+            $kpis = $totalTasks > 0
+                ? [
+                    ['label' => '完成率', 'value' => $project->completion_rate, 'suffix' => '%', 'color' => '#10b981', 'icon' => 'check', 'sub' => "$doneTasks/$totalTasks 任务"],
+                    ['label' => '延期率', 'value' => $project->overdue_rate, 'suffix' => '%', 'color' => '#ef4444', 'icon' => 'alert', 'sub' => "$overdueTasks 个延期"],
+                    ['label' => '风险数', 'value' => $openRisks, 'color' => '#f59e0b', 'icon' => 'shield', 'sub' => '待处理'],
+                    ['label' => '在制品', 'value' => $wipTasks, 'color' => '#3b82f6', 'icon' => 'play', 'sub' => '进行中'],
+                ]
+                : [
+                    ['label' => '代码规模', 'value' => round($project->code_loc / 10000, 1), 'suffix' => ' 万行', 'color' => '#10b981', 'icon' => 'check', 'sub' => ($project->meta['code']['src_files'] ?? 0).' 个源文件'],
+                    ['label' => '近 7 天提交', 'value' => $project->commits7d, 'color' => '#ef4444', 'icon' => 'alert', 'sub' => 'git log'],
+                    ['label' => '风险数', 'value' => $openRisks, 'color' => '#f59e0b', 'icon' => 'shield', 'sub' => '待处理'],
+                    ['label' => '代码 TODO', 'value' => ($project->meta['code']['todos'] ?? 0), 'color' => '#3b82f6', 'icon' => 'play', 'sub' => '待清理'],
+                ];
         @endphp
-        @foreach([
-            ['label' => '完成率', 'value' => $project->completion_rate, 'suffix' => '%', 'color' => '#10b981', 'icon' => 'check', 'sub' => "$doneTasks/$totalTasks 任务"],
-            ['label' => '延期率', 'value' => $project->overdue_rate, 'suffix' => '%', 'color' => '#ef4444', 'icon' => 'alert', 'sub' => "$overdueTasks 个延期"],
-            ['label' => '风险数', 'value' => $openRisks, 'color' => '#f59e0b', 'icon' => 'shield', 'sub' => '待处理'],
-            ['label' => '在制品', 'value' => $wipTasks, 'color' => '#3b82f6', 'icon' => 'play', 'sub' => '进行中'],
-        ] as $i => $kpi)
+        @foreach($kpis as $i => $kpi)
         <div class="stat-card group cursor-default"
              style="animation: scale-in 0.4s cubic-bezier(0.16,1,0.3,1) {{ $i * 0.1 }}s both;
                     --card-accent: {{ $kpi['color'] }};">

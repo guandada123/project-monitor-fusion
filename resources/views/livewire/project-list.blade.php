@@ -27,16 +27,35 @@
             </div>
             <p class="text-sm mb-4 line-clamp-2" style="color: var(--color-text-secondary);">{{ $project->description ?? '暂无描述' }}</p>
             <div class="space-y-2">
-                <div class="flex justify-between text-xs">
-                    <span style="color: var(--color-text-tertiary);">完成率</span>
-                    <span class="font-semibold" style="color: var(--color-accent);">{{ $project->completion_rate }}%</span>
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: {{ $project->completion_rate }}%"></div>
-                </div>
+                {{-- 2026-10-31：pmf 的 tasks 表没有任何数据，completion_rate 恒为 0。
+                     「0%」会被读成「一件都没做」，而事实是「根本没有这个数据源」。
+                     有任务才显示完成率，否则显示采集到的代码规模。 --}}
+                @if($project->has_task_data)
+                    <div class="flex justify-between text-xs">
+                        <span style="color: var(--color-text-tertiary);">完成率</span>
+                        <span class="font-semibold" style="color: var(--color-accent);">{{ $project->completion_rate }}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: {{ $project->completion_rate }}%"></div>
+                    </div>
+                @elseif($project->code_loc > 0)
+                    <div class="flex justify-between text-xs">
+                        <span style="color: var(--color-text-tertiary);">代码规模</span>
+                        <span class="font-semibold" style="color: var(--color-accent);">{{ round($project->code_loc / 10000, 1) }} 万行</span>
+                    </div>
+                @else
+                    <div class="flex justify-between text-xs">
+                        <span style="color: var(--color-text-tertiary);">代码规模</span>
+                        <span style="color: var(--color-text-tertiary);">未采集</span>
+                    </div>
+                @endif
             </div>
             <div class="flex items-center gap-4 mt-4 text-xs" style="color: var(--color-text-tertiary);">
-                <span>📋 {{ $project->tasks_count }} 任务</span>
+                @if($project->has_task_data)
+                    <span>📋 {{ $project->tasks_count }} 任务</span>
+                @else
+                    <span>🔄 {{ $project->commits7d }} 次提交</span>
+                @endif
                 <span>⚠️ {{ $project->risks_count }} 风险</span>
                 <span>📡 {{ $project->source }}</span>
             </div>

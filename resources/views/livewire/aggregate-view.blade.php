@@ -107,6 +107,18 @@
                     </thead>
                     <tbody>
                         @foreach($projects as $project)
+                            @php
+                                // 2026-10-31：这里不能用 $project->has_task_data / ->code_loc。
+                                // 该视图的 $project 在运行时可能是 stdClass（Livewire 序列化后
+                                // 对象不再是 Eloquent 模型），访问器不存在 → ViewException。
+                                // 统一从原始字段取值，兼容 模型/数组/stdClass 三种形态。
+                                $pMeta = $project->meta ?? [];
+                                $pMeta = is_array($pMeta) ? $pMeta : (array) $pMeta;
+                                $pCode = (array) ($pMeta['code'] ?? []);
+                                $hasTasks  = (int) ($project->tasks_count ?? 0) > 0;
+                                $codeLoc   = (int) ($pCode['total_loc'] ?? 0);
+                                $commits7d = (int) ($pMeta['commits_7d'] ?? 0);
+                            @endphp
                         <tr class="transition-all duration-200 hover:brightness-110"
                             style="border-bottom: 1px solid var(--glass-border);">
                             {{-- Name --}}
@@ -145,17 +157,33 @@
 
                             {{-- Progress Bar --}}
                             <td class="px-4 py-3">
+                                {{-- 2026-10-31：tasks 表无数据时 completion_rate 恒为 0，
+                                     空进度条会被读成「毫无进展」；改为显示代码规模。 --}}
+                                @if($hasTasks)
                                 <div class="flex items-center gap-2">
                                     <div class="flex-1 progress-bar h-2">
                                         <div class="progress-fill h-2" style="width: {{ $project->completion_rate }}%"></div>
                                     </div>
                                     <span class="text-xs font-semibold min-w-[3rem] text-right" style="color: var(--color-accent);">{{ $project->completion_rate }}%</span>
                                 </div>
+                                @else
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-semibold" style="color: var(--color-accent);">
+                                        {{ $codeLoc > 0 ? round($codeLoc / 10000, 1).' 万行' : '未采集' }}
+                                    </span>
+                                    <span class="text-[10px]" style="color: var(--color-text-tertiary);">代码规模</span>
+                                </div>
+                                @endif
                             </td>
 
                             {{-- Task Count --}}
                             <td class="px-4 py-3 text-center">
-                                <span style="color: var(--color-text-primary);">{{ $project->completed_tasks }}/{{ $project->tasks_count }}</span>
+                                @if($hasTasks)
+                                    <span style="color: var(--color-text-primary);">{{ $project->completed_tasks }}/{{ $project->tasks_count }}</span>
+                                @else
+                                    {{-- 无任务数据时该列恒为 0/0，改为展示近 7 天提交活跃度 --}}
+                                    <span class="text-xs" style="color: var(--color-text-secondary);">{{ $commits7d }} 次提交</span>
+                                @endif
                             </td>
 
                             {{-- Risk Count --}}

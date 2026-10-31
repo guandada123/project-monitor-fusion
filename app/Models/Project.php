@@ -116,6 +116,35 @@ class Project extends Model
         return round(($done / $total) * 100, 2);
     }
 
+    /**
+     * 是否有任务数据 —— 决定视图该显示「完成率」还是「代码规模」。
+     *
+     * pmf 自己的 tasks 表从来没有数据（它是项目监控台，不是任务跟踪工具），
+     * 于是 completion_rate 恒为 0。**那是「没有数据源」，不是「进度为零」。**
+     * 视图若不先判断，就会把「没数据」渲染成「0%」，让人误以为项目毫无进展。
+     * 这类「假 0」比空着更糟：空着你会去查，0% 你会信。
+     */
+    public function getHasTaskDataAttribute(): bool
+    {
+        if (isset($this->attributes['tasks_count'])) {
+            return (int) $this->attributes['tasks_count'] > 0;
+        }
+
+        return $this->relationLoaded('tasks') ? $this->tasks->isNotEmpty() : false;
+    }
+
+    /** 采集到的代码总行数（0 = 未采集）。 */
+    public function getCodeLocAttribute(): int
+    {
+        return (int) (is_array($this->meta) ? ($this->meta['code']['total_loc'] ?? 0) : 0);
+    }
+
+    /** 近 7 天提交数（0 = 未采集）。 */
+    public function getCommits7dAttribute(): int
+    {
+        return (int) (is_array($this->meta) ? ($this->meta['commits_7d'] ?? 0) : 0);
+    }
+
     public function getOverdueRateAttribute(): float
     {
         if ($this->relationLoaded('tasks')) {
