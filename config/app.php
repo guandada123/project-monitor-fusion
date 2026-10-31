@@ -65,7 +65,13 @@ return [
     |
     */
 
-    'timezone' => env('APP_TIMEZONE', 'UTC'),
+    // 2026-10-31：默认值从 UTC 改为 Asia/Shanghai。
+    //
+    // 为什么不能只靠 .env：本项目 .env 是 **构建时 COPY 进镜像**的、不是挂载。
+    // 宿主 .env 写了一行 APP_TIMEZONE=Asia/Shanghai，容器里根本没有这行
+    // （旧副本），于是 env() 返回 null、回落到 UTC —— 配置写了却从未生效。
+    // 把默认值写在代码里，不依赖某个特定 .env 副本是否最新。
+    'timezone' => env('APP_TIMEZONE', 'Asia/Shanghai'),
 
     /*
     |--------------------------------------------------------------------------
