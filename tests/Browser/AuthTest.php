@@ -90,17 +90,14 @@ test('login remembers the user with remember me', function () {
             ->type('password', 'password')
             ->check('input[wire\\:model="remember"]')
             // 2026-10-31：勾选 remember 会触发一次 Livewire 请求（更新 $remember 并重新渲染），
-            // 而紧接着的 click 若落在这轮渲染替换 DOM 的间隙里，就会点空 →
-            // 表单从未提交 → 停在 /login → waitForLocation 30s 超时。
+            // 紧接着的 click 若落在这轮渲染替换 DOM 的间隙里就会点空 → 表单从未提交
+            // → 停在 /login → waitForLocation 超时。
             // 这解释了为什么只有本用例 flaky：其他登录用例不勾 remember，没有这次额外请求。
-            // 等 Livewire 空闲（无 wire:loading 标记且请求队列已清）再提交。
-            ->waitUntil(
-                'typeof window.Livewire !== "undefined" '
-                .'&& window.Livewire.initialRenderIsFinished === true '
-                .'&& document.querySelectorAll("[wire\\:loading]").length === 0',
-                15
-            )
-            ->pause(300)
+            //
+            // 注意：**不要**用 `[wire\:loading] 元素数为 0` 做"空闲"判据 ——
+            // wire:loading 是常驻属性（靠 CSS 控显隐），查询永远非空，会一直等到超时。
+            // 改用固定缓冲等这轮请求落地，简单且可预期。
+            ->pause(1200)
             ->click('button[type="submit"]')
             ->waitForLocation('/', 30)
             ->assertPathIs('/');
