@@ -1,0 +1,30 @@
+# Secrets
+# ⚠️ 本仓库此前无 .dockerignore，而 Dockerfile 第 77 行是 `COPY . .`，
+# 导致根目录 .env（含 APP_KEY / DB_PASSWORD / MAIL_PASSWORD 等 47 项配置）
+# 被整包打进镜像。APP_KEY 泄露即可伪造 session、解密已加密数据。
+# `.env.*` 同时覆盖 .env.example（该文件曾直接拷贝 .env，含真实 APP_KEY）。
+.env
+.env.*
+
+# Dependencies —— 镜像内会自行安装，无需随构建上下文带入
+vendor/
+node_modules/
+
+# Runtime caches & logs
+# storage/framework/cache/ 下曾残留 PHPStan 缓存（Container_*.php），内含明文 GH_TOKEN
+storage/framework/cache/**
+storage/framework/sessions/**
+storage/framework/views/**
+storage/logs/**
+.phpunit.result.cache
+
+# 前端构建产物：由 Dockerfile 的 node 阶段 `npm run build` 生成后 COPY 进来，
+# 不让宿主 dist 混入（否则旧文件会残留、与新构建产物混杂）
+public/build
+
+# VCS / IDE
+.git/
+.gitignore
+.idea/
+.vscode/
+.DS_Store

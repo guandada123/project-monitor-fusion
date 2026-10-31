@@ -29,6 +29,9 @@ return [
         'workbuddy_db' => env('OPS_WORKBUDDY_DB', '/host/workbuddy.db'),
         'ai_cost_log' => env('OPS_AI_COST_LOG', '/host/ai_cost_log.jsonl'),
         'state_anchor' => env('OPS_STATE_ANCHOR', '/host/cross_project_state.json'),
+        // Claw 采集的运维快照（宿主侧 ops_workbench_collect.py 产出）。
+        // pmf 不再自己探测宿主状态 —— 容器内看不到宿主进程，采集只能由宿主侧完成。
+        'ops_snapshot' => env('OPS_SNAPSHOT_PATH', '/host/WorkBuddy/Claw/.workbuddy/data/ops_workbench/ops_snapshot.json'),
         'repos' => [
             'claw' => env('OPS_CLAW_PATH', '/host/WorkBuddy/Claw'),
             'qts' => env('OPS_QTS_PATH', '/host/WorkBuddy/QuantTradingSystem'),

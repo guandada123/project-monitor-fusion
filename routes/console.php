@@ -68,3 +68,13 @@ Schedule::command('ops:sync-automations')
     ->withoutOverlapping(5)
     ->appendOutputTo(storage_path('logs/ops-automations.log'))
     ->description('WorkBuddy 自动化同步（原 Ops Center）');
+
+// 每 30 分钟 — 导入 Claw 采集的运维快照（2026-10-31 新增）
+// 数据链：Claw(宿主) collect → ops_snapshot.json → 本命令 upsert projects 表
+// 为什么要这一步：pmf 在容器内看不到宿主进程/git/gh，采集只能由 Claw 做；
+// 此前 pmf 自己用 OpsProbe 探测，是残缺版（代码注释自认「结构上永远 DOWN」）。
+Schedule::command('ops:import-snapshot')
+    ->everyThirtyMinutes()
+    ->withoutOverlapping(5)
+    ->appendOutputTo(storage_path('logs/ops-import-snapshot.log'))
+    ->description('导入 Claw 运维快照到项目表');

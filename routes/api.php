@@ -35,7 +35,12 @@ Route::get('/health', function () {
 });
 
 // ─── Ops Center 监控面板 (公开, 原 ops-center Flask 迁移) ───
-Route::prefix('ops')->group(function () {
+// ⚠️ 2026-10-31 审计补充：本组原本无任何 middleware，而它暴露 /cost（成本数据）、/state、
+// /automations、/roadmap 等内部运维数据，是同仓唯一没有中间件的 API 组。
+// 因其可能供本机反代直连（原 ops-center Flask 迁移而来），**暂不擅加 auth**（会断现有调用，
+// 需业务确认），先补限流，避免被当作无鉴权的数据源持续刷取。
+// 【待确认】若确认无外部直连需求，应改为 auth:sanctum + permission:view_metrics。
+Route::prefix('ops')->middleware('throttle:120,1')->group(function () {
     Route::get('/overview', [OpsApiController::class, 'overview']);
     Route::get('/automations', [OpsApiController::class, 'automations']);
     Route::get('/cost', [OpsApiController::class, 'cost']);
