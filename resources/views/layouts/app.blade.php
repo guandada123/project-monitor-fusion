@@ -187,7 +187,12 @@
         <!-- Main Content -->
         <main id="main-content" class="flex-1 min-w-0 lg:pl-0 pt-14 lg:pt-0">
             <!-- Top Bar — Premium Glass Style -->
-            <header class="hidden lg:flex items-center justify-between h-16 px-8 border-b gap-4"
+            {{-- 2026-10-31：relative z-40 是必须的。
+                 header 上的 backdrop-filter 会**创建新的堆叠上下文**，把内部通知面板的
+                 z-50 锁死在 header 层内；而 header 自身 z-index=auto(=0)，
+                 于是页面内容区（日期选择器等）反而盖住了通知面板。
+                 给 header 一个明确的层级后，内部的 z-50 才在「整页」范围生效。 --}}
+            <header class="hidden lg:flex items-center justify-between h-16 px-8 border-b gap-4 relative z-40"
                     style="background: var(--glass-bg);
                            backdrop-filter: blur(30px) saturate(200%);
                            -webkit-backdrop-filter: blur(30px) saturate(200%);
