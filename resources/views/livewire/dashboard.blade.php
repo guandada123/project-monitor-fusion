@@ -261,7 +261,11 @@
             <div class="text-right shrink-0">
                 @if($opsHealth['stale'])
                     <span class="text-xs px-2 py-1 rounded" style="background:rgba(245,158,11,0.15); color:#92400e;">
-                        ⚠️ 数据滞后 {{ $opsHealth['age_hours'] }} 小时
+                        @if(! empty($opsHealth['ts_unparseable']))
+                            ⚠️ 时间戳无法解析
+                        @else
+                            ⚠️ 数据滞后 {{ $opsHealth['age_hours'] }} 小时
+                        @endif
                     </span>
                 @else
                     {{-- 检查与快照是两个时刻，分开显示：只给一个会被误读成「检查在采集那刻做的」 --}}

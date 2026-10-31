@@ -413,6 +413,7 @@ class Dashboard extends Component
             'age_hours' => null,
             'generated_at' => null,
             'checks_source_ts' => null,
+            'ts_unparseable' => false,
             'counts' => ['total' => 0, 'pass' => 0, 'fail' => 0, 'observe' => 0],
             'failing' => [],
             'observing' => [],
@@ -465,9 +466,17 @@ class Dashboard extends Component
 
         $generatedAt = $snap['generated_at'] ?? null;
         $ageHours = null;
-        if (is_string($generatedAt) && ($ts = strtotime($generatedAt)) !== false) {
-            $ageHours = round((time() - $ts) / 3600, 1);
+        $tsParsed = false;
+        if (is_string($generatedAt) && $generatedAt !== '') {
+            $ts = strtotime($generatedAt);
+            if ($ts !== false) {
+                $ageHours = round((time() - $ts) / 3600, 1);
+                $tsParsed = true;
+            }
         }
+        // 有 generated_at 却解析不了 = 「不知道多久没更新」，不能因算不出小时数就当不陈旧。
+        // 本项目的红线：不许把未知当正常。故单独标出来，与「确实陈旧」区分。
+        $tsUnparseable = is_string($generatedAt) && $generatedAt !== '' && ! $tsParsed;
 
         $cost = is_array($snap['cost'] ?? null) ? $snap['cost'] : [];
         $costSummary = null;
@@ -503,8 +512,9 @@ class Dashboard extends Component
         $this->opsHealth = [
             'available' => true,
             'note' => null,
-            'stale' => $ageHours !== null && $ageHours > 6,
+            'stale' => $tsUnparseable || ($ageHours !== null && $ageHours > 6),
             'age_hours' => $ageHours,
+            'ts_unparseable' => $tsUnparseable,
             'generated_at' => is_string($generatedAt) ? $generatedAt : null,
             // 检查与快照是两个时刻：巡检 11:43 跑、采集 12:16 读。
             // 只显示一个时间会被误读成「检查是采集那一刻做的」。

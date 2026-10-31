@@ -131,4 +131,19 @@ class DashboardOpsHealthTest extends TestCase
         $this->assertTrue($h['stale'], '超过 6 小时必须标记陈旧');
         $this->assertGreaterThan(6, $h['age_hours']);
     }
+
+    public function test_unparseable_generated_at_is_treated_as_suspicious(): void
+    {
+        // 有 generated_at 但解析不了 —— 这是「不知道多久没更新」，
+        // 不能因为算不出小时数就当「不陈旧」。本项目的红线：不许把未知当正常。
+        $h = $this->loadWith(json_encode([
+            'generated_at' => 'not-a-date',
+            'checks' => ['counts' => ['total' => 1, 'pass' => 1]],
+        ]));
+
+        $this->assertTrue($h['available']);
+        $this->assertTrue($h['stale'], '时间戳读不懂必须按可疑处理');
+        $this->assertNull($h['age_hours'], '读不懂就没有小时数可报');
+        $this->assertTrue($h['ts_unparseable'], '要能区分「陈旧」与「时间戳坏了」');
+    }
 }
