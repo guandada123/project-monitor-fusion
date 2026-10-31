@@ -1,9 +1,9 @@
 {
-  "taken_at": "2026-10-31T19:00:05Z",
+  "taken_at": "2026-10-31T23:40:07Z",
   "database": "project_monitor",
   "tables": 26,
   "schema_bytes": 40864,
-  "data_bytes": 21318,
+  "data_bytes": 21657,
   "sensitive_file": "sensitive-20261101.sql",
   "rows": { "projects": 9, "roles": 3 }
 }
