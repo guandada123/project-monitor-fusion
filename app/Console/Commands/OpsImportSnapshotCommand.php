@@ -86,7 +86,13 @@ class OpsImportSnapshotCommand extends Command
             $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9]+/', '-', $repo), '-'));
 
             $attrs = [
-                'name' => $it['project'] ?? $repo,
+                // 2026-10-31：显示名用 repo 而非 project。
+                // 采集器会把 wechat_api 与 wechat-download-api 归到同一个 project 名
+                // （`wechat_api+wechat-download-api`），于是列表出现两张同名卡片，
+                // 其中一张 loc=0（该仓库未采到代码）。repo 才是唯一标识。
+                // 其余项目的 project 与 repo 本就相同，不受影响。
+                // 此处 repo 必然非空：上方 `if (! $repo) { continue; }` 已挡掉空值。
+                'name' => $repo,
                 'slug' => $slug,
                 'status' => 'active',
                 'description' => $it['role'] ?? null,
