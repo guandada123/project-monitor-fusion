@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Livewire\Dashboard;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use ReflectionMethod;
 use ReflectionProperty;
 use Tests\TestCase;
@@ -14,10 +15,17 @@ use Tests\TestCase;
  * 它有三条路径（正常 / 文件不可读 / JSON 坏），其中最危险的是**静默显示空值**——
  * 面板看起来正常、实际没有任何数据。本次审计把它列为 P1 的同类问题。
  *
- * 不用 RefreshDatabase：本测试只读临时文件，不碰数据库。
+ * 为什么必须 use RefreshDatabase（2026-10-31 CI 实测）：
+ * 本测试本身不碰数据库，但 `new Dashboard()` 会触发权限校验
+ * （`select * from permissions where slug = 'view_dashboard'`）。
+ * CI 是全新 pgsql 库，而本文件按字母序（Dashboard…）先于其它 RefreshDatabase
+ * 测试执行 —— 表还没建，于是 6 个用例全挂 QueryException。
+ * 本地之所以通过，是因为之前跑过 migrate、表一直留着（**假绿**）。
  */
 class DashboardOpsHealthTest extends TestCase
 {
+    use RefreshDatabase;
+
     private array $tmpFiles = [];
 
     protected function tearDown(): void
