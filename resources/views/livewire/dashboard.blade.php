@@ -183,12 +183,18 @@
     {{-- Stats Overview Row — Premium Glass Cards --}}
     {{-- ============================================= --}}
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 mb-8">
-        @php $statCards = [
-            ['label' => '活跃项目', 'value' => $projectStats['active_projects'], 'icon' => 'projects', 'color' => '#3b82f6', 'gradient' => 'from-blue-500 to-blue-600'],
-            ['label' => '总任务数', 'value' => $projectStats['total_tasks'], 'icon' => 'tasks', 'color' => '#6366f1', 'gradient' => 'from-indigo-500 to-purple-600'],
-            ['label' => '完成率', 'value' => $projectStats['completion_rate'], 'suffix' => '%', 'icon' => 'completion', 'color' => '#10b981', 'gradient' => 'from-emerald-500 to-teal-600'],
-            ['label' => '延期任务', 'value' => $projectStats['overdue_tasks'], 'icon' => 'overdue', 'color' => '#ef4444', 'gradient' => 'from-red-500 to-rose-600'],
-        ]; @endphp
+        @php
+            // 2026-10-31：原来的「总任务数 / 完成率 / 延期任务」全部恒为 0 ——
+            // pmf 自己的 tasks 表根本没有数据，那三个 0 是假像，不是「进度为零」。
+            // 换成从采集快照聚合的真实指标（代码规模 / 提交活跃度 / 待处置发现）。
+            $pendingDiscovery = (int) ($opsHealth['discovery']['pending'] ?? 0);
+            $statCards = [
+                ['label' => '活跃项目', 'value' => $projectStats['active_projects'], 'icon' => 'projects', 'color' => '#3b82f6', 'gradient' => 'from-blue-500 to-blue-600'],
+                ['label' => '代码总量', 'value' => round(($projectStats['total_loc'] ?? 0) / 10000, 1), 'suffix' => ' 万行', 'icon' => 'code', 'color' => '#6366f1', 'gradient' => 'from-indigo-500 to-purple-600'],
+                ['label' => '近 7 天提交', 'value' => $projectStats['total_commits_7d'] ?? 0, 'icon' => 'commits', 'color' => '#10b981', 'gradient' => 'from-emerald-500 to-teal-600'],
+                ['label' => '待处置发现', 'value' => $pendingDiscovery, 'icon' => 'discovery', 'color' => $pendingDiscovery > 0 ? '#f59e0b' : '#94a3b8', 'gradient' => 'from-amber-500 to-orange-600'],
+            ];
+        @endphp
         @foreach($statCards as $i => $stat)
         <div class="stat-card group cursor-default"
              style="animation-delay: {{ $i * 0.1 }}s;
@@ -207,6 +213,12 @@
                         <svg class="w-5 h-5" style="color: {{ $stat['color'] }};" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                         @elseif($stat['icon'] === 'completion')
                         <svg class="w-5 h-5" style="color: {{ $stat['color'] }};" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        @elseif($stat['icon'] === 'code')
+                        <svg class="w-5 h-5" style="color: {{ $stat['color'] }};" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+                        @elseif($stat['icon'] === 'commits')
+                        <svg class="w-5 h-5" style="color: {{ $stat['color'] }};" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 7h.01M7 3h5a2 2 0 012 2v5a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2zm0 14h5a2 2 0 012 2v2a2 2 0 01-2 2H7a2 2 0 01-2-2v-2a2 2 0 012-2z"/></svg>
+                        @elseif($stat['icon'] === 'discovery')
+                        <svg class="w-5 h-5" style="color: {{ $stat['color'] }};" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
                         @else
                         <svg class="w-5 h-5" style="color: {{ $stat['color'] }};" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         @endif
@@ -547,7 +559,19 @@
                 <div class="flex items-center justify-between mb-1">
                     <div>
                         <h2 class="text-lg font-semibold tracking-tight" style="color: var(--color-text-primary);">核心指标趋势</h2>
-                        <p class="text-xs mt-0.5" style="color: var(--color-text-tertiary);">完成率 / 延期率 / 开放风险 · 7 日快照</p>
+                        @php
+                            // 趋势数据来自 tasks 表；pmf 无任务记录时全为 null。
+                            // 此时副标题不该写「完成率/延期率」——那会让人以为图里有东西。
+                            $hasTrendData = collect($kpiTrendData['completion'] ?? [])
+                                ->contains(fn ($v) => $v !== null);
+                        @endphp
+                        <p class="text-xs mt-0.5" style="color: var(--color-text-tertiary);">
+                            @if($hasTrendData)
+                                完成率 / 延期率 / 开放风险 · 7 日快照
+                            @else
+                                暂无趋势数据 —— 需 pmf 任务记录（当前任务表为空）
+                            @endif
+                        </p>
                     </div>
                 </div>
                 <div class="chart-container relative" id="kpi-trend-chart" wire:ignore>

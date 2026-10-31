@@ -217,6 +217,14 @@ class Dashboard extends Component
                 'done_tasks' => $doneTasks,
                 'overdue_tasks' => $overdueTasks,
                 'completion_rate' => $totalTasks > 0 ? round(($doneTasks / $totalTasks) * 100, 1) : 0,
+                // 2026-10-31 新增：pmf 自己的 tasks 表是空的，任务类 KPI 恒为 0（顶部三个 0
+                // 就是这么来的）。换成从采集快照聚合的真实指标——代码规模与提交活跃度。
+                'total_loc' => (int) $projects->sum(
+                    fn ($p) => (int) (is_array($p->meta) ? ($p->meta['code']['total_loc'] ?? 0) : 0)
+                ),
+                'total_commits_7d' => (int) $projects->sum(
+                    fn ($p) => (int) (is_array($p->meta) ? ($p->meta['commits_7d'] ?? 0) : 0)
+                ),
             ];
 
             // 3. KPI summary (project cards)
