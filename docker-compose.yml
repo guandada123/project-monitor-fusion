@@ -38,6 +38,12 @@ services:
       APP_KEY: "${APP_KEY:-}"
     volumes:
       - app-storage:/var/www/storage
+      # 2026-10-31：挂载 .env 让宿主修改即时生效。
+      # 此前 .env 是构建时 COPY 进镜像的，容器里那份是旧副本 —— 宿主写了
+      # APP_TIMEZONE=Asia/Shanghai，容器里没有这行 → 时区一直跑 UTC。
+      # environment 已注入 DB_HOST 等关键项且优先级更高，故挂载只补缺失项，
+      # 不会把容器内 DB_HOST 改回宿主值。挂单文件，宿主 .env 必须存在。
+      - ./.env:/var/www/.env
       # 宿主数据只读挂载（2026-09-28）：容器里看不到宿主路径，这正是
       # `ops:health-scan` 6/6 恒失败、面板体积恒 0 的根因。路径可用 env 覆盖，
       # 见 config/ops.php。改这两处要保持 app 与 scheduler **一致**（同一份探测逻辑两处跑）。
@@ -150,6 +156,12 @@ services:
     command: [ "php", "artisan", "queue:work", "--tries=3", "--timeout=90", "--sleep=3" ]
     volumes:
       - app-storage:/var/www/storage
+      # 2026-10-31：挂载 .env 让宿主修改即时生效。
+      # 此前 .env 是构建时 COPY 进镜像的，容器里那份是旧副本 —— 宿主写了
+      # APP_TIMEZONE=Asia/Shanghai，容器里没有这行 → 时区一直跑 UTC。
+      # environment 已注入 DB_HOST 等关键项且优先级更高，故挂载只补缺失项，
+      # 不会把容器内 DB_HOST 改回宿主值。挂单文件，宿主 .env 必须存在。
+      - ./.env:/var/www/.env
     networks:
       - project-monitor
     deploy:
@@ -182,6 +194,12 @@ services:
     command: [ "php", "artisan", "schedule:work" ]
     volumes:
       - app-storage:/var/www/storage
+      # 2026-10-31：挂载 .env 让宿主修改即时生效。
+      # 此前 .env 是构建时 COPY 进镜像的，容器里那份是旧副本 —— 宿主写了
+      # APP_TIMEZONE=Asia/Shanghai，容器里没有这行 → 时区一直跑 UTC。
+      # environment 已注入 DB_HOST 等关键项且优先级更高，故挂载只补缺失项，
+      # 不会把容器内 DB_HOST 改回宿主值。挂单文件，宿主 .env 必须存在。
+      - ./.env:/var/www/.env
       # 与 app 服务保持**同一份**宿主只读挂载：`ops:health-scan` 由本服务跑，
       # 少了这几行命令会退化成"全 N/A"（2026-09-28 修 6/6 恒失败时统一加上的）
       - /Users/guan/.workbuddy/workbuddy.db:/host/workbuddy.db:ro
