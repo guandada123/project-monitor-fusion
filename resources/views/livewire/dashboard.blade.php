@@ -398,12 +398,17 @@
                             $mvpPct = $mvpTotal > 0 ? (int) round($mvpDone / $mvpTotal * 100) : 0;
 
                             $code = $project['code'] ?? null;
-                            $codeOk = is_array($code) && (int) ($code['total_loc'] ?? 0) > 0;
+                            $codeOk = is_array($code) && ((int) ($code['total_loc'] ?? 0) > 0 || ! empty($code['truncated']));
+                            // 统计超时/部分失败时 truncated=true：此时数值偏小但可能仍是 0，
+                            // 不能按"无数据"藏起来，也不能当完整值展示——要显示但标注不可信
+                            $codeTrunc = is_array($code) && ! empty($code['truncated']);
                             // 万行缩短：123353 → 12.3 万，避免卡片被长数字撑破
                             $fmtLoc = fn ($n) => ((int) $n) >= 10000
                                 ? round(((int) $n) / 10000, 1).' 万'
                                 : number_format((int) $n);
-                            $testRatio = ($codeOk && (int) $code['src_loc'] > 0)
+                            // 所有键都走 ?? 0：快照结构可能随采集器版本变化，
+                            // 缺键不该变成 Undefined array key 警告
+                            $testRatio = ($codeOk && (int) ($code['src_loc'] ?? 0) > 0 && (int) ($code['test_loc'] ?? 0) > 0)
                                 ? (int) round((int) $code['test_loc'] / (int) $code['src_loc'] * 100)
                                 : 0;
                         @endphp
@@ -437,20 +442,25 @@
                         {{-- 代码规模与活跃度：回答"这个项目多大、还在不在动、还有多少没做完" --}}
                         <div class="{{ $vibeOk ? 'mt-3 pt-3 border-t' : '' }}" style="border-color: var(--color-border);">
                             <div class="flex items-center justify-between text-xs mb-1.5">
-                                <span style="color: var(--color-text-secondary);">代码规模</span>
-                                <span class="font-semibold tabular-nums" style="color: var(--color-text-primary);">
-                                    {{ $fmtLoc($code['total_loc']) }} 行
+                                <span style="color: var(--color-text-secondary);">
+                                    代码规模
+                                    @if($codeTrunc)
+                                        <span style="color:var(--color-warning);" title="统计超时或部分失败，数值可能偏小">⚠ 不完整</span>
+                                    @endif
+                                </span>
+                                <span class="font-semibold tabular-nums" style="color: {{ $codeTrunc ? 'var(--color-warning)' : 'var(--color-text-primary)' }};">
+                                    {{ $fmtLoc($code['total_loc'] ?? 0) }} 行
                                 </span>
                             </div>
                             <div class="flex items-center gap-1.5 text-xs flex-wrap" style="color: var(--color-text-tertiary);">
-                                <span>生产 {{ $fmtLoc($code['src_loc']) }}</span>
+                                <span>生产 {{ $fmtLoc($code['src_loc'] ?? 0) }}</span>
                                 <span>·</span>
                                 <span title="测试文件按 test_*/​*_test/*.test/*.spec 命名统计">
-                                    测试 {{ (int) $code['test_files'] }} 个{{ $testRatio > 0 ? '（'. $testRatio .'%）' : '' }}
+                                    测试 {{ (int) ($code['test_files'] ?? 0) }} 个{{ $testRatio > 0 ? '（'. $testRatio .'%）' : '' }}
                                 </span>
                                 @if((int) ($code['todos'] ?? 0) > 0)
                                     <span>·</span>
-                                    <span style="color: var(--color-warning);">{{ (int) $code['todos'] }} 个 TODO</span>
+                                    <span style="color: var(--color-warning);">{{ (int) ($code['todos'] ?? 0) }} 个 TODO</span>
                                 @endif
                             </div>
                             @if(! is_null($project['commits_7d']))
