@@ -15,6 +15,18 @@
 #   · 自检不通过就**非零退出**——不许"文件生成了就算成功"
 #   · 先写 .tmp 再原子 mv——中途失败不会污染上一份好快照
 #   · 每次产出 last-snapshot.json，让「上次什么时候备份、多大」可审计
+#
+# ─── 恢复演练（2026-10-31 做过一次，务必定期重做）───────────────────
+# 备份只在「能恢复」时才算备份。演练方法（不碰生产库）：
+#   PW=$(docker compose exec -T postgres printenv POSTGRES_PASSWORD)
+#   psql -d postgres -c "CREATE DATABASE pmf_restore_drill"
+#   psql -d pmf_restore_drill -v ON_ERROR_STOP=1 < db/schema.sql
+#   psql -d pmf_restore_drill -v ON_ERROR_STOP=1 < db/data.sql
+#   # 逐表对比行数，然后 DROP DATABASE pmf_restore_drill
+#
+# ⚠️ 首次演练就抓到一个致命缺陷：role_user 曾被放进 data.sql，
+#    而它依赖被排除的 users(id) → 恢复必然外键失败。已改为跟随 users 进敏感备份。
+#    **不做演练，这份备份会在真出事那天才暴露不可用。**
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -55,7 +67,8 @@ trap cleanup EXIT
 dump --schema-only | strip_restrict > "$OUT/schema.sql.tmp"
 
 # ── 2. 非敏感数据 ──
-SENSITIVE="users personal_access_tokens sessions password_reset_tokens integrations"
+# role_user 依赖 users(id)，若留在 data.sql 里，恢复时必然外键失败（2026-10-31 演练实证）
+SENSITIVE="users role_user personal_access_tokens sessions password_reset_tokens integrations"
 RUNTIME="cache cache_locks jobs job_batches failed_jobs"
 EXCLUDES=()
 for t in $SENSITIVE $RUNTIME; do EXCLUDES+=("--exclude-table=$t"); done
@@ -63,7 +76,7 @@ dump --data-only "${EXCLUDES[@]}" | strip_restrict > "$OUT/data.sql.tmp"
 
 # ── 3. 敏感数据（本地，绝不进 Git）──
 SENS_TABLES=()
-for t in users personal_access_tokens integrations; do SENS_TABLES+=("--table=$t"); done
+for t in users role_user personal_access_tokens integrations; do SENS_TABLES+=("--table=$t"); done
 dump --data-only "${SENS_TABLES[@]}" | strip_restrict > "$SEC/sensitive-$DATE.sql.tmp"
 
 # ── 4. 自检 ──
