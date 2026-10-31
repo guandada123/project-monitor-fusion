@@ -126,19 +126,26 @@ document.addEventListener('livewire:navigated', () => {
 });
 
 // ── Three.js Immersive Background ──
-// Dynamic import to avoid impacting initial payload
-// Loads after first meaningful paint
-if (typeof window !== 'undefined' && window.requestIdleCallback) {
-    window.requestIdleCallback(() => {
-        import('./three-background.js').catch(() => {
-            // Silently fail — Three.js background is non-critical enhancement
+// 🔴 2026-10-31 停用：light 主题下 70 个几何粒子（tetrahedron/octahedron/dodecahedron）
+// 渲染成深灰色碎片，横穿 KPI 卡片与检查项列表，明显影响可读性；
+// 且 Three.js 常驻 requestAnimationFrame 持续占用 GPU/CPU。
+// 恢复方式：把 ENABLE_THREE_BG 改为 true，然后 npm run build（Dockerfile node 阶段会重打包）。
+const ENABLE_THREE_BG = false;
+if (ENABLE_THREE_BG) {
+    // Dynamic import to avoid impacting initial payload
+    // Loads after first meaningful paint
+    if (typeof window !== 'undefined' && window.requestIdleCallback) {
+        window.requestIdleCallback(() => {
+            import('./three-background.js').catch(() => {
+                // Silently fail — Three.js background is non-critical enhancement
+            });
+        }, { timeout: 3000 });
+    } else {
+        // Fallback: defer to after load
+        window.addEventListener('load', () => {
+            import('./three-background.js').catch(() => {});
         });
-    }, { timeout: 3000 });
-} else {
-    // Fallback: defer to after load
-    window.addEventListener('load', () => {
-        import('./three-background.js').catch(() => {});
-    });
+    }
 }
 
 // Smooth theme transition

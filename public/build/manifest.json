@@ -6,25 +6,17 @@
     "isDynamicEntry": true
   },
   "resources/css/app.css": {
-    "file": "assets/app-DmkjkxCh.css",
+    "file": "assets/app-C2RgaCCE.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-pdEsJNQz.js",
+    "file": "assets/app-BB0FI8Xp.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "dynamicImports": [
-      "node_modules/apexcharts/dist/apexcharts.esm.js",
-      "resources/js/three-background.js",
-      "resources/js/three-background.js"
+      "node_modules/apexcharts/dist/apexcharts.esm.js"
     ]
-  },
-  "resources/js/three-background.js": {
-    "file": "assets/three-background-Cp7I1bzo.js",
-    "name": "three-background",
-    "src": "resources/js/three-background.js",
-    "isDynamicEntry": true
   }
 }
