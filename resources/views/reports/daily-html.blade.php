@@ -89,9 +89,16 @@
                 <div class="stat-value" style="color: {{ $summary['critical_risks'] > 0 ? '#ef4444' : '#22c55e' }}">{{ $summary['open_risks'] }}</div>
                 <div class="stat-label">开放风险</div>
             </div>
+            {{-- 2026-10-31：tasks 表无数据时完成率恒为 0，日报里显示 0% 像全线停摆。
+                 改为展示采集到的代码规模。 --}}
             <div class="stat-item">
-                <div class="stat-value">{{ round(($summary['done_tasks'] / max(1, $summary['total_tasks'])) * 100, 1) }}%</div>
-                <div class="stat-label">完成率</div>
+                @if(($summary['total_tasks'] ?? 0) > 0)
+                    <div class="stat-value">{{ round(($summary['done_tasks'] / max(1, $summary['total_tasks'])) * 100, 1) }}%</div>
+                    <div class="stat-label">完成率</div>
+                @else
+                    <div class="stat-value">{{ number_format(($summary['total_loc'] ?? 0) / 10000, 1) }}</div>
+                    <div class="stat-label">代码万行</div>
+                @endif
             </div>
             <div class="stat-item">
                 <div class="stat-value">{{ $summary['critical_risks'] }}</div>
@@ -110,11 +117,21 @@
                 <div class="proj-status">{{ $p['status'] === 'active' ? '🟢 活跃' : ($p['status'] === 'pending' ? '🔵 待启动' : '⚫ 归档') }}</div>
             </div>
             <div style="text-align: center;">
-                <div style="font-size: 20px; font-weight: 700; color: #818cf8;">{{ $p['completion_rate'] }}%</div>
-                <div style="font-size: 11px; color: #64748b;">{{ $p['done'] }}/{{ $p['total'] }}</div>
+                @if(!empty($p['has_task_data']))
+                    <div style="font-size: 20px; font-weight: 700; color: #818cf8;">{{ $p['completion_rate'] }}%</div>
+                    <div style="font-size: 11px; color: #64748b;">{{ $p['done'] }}/{{ $p['total'] }}</div>
+                @else
+                    <div style="font-size: 20px; font-weight: 700; color: #818cf8;">{{ ($p['code_loc'] ?? 0) > 0 ? number_format($p['code_loc'] / 10000, 1) : '—' }}</div>
+                    <div style="font-size: 11px; color: #64748b;">{{ ($p['code_loc'] ?? 0) > 0 ? '万行' : '未采集' }} · {{ $p['commits_7d'] ?? 0 }} 提交</div>
+                @endif
             </div>
             <div class="progress-bar">
-                <div class="progress-fill" style="width: {{ $p['completion_rate'] }}%"></div>
+                @if(!empty($p['has_task_data']))
+                    <div class="progress-fill" style="width: {{ $p['completion_rate'] }}%"></div>
+                @else
+                    {{-- 无任务时不画进度条：空条会被读成「毫无进展」 --}}
+                    <div style="font-size: 11px; color: #64748b; text-align: right;">近 7 天活跃</div>
+                @endif
             </div>
         </div>
         @endforeach

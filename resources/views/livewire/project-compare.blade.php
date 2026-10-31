@@ -88,13 +88,22 @@
                     </thead>
                     <tbody>
                         <tr class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
-                            <td class="py-3 px-4 font-medium text-gray-600 dark:text-gray-300">📈 完成率</td>
+                            <td class="py-3 px-4 font-medium text-gray-600 dark:text-gray-300">{{ collect($comparisons)->every(fn($c) => !($c['hasTaskData'] ?? false)) ? '📐 代码规模' : '📈 完成率' }}</td>
                             @foreach($comparisons as $comp)
                                 @php
                                     $cc = $comp['completion'];
+                                    $hasTask = $comp['hasTaskData'] ?? false;
                                     $cStyle = $cc >= 80 ? 'color:#10b981;' : ($cc >= 50 ? 'color:#f59e0b;' : 'color:#ef4444;');
                                 @endphp
-                                <td class="py-3 px-4 text-center font-bold text-base" style="{{ $cStyle }}">{{ $cc }}%</td>
+                                {{-- 2026-10-31：无任务数据时 completion 恒为 0，一排 0% 毫无信息量；
+                                     改显示代码规模，多项目之间才有可比性。 --}}
+                                <td class="py-3 px-4 text-center font-bold text-base" style="{{ $hasTask ? $cStyle : 'color:#6366f1;' }}">
+                                    @if($hasTask)
+                                        {{ $cc }}%
+                                    @else
+                                        {{ ($comp['codeLoc'] ?? 0) > 0 ? number_format($comp['codeLoc'] / 10000, 1).' 万行' : '未采集' }}
+                                    @endif
+                                </td>
                             @endforeach
                         </tr>
                         <tr class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
@@ -150,7 +159,7 @@
         {{-- SVG Comparison Charts Grid --}}
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
             <div class="glass-card p-6 flex flex-col items-center justify-center">
-                <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">📈 完成率对比</h3>
+                <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">{{ collect($comparisons)->every(fn($c) => !($c['hasTaskData'] ?? false)) ? '📐 代码规模对比' : '📈 完成率对比' }}</h3>
                 <div class="overflow-x-auto w-full flex justify-center">
                     {!! $completionChart !!}
                 </div>
@@ -186,7 +195,7 @@
                     <div class="grid grid-cols-2 gap-3 text-sm">
                         <div>
                             <span class="text-gray-400 text-xs">完成率</span>
-                            <div class="font-bold" style="color:{{ $comp['color'] }};">{{ $comp['completion'] }}%</div>
+                            <div class="font-bold" style="color:{{ $comp['color'] }};">{{ ($comp['hasTaskData'] ?? false) ? $comp['completion'].'%' : (($comp['codeLoc'] ?? 0) > 0 ? number_format($comp['codeLoc'] / 10000, 1).' 万行' : '未采集') }}</div>
                         </div>
                         <div>
                             <span class="text-gray-400 text-xs">阻塞</span>

@@ -71,7 +71,11 @@
     {{-- KPI Cards + Donut --}}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div class="glass-card p-6 flex flex-col items-center justify-center">
-            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">项目完成率</h3>
+            {{-- 2026-10-31：无任务数据时该卡显示的是代码规模，标题要同步，
+                 否则会出现「项目完成率」下面写着「12.5 万行」的错位。 --}}
+            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+                {{ ($project->has_task_data ?? false) ? '项目完成率' : '代码规模' }}
+            </h3>
             <div class="flex justify-center">{!! $charts['donut'] !!}</div>
         </div>
         <div class="glass-card p-6 space-y-4">

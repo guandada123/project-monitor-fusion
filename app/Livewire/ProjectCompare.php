@@ -104,6 +104,11 @@ class ProjectCompare extends Component
                 'project' => $project,
                 'color' => $color,
                 'completion' => $completion,
+                // 2026-10-31：无任务数据时完成率恒为 0，多项目对比里会变成
+                // 一排 0% —— 看不出差异。补上代码规模与提交数供视图替换。
+                'hasTaskData' => $project->has_task_data,
+                'codeLoc' => $project->code_loc,
+                'commits7d' => $project->commits7d,
                 'totalTasks' => $totalTasks,
                 'doneTasks' => $doneTasks,
                 'inProgress' => $inProgressTasks,
@@ -146,7 +151,22 @@ class ProjectCompare extends Component
             ];
         }
 
-        $completionChart = ChartSvgService::groupedBars($completionBars, '完成率对比');
+        // 2026-10-31：若所有项目都无任务数据，完成率对比图会是一排 0 ——
+        // 看不出任何差异。此时换成代码规模对比（这才是各项目真实的可比量）。
+        $allNoTaskData = collect($comparisons)->every(fn ($c) => ! ($c['hasTaskData'] ?? false));
+        if ($allNoTaskData) {
+            $completionBars = collect($comparisons)->map(fn ($c) => [
+                'name' => $c['project']->name,
+                'color' => $c['color'],
+                'bars' => [[
+                    'label' => '代码规模(万行)',
+                    'value' => round(($c['codeLoc'] ?? 0) / 10000, 1),
+                    'color' => $c['color'],
+                ]],
+            ])->all();
+        }
+
+        $completionChart = ChartSvgService::groupedBars($completionBars, $allNoTaskData ? '代码规模对比' : '完成率对比');
         $tasksChart = ChartSvgService::groupedBars($taskBarsGroups, '任务分布对比');
         $risksChart = ChartSvgService::groupedBars($riskBarsGroups, '风险分布对比');
 

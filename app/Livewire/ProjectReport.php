@@ -62,6 +62,11 @@ class ProjectReport extends Component
 
         $completion = $project->completionRate();
 
+        // 2026-10-31：tasks 为空时 completionRate() 恒为 0，环形图会画成一个空环，
+        // 读起来像「进度为零」。此时改用采集快照的代码规模做一张 KPI 卡。
+        $hasTaskData = $project->has_task_data;
+        $codeLoc = $project->code_loc;
+
         // Task status distribution bars
         $taskBars = [
             ['label' => '已完成', 'value' => ($statusCounts['done'] ?? 0) + ($statusCounts['closed'] ?? 0) + ($statusCounts['completed'] ?? 0), 'color' => '#10b981'],
@@ -82,7 +87,10 @@ class ProjectReport extends Component
         $dimensionCharts = $this->buildDimensionCharts($project);
 
         $charts = [
-            'donut' => ChartSvgService::donutGauge($completion, '完成率'),
+            // 无任务数据时换掉空环，避免「0% = 毫无进展」的误读
+            'donut' => $hasTaskData
+                ? ChartSvgService::donutGauge($completion, '完成率')
+                : ChartSvgService::kpiCard('代码规模', number_format($codeLoc / 10000, 1).' 万行', $codeLoc > 0 ? 'up' : 'down', '#6366f1'),
             'kpi_open' => ChartSvgService::kpiCard('未完成', (string) $openTasks, $openTasks > 0 ? 'up' : 'down', '#ef4444'),
             'kpi_done' => ChartSvgService::kpiCard('已完成', (string) $closedTasks, $closedTasks > 0 ? 'up' : 'down', '#10b981'),
             'kpi_risk' => ChartSvgService::kpiCard('风险数', (string) $risks->count(), $risks->count() > 0 ? 'up' : 'down', '#f59e0b'),
