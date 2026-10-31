@@ -42,24 +42,29 @@ DB_PW=$(docker compose exec -T postgres printenv POSTGRES_PASSWORD 2>/dev/null |
 psql_q() { docker compose exec -T -e PGPASSWORD="$DB_PW" postgres psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -tAc "$1" | tr -d '\r'; }
 dump()   { docker compose exec -T -e PGPASSWORD="$DB_PW" postgres pg_dump -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" --no-owner --no-privileges "$@"; }
 
+# pg_dump 15+ 会在首尾插入 `\restrict <随机key>` / `\unrestrict <随机key>`（防注入）。
+# 这个 key 每次都随机 → 文件字节永远不同 → Git diff 全是噪音、备份看似"天天在变"。
+# 备份是自己写的，不需要这层保护，直接过滤掉，让 diff 只反映真实变更。
+strip_restrict() { sed -e '/^\\restrict /d' -e '/^\\unrestrict /d'; }
+
 mkdir -p "$OUT" "$SEC"
 cleanup() { rm -f "$OUT"/*.tmp "$SEC"/*.tmp 2>/dev/null || true; }
 trap cleanup EXIT
 
 # ── 1. 结构（26 张表，无数据）──
-dump --schema-only > "$OUT/schema.sql.tmp"
+dump --schema-only | strip_restrict > "$OUT/schema.sql.tmp"
 
 # ── 2. 非敏感数据 ──
 SENSITIVE="users personal_access_tokens sessions password_reset_tokens integrations"
 RUNTIME="cache cache_locks jobs job_batches failed_jobs"
 EXCLUDES=()
 for t in $SENSITIVE $RUNTIME; do EXCLUDES+=("--exclude-table=$t"); done
-dump --data-only "${EXCLUDES[@]}" > "$OUT/data.sql.tmp"
+dump --data-only "${EXCLUDES[@]}" | strip_restrict > "$OUT/data.sql.tmp"
 
 # ── 3. 敏感数据（本地，绝不进 Git）──
 SENS_TABLES=()
 for t in users personal_access_tokens integrations; do SENS_TABLES+=("--table=$t"); done
-dump --data-only "${SENS_TABLES[@]}" > "$SEC/sensitive-$DATE.sql.tmp"
+dump --data-only "${SENS_TABLES[@]}" | strip_restrict > "$SEC/sensitive-$DATE.sql.tmp"
 
 # ── 4. 自检 ──
 fail() { echo "❌ 自检失败：$1" >&2; exit 1; }

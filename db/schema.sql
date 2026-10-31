@@ -2,7 +2,6 @@
 -- PostgreSQL database dump
 --
 
-\restrict JO8mZ8pfJGTt5d3r6d6zZFhZVA7fsdQOJlh3v8EC1pu7fQrR16KgKnKUGBwOLn3
 
 -- Dumped from database version 16.14
 -- Dumped by pg_dump version 16.14
@@ -1700,5 +1699,3 @@ ALTER TABLE ONLY public.tasks
 --
 -- PostgreSQL database dump complete
 --
-
-\unrestrict JO8mZ8pfJGTt5d3r6d6zZFhZVA7fsdQOJlh3v8EC1pu7fQrR16KgKnKUGBwOLn3
