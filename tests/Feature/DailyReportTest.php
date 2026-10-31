@@ -3,6 +3,7 @@
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\DailyReportService;
 use Illuminate\Support\Facades\Artisan;
 
 // ─── Daily Report Command ───
@@ -89,4 +90,71 @@ test('daily:report with date option works', function () {
     $output = Artisan::output();
     expect($output)->toContain(now()->subDay()->toDateString());
     expect($output)->toContain('生成完成');
+});
+
+// ── 2026-11-01：CI 数据时点必须随数字一起报出 ──
+// 实例：Claw 两次 CI failure 期间，日报仍报「CI 红 0 个项目」——算法没错，是快照旧。
+// 只报数字不报时点，等于把有延迟的数说成实时事实。
+
+test('daily report discloses ci data age and flags stale data', function () {
+    $user = User::factory()->admin()->create();
+    Project::factory()->create([
+        'status' => 'active',
+        'meta' => [
+            'ci_status' => 'green',
+            'ci_main_red' => false,
+            'ci_last_run_at' => now()->subHours(9)->toIso8601String(),
+        ],
+    ]);
+
+    $service = new DailyReportService(now()->toDateString());
+    $report = $service->generate();
+    $summary = $report['summary'];
+
+    expect($summary)->toHaveKey('ci_data_as_of')
+        ->and($summary['ci_data_as_of'])->toBeString()
+        ->and($summary['ci_data_age_hours'])->toBeGreaterThan(8.0)
+        ->and($summary['ci_red_projects'])->toBe(0);
+
+    $md = $service->toMarkdown($report);
+    expect($md)->toContain('数据截至')
+        ->and($md)->toContain('CI 数据已陈旧');
+});
+
+test('daily report counts red ci and stays quiet when data is fresh', function () {
+    $user = User::factory()->admin()->create();
+    Project::factory()->create([
+        'status' => 'active',
+        'meta' => [
+            'ci_status' => 'failure',
+            'ci_main_red' => true,
+            'ci_last_run_at' => now()->subMinutes(20)->toIso8601String(),
+        ],
+    ]);
+    Project::factory()->create([
+        'status' => 'active',
+        'meta' => ['ci_status' => 'green', 'ci_main_red' => false, 'ci_last_run_at' => now()->subMinutes(35)->toIso8601String()],
+    ]);
+
+    $service = new DailyReportService(now()->toDateString());
+    $report = $service->generate();
+
+    expect($report['summary']['ci_red_projects'])->toBe(1)
+        ->and($report['summary']['ci_data_age_hours'])->toBeLessThan(1.0);
+
+    $md = $service->toMarkdown($report);
+    expect($md)->toContain('数据截至')
+        ->and($md)->not->toContain('CI 数据已陈旧');
+});
+
+test('daily report says no ci data when nothing collected', function () {
+    $user = User::factory()->admin()->create();
+    Project::factory()->create(['status' => 'active', 'meta' => ['type' => 'x']]);
+
+    $service = new DailyReportService(now()->toDateString());
+    $report = $service->generate();
+
+    expect($report['summary']['ci_data_as_of'])->toBeNull()
+        ->and($report['summary']['ci_data_age_hours'])->toBeNull()
+        ->and($service->ciFreshnessNote($report['summary']))->toBe('（无 CI 数据）');
 });

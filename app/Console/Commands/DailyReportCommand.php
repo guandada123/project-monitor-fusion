@@ -60,7 +60,7 @@ class DailyReportCommand extends Command
             ['活跃项目', $s['active_projects']],
             ['代码规模', number_format(($s['total_loc'] ?? 0) / 10000, 1).' 万行'],
             ['近 7 天提交', ($s['commits_7d'] ?? 0).' 次'],
-            ['主分支 CI 红', ($s['ci_red_projects'] ?? 0).' 个项目'],
+            ['主分支 CI 红', ($s['ci_red_projects'] ?? 0).' 个项目'.$reportService->ciFreshnessNote($s)],
         ];
         if (($s['total_tasks'] ?? 0) > 0) {
             $rows[] = ['待办任务', $s['todo_tasks']];

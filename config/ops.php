@@ -17,6 +17,11 @@ return [
     // 若改成 host 网络部署，把 OPS_PROBE_HOST 设成 127.0.0.1 即可。
     'probe_host' => env('OPS_PROBE_HOST', 'host.docker.internal'),
 
+    // 2026-11-01：CI 状态不是实时探测的 —— pmf 只消费 Claw 采集的 ops_snapshot.json，
+    // 与真实 CI 之间有约 1 小时延迟（实测：07:30 快照仍报 Claw 全绿，而它当时两次 failure）。
+    // 日报必须把「数据时点」一并报出来，超过本阈值再加显式陈旧警告。
+    'ci_stale_hours' => (int) env('OPS_CI_STALE_HOURS', 6),
+
     // HTTP 探测目标（端口可用 env 覆盖，与 QTS compose 的端口映射对齐）
     'http_targets' => [
         'qts_engine' => ['port' => (int) env('OPS_QTS_ENGINE_PORT', 8000), 'path' => '/health'],

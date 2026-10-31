@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Project;
 use App\Models\Risk;
 use App\Models\Task;
+use Illuminate\Support\Carbon;
 
 /**
  * 日报生成服务
@@ -77,7 +78,13 @@ class DailyReportService
      * 这些数字有实际数据源（各项目 meta 由 ops 采集器写入），
      * 与 tasks/risks 那套恒 0 的口径完全不同。
      *
-     * @return array<string, int>
+     * @return array{
+     *     total_loc: int,
+     *     commits_7d: int,
+     *     ci_red_projects: int,
+     *     ci_data_as_of: string|null,
+     *     ci_data_age_hours: float|null
+     * }
      */
     protected function buildRealMetrics(): array
     {
@@ -86,20 +93,74 @@ class DailyReportService
         $loc = 0;
         $commits = 0;
         $ciRed = 0;
+        $latestCiRun = null;
         for ($i = 0; $i < $rows->count(); $i++) {
             $p = $rows[$i];
             $loc += $p->code_loc;
             $commits += $p->commits7d;
-            if ((bool) (is_array($p->meta) ? ($p->meta['ci_main_red'] ?? false) : false)) {
+            $meta = is_array($p->meta) ? $p->meta : [];
+            if ((bool) ($meta['ci_main_red'] ?? false)) {
                 $ciRed++;
             }
+            // 取全项目里最新的一次 CI 运行时间：它是「CI 那三个数最多新到什么时候」的凭证
+            $runAt = $meta['ci_last_run_at'] ?? null;
+            if (is_string($runAt) && $runAt !== '') {
+                try {
+                    $ts = Carbon::parse($runAt);
+                } catch (\Throwable) {
+                    $ts = null;
+                }
+                if ($ts !== null && ($latestCiRun === null || $ts->gt($latestCiRun))) {
+                    $latestCiRun = $ts;
+                }
+            }
         }
+
+        // ── 2026-11-01：把 CI 数据的时点一起吐出来 ──
+        // 实测过一次「假事实」：Claw 在 22:56Z / 23:05Z 两次 CI failure，
+        // 日报仍报「主分支 CI 红 0 个项目」—— 不是算错了，是快照还停在 22:52Z 的旧状态。
+        // 只报数字不报数据时点，等于把有延迟的数说成实时事实。
+        // 故这里补 ci_data_as_of / ci_data_age_hours，由渲染层决定怎么说人话。
+        $ciAgeHours = $latestCiRun === null
+            ? null
+            : round($latestCiRun->diffInMinutes(now()) / 60, 1);
 
         return [
             'total_loc' => $loc,
             'commits_7d' => $commits,
             'ci_red_projects' => $ciRed,
+            'ci_data_as_of' => $latestCiRun?->toIso8601String(),
+            'ci_data_age_hours' => $ciAgeHours,
         ];
+    }
+
+    /**
+     * CI 行的人话后缀：数据截至何时、是否已陈旧。
+     *
+     * 命令行表格与 Markdown 共用这一处文案，避免两边说法不一致。
+     */
+    public function ciFreshnessNote(array $summary): string
+    {
+        $asOf = $summary['ci_data_as_of'] ?? null;
+        $ageHours = $summary['ci_data_age_hours'] ?? null;
+
+        if (! is_string($asOf) || $ageHours === null) {
+            return '（无 CI 数据）';
+        }
+
+        try {
+            $label = Carbon::parse($asOf)->timezone(config('app.timezone'))->format('m-d H:i');
+        } catch (\Throwable) {
+            $label = $asOf;
+        }
+
+        $note = "（数据截至 {$label}，距今 {$ageHours} 小时）";
+        $staleHours = (int) config('ops.ci_stale_hours', 6);
+        if ($ageHours > $staleHours) {
+            $note .= " ⚠️ CI 数据已陈旧（＞{$staleHours}h），该值仅供参考";
+        }
+
+        return $note;
     }
 
     /**
@@ -207,7 +268,7 @@ class DailyReportService
         $md .= "| 活跃项目 | {$s['active_projects']} |\n";
         $md .= '| 代码规模 | '.number_format(($s['total_loc'] ?? 0) / 10000, 1)." 万行 |\n";
         $md .= '| 近 7 天提交 | '.($s['commits_7d'] ?? 0)." 次 |\n";
-        $md .= '| 主分支 CI 红 | '.($s['ci_red_projects'] ?? 0)." 个项目 |\n";
+        $md .= '| 主分支 CI 红 | '.($s['ci_red_projects'] ?? 0).' 个项目'.$this->ciFreshnessNote($s)." |\n";
         // 2026-10-31：任务/风险类指标在无数据时会全是 0，容易读成"全线停滞"，
         // 因此明确标注口径，让人知道这是"没有数据源"而非"没有进展"。
         $hasTaskData = ($s['total_tasks'] ?? 0) > 0;
