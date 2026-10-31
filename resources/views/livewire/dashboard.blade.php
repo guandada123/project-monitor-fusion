@@ -264,8 +264,12 @@
                         ⚠️ 数据滞后 {{ $opsHealth['age_hours'] }} 小时
                     </span>
                 @else
+                    {{-- 检查与快照是两个时刻，分开显示：只给一个会被误读成「检查在采集那刻做的」 --}}
                     <span class="text-xs" style="color: var(--color-text-tertiary);">
-                        更新于 {{ str_replace('T', ' ', substr($opsHealth['generated_at'] ?? '', 0, 16)) }}
+                        @if(! empty($opsHealth['checks_source_ts']))
+                            检查 {{ substr($opsHealth['checks_source_ts'], 11, 5) }} ·
+                        @endif
+                        快照 {{ substr($opsHealth['generated_at'] ?? '', 11, 5) }}
                     </span>
                 @endif
             </div>

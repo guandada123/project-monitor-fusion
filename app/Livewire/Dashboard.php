@@ -412,6 +412,7 @@ class Dashboard extends Component
             'stale' => false,
             'age_hours' => null,
             'generated_at' => null,
+            'checks_source_ts' => null,
             'counts' => ['total' => 0, 'pass' => 0, 'fail' => 0, 'observe' => 0],
             'failing' => [],
             'observing' => [],
@@ -505,6 +506,9 @@ class Dashboard extends Component
             'stale' => $ageHours !== null && $ageHours > 6,
             'age_hours' => $ageHours,
             'generated_at' => is_string($generatedAt) ? $generatedAt : null,
+            // 检查与快照是两个时刻：巡检 11:43 跑、采集 12:16 读。
+            // 只显示一个时间会被误读成「检查是采集那一刻做的」。
+            'checks_source_ts' => is_string($checks['source_ts'] ?? null) ? $checks['source_ts'] : null,
             'counts' => [
                 'total' => (int) ($counts['total'] ?? count($items)),
                 'pass' => (int) ($counts['pass'] ?? 0),
