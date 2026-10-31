@@ -54,25 +54,38 @@ class DailyReportCommand extends Command
         $report = $reportService->generate();
 
         $s = $report['summary'];
-        $this->table(
-            ['指标', '数值'],
-            [
-                ['活跃项目', $s['active_projects']],
-                ['待办任务', $s['todo_tasks']],
-                ['进行中', $s['in_progress_tasks']],
-                ['已完成', $s['done_tasks']],
-                ['延期任务', $s['overdue_tasks']],
-                ['开放风险', $s['open_risks']],
-                ['严重风险', $s['critical_risks']],
-            ]
-        );
+        // 2026-10-31：tasks/risks 无数据时那四项恒为 0，直接列出来只会显示一片 0。
+        // 有任务数据才展示任务口径，否则展示采集快照的真实指标。
+        $rows = [
+            ['活跃项目', $s['active_projects']],
+            ['代码规模', number_format(($s['total_loc'] ?? 0) / 10000, 1).' 万行'],
+            ['近 7 天提交', ($s['commits_7d'] ?? 0).' 次'],
+            ['主分支 CI 红', ($s['ci_red_projects'] ?? 0).' 个项目'],
+        ];
+        if (($s['total_tasks'] ?? 0) > 0) {
+            $rows[] = ['待办任务', $s['todo_tasks']];
+            $rows[] = ['进行中', $s['in_progress_tasks']];
+            $rows[] = ['已完成', $s['done_tasks']];
+            $rows[] = ['延期任务', $s['overdue_tasks']];
+        } else {
+            $rows[] = ['任务指标', '未接入（无任务数据源）'];
+        }
+        $rows[] = ['开放风险', $s['open_risks']];
+        $rows[] = ['严重风险', $s['critical_risks']];
+
+        $this->table(['指标', '数值'], $rows);
 
         // 3. 项目详情
         $this->info('📋 各项目进度：');
         foreach ($report['projects'] as $p) {
-            $bar = $this->output->createProgressBar(100);
             $emoji = ['active' => '🟢', 'pending' => '🔵', 'completed' => '✅', 'archived' => '⚫'][$p['status']] ?? '⚪';
-            $this->line("  {$emoji} {$p['name']}: {$p['completion_rate']}% ({$p['done']}/{$p['total']})");
+            if (! empty($p['has_task_data'])) {
+                $this->line("  {$emoji} {$p['name']}: {$p['completion_rate']}% ({$p['done']}/{$p['total']})");
+            } else {
+                $locRaw = (int) ($p['code_loc'] ?? 0);
+                $loc = $locRaw > 0 ? number_format($locRaw / 10000, 1).' 万行' : '未采集代码';
+                $this->line("  {$emoji} {$p['name']}: {$loc} · 近 7 天 {$p['commits_7d']} 次提交");
+            }
         }
 
         // 4. 风险预警

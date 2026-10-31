@@ -63,6 +63,42 @@ class DailyReportService
             'total_tasks' => $todo + $inProgress + $done,
             'open_risks' => $risks,
             'critical_risks' => $critical,
+            // ── 2026-10-31 新增：真实指标 ──
+            // pmf 的 tasks / risks 表从来没有数据，上面四个指标恒为 0，
+            // 日报每天推出去的信息量等于零（"9 项目 · 0 任务 · 0 风险"）。
+            // 从这里开始补上采集快照里真正在动的东西：代码规模 / 提交活跃度 / CI 状态。
+            ...$this->buildRealMetrics(),
+        ];
+    }
+
+    /**
+     * 从采集快照聚合的真实指标。
+     *
+     * 这些数字有实际数据源（各项目 meta 由 ops 采集器写入），
+     * 与 tasks/risks 那套恒 0 的口径完全不同。
+     *
+     * @return array<string, int>
+     */
+    protected function buildRealMetrics(): array
+    {
+        $rows = Project::query()->get(['meta']);
+
+        $loc = 0;
+        $commits = 0;
+        $ciRed = 0;
+        for ($i = 0; $i < $rows->count(); $i++) {
+            $p = $rows[$i];
+            $loc += $p->code_loc;
+            $commits += $p->commits7d;
+            if ((bool) (is_array($p->meta) ? ($p->meta['ci_main_red'] ?? false) : false)) {
+                $ciRed++;
+            }
+        }
+
+        return [
+            'total_loc' => $loc,
+            'commits_7d' => $commits,
+            'ci_red_projects' => $ciRed,
         ];
     }
 
@@ -92,6 +128,11 @@ class DailyReportService
                 'completion_rate' => $p->tasks_count > 0
                     ? round(($p->done_count / $p->tasks_count) * 100)
                     : 0,
+                // 2026-10-31：无任务时以代码规模/提交数代替「0%」，避免日报里
+                // 每个项目都写成 "0% (0/0)"——那看起来像全线停滞，实际是没有任务数据。
+                'has_task_data' => $p->has_task_data,
+                'code_loc' => $p->code_loc,
+                'commits_7d' => $p->commits7d,
             ])
             ->toArray();
     }
@@ -164,18 +205,34 @@ class DailyReportService
         $md .= "| 指标 | 数量 |\n";
         $md .= "|------|------|\n";
         $md .= "| 活跃项目 | {$s['active_projects']} |\n";
-        $md .= "| 待办任务 | {$s['todo_tasks']} |\n";
-        $md .= "| 进行中 | {$s['in_progress_tasks']} |\n";
-        $md .= "| 已完成 | {$s['done_tasks']} |\n";
-        $md .= "| 延期任务 | {$s['overdue_tasks']} |\n";
+        $md .= '| 代码规模 | '.number_format(($s['total_loc'] ?? 0) / 10000, 1)." 万行 |\n";
+        $md .= '| 近 7 天提交 | '.($s['commits_7d'] ?? 0)." 次 |\n";
+        $md .= '| 主分支 CI 红 | '.($s['ci_red_projects'] ?? 0)." 个项目 |\n";
+        // 2026-10-31：任务/风险类指标在无数据时会全是 0，容易读成"全线停滞"，
+        // 因此明确标注口径，让人知道这是"没有数据源"而非"没有进展"。
+        $hasTaskData = ($s['total_tasks'] ?? 0) > 0;
+        if ($hasTaskData) {
+            $md .= "| 待办任务 | {$s['todo_tasks']} |\n";
+            $md .= "| 进行中 | {$s['in_progress_tasks']} |\n";
+            $md .= "| 已完成 | {$s['done_tasks']} |\n";
+            $md .= "| 延期任务 | {$s['overdue_tasks']} |\n";
+        } else {
+            $md .= "| 任务指标 | 未接入（pmf 无任务数据源） |\n";
+        }
         $md .= "| 开放风险 | {$s['open_risks']} |\n";
         $md .= "| 严重风险 | {$s['critical_risks']} |\n\n";
 
         $md .= "## 📋 项目详情\n\n";
         foreach ($report['projects'] as $p) {
             $md .= "### {$p['name']}\n";
-            $md .= "- 状态：{$p['status']} | 进度：{$p['completion_rate']}%\n";
-            $md .= "- 任务：{$p['done']}/{$p['total']} 已完成\n\n";
+            if (! empty($p['has_task_data'])) {
+                $md .= "- 状态：{$p['status']} | 进度：{$p['completion_rate']}%\n";
+                $md .= "- 任务：{$p['done']}/{$p['total']} 已完成\n\n";
+            } else {
+                $locRaw = (int) ($p['code_loc'] ?? 0);
+                $loc = $locRaw > 0 ? number_format($locRaw / 10000, 1).' 万行' : '未采集';
+                $md .= "- 状态：{$p['status']} | 代码：{$loc} | 近 7 天 {$p['commits_7d']} 次提交\n\n";
+            }
         }
 
         if (! empty($report['risks'])) {
