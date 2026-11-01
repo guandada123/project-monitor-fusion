@@ -53,10 +53,35 @@ for f in schema data; do
     fi
 done
 
-# 3. 逐表比对行数（只比 data.sql 覆盖的表）
+# 3. 敏感表备份（users / role_user / tokens / integrations）
+#   2026-11-01 补：原先只演练 data.sql 覆盖的 15 张表，而 data.sql **故意排除**了
+#   users 与 role_user —— 恰好是 10-31 事故里真丢、真需要的那两张。
+#   等于"演练了不带保险丝的电路"。这里把本地敏感快照也导进来，一起验。
+SENS_FILE=$(ls -t "$HOME"/.pmf-backups/sensitive-*.sql 2>/dev/null | head -1 || true)
+if [ -z "${SENS_FILE:-}" ]; then
+    echo "❌ 找不到敏感表快照（$HOME/.pmf-backups/sensitive-*.sql）—— 备份不完整，无法演练完整恢复" >&2
+    exit 1
+fi
+
+if ! pg_run psql -h 127.0.0.1 -U "$DB_USER" -d "$DRILL" -v ON_ERROR_STOP=1 -q \
+        < "$SENS_FILE" > /tmp/pmf-drill-sens.log 2>&1; then
+    echo "❌ 敏感快照导入失败：$(basename "$SENS_FILE")" >&2
+    tail -5 /tmp/pmf-drill-sens.log >&2
+    exit 1
+fi
+if grep -q '^ERROR' /tmp/pmf-drill-sens.log; then
+    echo "❌ 敏感快照导入过程中出现 ERROR（退出码却是 0）：" >&2
+    grep '^ERROR' /tmp/pmf-drill-sens.log | head -3 >&2
+    exit 1
+fi
+
+# 4. 逐表比对行数（data.sql 的表 + 敏感快照的表）
+TABLES=$( { grep -oE '^COPY public\.[a-z_]+' "$REPO/db/data.sql" | sed 's|COPY public\.||';
+            grep -oE '^COPY public\.[a-z_]+' "$SENS_FILE"       | sed 's|COPY public\.||'; } | sort -u )
+
 fail=0
 n=0
-for t in $(grep -oE '^COPY public\.[a-z_]+' "$REPO/db/data.sql" | sed 's/COPY public.//'); do
+for t in $TABLES; do
     a=$(psql_q "$DRILL"  "select count(*) from $t")
     b=$(psql_q "$DB_NAME" "select count(*) from $t")
     n=$((n + 1))
@@ -67,4 +92,4 @@ for t in $(grep -oE '^COPY public\.[a-z_]+' "$REPO/db/data.sql" | sed 's/COPY pu
 done
 
 [ "$fail" = "0" ] || { echo "❌ 恢复演练未通过" >&2; exit 1; }
-echo "✅ 恢复演练通过：$n 张表行数与生产一致（$(date '+%Y-%m-%d %H:%M')）"
+echo "✅ 恢复演练通过：$n 张表行数与生产一致（含敏感表 $(basename "$SENS_FILE")）· $(date '+%Y-%m-%d %H:%M')"
