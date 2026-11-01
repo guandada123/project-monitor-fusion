@@ -22,6 +22,28 @@ class DailyReportService
     }
 
     /**
+     * 日报的调度时间（HH:MM）。
+     *
+     * 2026-11-01：此前设置页能存 `feishu_daily_time` 也能回显，但 routes/console.php
+     * 写死 `dailyAt('08:30')` —— 改时间不生效，典型「已配置 ≠ 被读取」。
+     * 这里统一解析：读不到 / 值非法（含 25:99 这类）一律回落 08:30，
+     * **绝不让一个配置问题把整个调度注册搞挂**（调度挂了是全线停摆，比时间错更严重）。
+     */
+    public static function scheduledTime(): string
+    {
+        $fallback = '08:30';
+
+        try {
+            $configured = (string) app(SettingsService::class)->getString('feishu_daily_time', $fallback);
+        } catch (\Throwable) {
+            // 迁移未跑 / DB 不可达 / settings 表还不存在
+            return $fallback;
+        }
+
+        return preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $configured) === 1 ? $configured : $fallback;
+    }
+
+    /**
      * 生成完整日报数据
      */
     public function generate(): array

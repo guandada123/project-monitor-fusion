@@ -4,6 +4,7 @@ use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\DailyReportService;
+use App\Services\SettingsService;
 use Illuminate\Support\Facades\Artisan;
 
 // ─── Daily Report Command ───
@@ -157,4 +158,22 @@ test('daily report says no ci data when nothing collected', function () {
     expect($report['summary']['ci_data_as_of'])->toBeNull()
         ->and($report['summary']['ci_data_age_hours'])->toBeNull()
         ->and($service->ciFreshnessNote($report['summary']))->toBe('（无 CI 数据）');
+});
+
+// ─── 2026-11-01：日报时间必须真的来自设置 ───
+// 此前设置页能存 feishu_daily_time 也能回显，但调度写死 08:30 —— 改时间不生效。
+
+test('scheduled time follows the setting and falls back when invalid', function () {
+    $settings = app(SettingsService::class);
+
+    $settings->set('feishu_daily_time', '09:15', 'notification');
+    expect(DailyReportService::scheduledTime())->toBe('09:15');
+
+    // 非法值（小时越界）必须回落默认，而不是把坏值塞进 cron 表达式
+    $settings->set('feishu_daily_time', '25:99', 'notification');
+    expect(DailyReportService::scheduledTime())->toBe('08:30');
+
+    // 空值同样回落
+    $settings->set('feishu_daily_time', '', 'notification');
+    expect(DailyReportService::scheduledTime())->toBe('08:30');
 });

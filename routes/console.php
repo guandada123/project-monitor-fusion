@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\DailyReportService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -18,9 +19,13 @@ Artisan::command('inspire', function () {
 |
 */
 
-// 每日 08:30 — 生成日报并推送到飞书
+// 每日 08:30（默认）— 生成日报并推送到飞书
+// 2026-11-01：时间改为读设置项 feishu_daily_time。此前这条路写死 08:30，
+// 而设置页能存能回显该字段 —— 改时间不生效（「已配置 ≠ 被读取」）。
+// 解析逻辑放在 DailyReportService::scheduledTime()（含非法值回落 + 读库失败兜底），
+// 这样它是可单测的，而不是藏在路由文件里。
 Schedule::command('daily:report')
-    ->dailyAt('08:30')
+    ->dailyAt(DailyReportService::scheduledTime())
     ->appendOutputTo(storage_path('logs/daily-report.log'))
     ->description('项目日报生成与推送');
 
