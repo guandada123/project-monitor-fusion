@@ -192,17 +192,36 @@ class FeishuService
         ];
 
         // Summary stats
+        // 🔴 2026-11-01 修：卡片曾漏掉 10-31 的「假 0%」修复。
+        //    当时只改了命令行表格与 Markdown 两个渲染路径，卡片是第三个，
+        //    因为 webhook 一直没配、卡片从未真正发出去，所以没人发现它还在报
+        //    「待办 0/进行中 0/已完成 0」和「进度 0% (0/0)」。
+        //    教训：**同一份数据有几个渲染出口，就有几个地方会漏**——口径必须三处一致。
         $s = $report['summary'];
-        $elements[] = [
-            'tag' => 'markdown',
-            'content' => sprintf(
-                "📊 **总览**\n活跃项目：%d | 待办任务：%d | 进行中：%d | 已完成：%d",
-                $s['active_projects'] ?? 0,
+        $freshness = app(DailyReportService::class)->ciFreshnessNote($s);
+
+        $overview = [
+            '📊 **总览**',
+            '活跃项目：'.($s['active_projects'] ?? 0),
+            '代码规模：'.number_format(($s['total_loc'] ?? 0) / 10000, 1).' 万行',
+            '近 7 天提交：'.($s['commits_7d'] ?? 0).' 次',
+            '主分支 CI 红：'.($s['ci_red_projects'] ?? 0).' 个'.$freshness,
+        ];
+        if (($s['total_tasks'] ?? 0) > 0) {
+            $overview[] = sprintf(
+                '待办 %d | 进行中 %d | 已完成 %d | 延期 %d',
                 $s['todo_tasks'] ?? 0,
                 $s['in_progress_tasks'] ?? 0,
                 $s['done_tasks'] ?? 0,
-            ),
-        ];
+                $s['overdue_tasks'] ?? 0,
+            );
+        } else {
+            // 与 Markdown 同款说法：明确「没有数据源」，不让人读成「全线停滞」
+            $overview[] = '任务指标：未接入（无任务数据源）';
+        }
+        $overview[] = '开放风险：'.($s['open_risks'] ?? 0).'（严重 '.($s['critical_risks'] ?? 0).'）';
+
+        $elements[] = ['tag' => 'markdown', 'content' => implode("\n", $overview)];
 
         // Risk alerts
         if (! empty($report['risks'])) {
@@ -222,15 +241,29 @@ class FeishuService
             $idx = 1;
             foreach ($report['projects'] as $p) {
                 $statusEmoji = ['active' => '🟢', 'pending' => '🔵', 'completed' => '✅', 'archived' => '⚫'][$p['status']] ?? '⚪';
-                $projLines[] = sprintf(
-                    '%d. %s **%s** 进度 %.0f%%  (完成 %d/%d)',
-                    $idx++,
-                    $statusEmoji,
-                    $p['name'],
-                    $p['completion_rate'] ?? 0,
-                    $p['done'] ?? 0,
-                    $p['total'] ?? 0,
-                );
+                // 有任务数据才谈完成率；没有就报代码规模与提交活跃度（同 Markdown 口径）
+                if (! empty($p['has_task_data'])) {
+                    $projLines[] = sprintf(
+                        '%d. %s **%s** 进度 %.0f%%（完成 %d/%d）',
+                        $idx++,
+                        $statusEmoji,
+                        $p['name'],
+                        $p['completion_rate'] ?? 0,
+                        $p['done'] ?? 0,
+                        $p['total'] ?? 0,
+                    );
+                } else {
+                    $locRaw = (int) ($p['code_loc'] ?? 0);
+                    $loc = $locRaw > 0 ? number_format($locRaw / 10000, 1).' 万行' : '未采集代码';
+                    $projLines[] = sprintf(
+                        '%d. %s **%s** %s · 近 7 天 %d 次提交',
+                        $idx++,
+                        $statusEmoji,
+                        $p['name'],
+                        $loc,
+                        (int) ($p['commits_7d'] ?? 0),
+                    );
+                }
             }
             $elements[] = ['tag' => 'markdown', 'content' => implode("\n", $projLines)];
         }

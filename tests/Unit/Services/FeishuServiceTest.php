@@ -173,6 +173,9 @@ describe('buildDailyCard', function () {
                 'todo_tasks' => 10,
                 'in_progress_tasks' => 3,
                 'done_tasks' => 20,
+                // 2026-11-01：卡片刻意改成「有任务数据才列任务四项」，
+                // 故夹具必须带上 total_tasks —— buildSummary 一直都会输出它，之前漏写了。
+                'total_tasks' => 33,
             ],
             'projects' => [],
             'risks' => [],
@@ -206,7 +209,7 @@ describe('buildDailyCard', function () {
                 'done_tasks' => 0,
             ],
             'projects' => [
-                ['name' => 'Alpha', 'status' => 'active', 'completion_rate' => 60, 'done' => 3, 'total' => 5],
+                ['name' => 'Alpha', 'status' => 'active', 'completion_rate' => 60, 'done' => 3, 'total' => 5, 'has_task_data' => true],
             ],
             'risks' => [],
         ];
@@ -623,4 +626,48 @@ describe('edge cases', function () {
         expect($result['ok'])->toBeFalse();
         expect($result['error'])->toContain('Failed to connect');
     });
+});
+
+// ─── 2026-11-01：卡片口径必须与命令行/Markdown 一致 ───
+// 实例：webhook 配好后第一次真发卡片，群里看到的是「进度 0%（完成 0/0）」×9，
+// 正是 10-31 修掉的假 0%。原因：三个渲染出口只修了两个（表格、Markdown），
+// 卡片因为一直发不出去而没人发现。本用例锁住第三处。
+
+test('daily card shows real metrics instead of fake zero completion', function () {
+    $service = new FeishuService([]);
+
+    $report = [
+        'summary' => [
+            'active_projects' => 2,
+            'todo_tasks' => 0,
+            'in_progress_tasks' => 0,
+            'done_tasks' => 0,
+            'total_tasks' => 0,
+            'total_loc' => 364168,
+            'commits_7d' => 325,
+            'ci_red_projects' => 1,
+            'ci_data_as_of' => now()->subMinutes(12)->toIso8601String(),
+            'ci_data_age_hours' => 0.2,
+            'open_risks' => 0,
+            'critical_risks' => 0,
+        ],
+        'projects' => [
+            ['name' => 'Claw', 'status' => 'active', 'completion_rate' => 0, 'done' => 0, 'total' => 0,
+                'has_task_data' => false, 'code_loc' => 124780, 'commits_7d' => 155],
+        ],
+        'risks' => [],
+    ];
+
+    $card = $service->buildDailyCard($report);
+    $markdowns = array_filter($card['elements'], fn ($el) => $el['tag'] === 'markdown');
+    $text = implode("\n", array_column($markdowns, 'content'));
+
+    expect($text)->toContain('代码规模：36.4 万行')
+        ->and($text)->toContain('近 7 天提交：325 次')
+        ->and($text)->toContain('主分支 CI 红：1 个')
+        ->and($text)->toContain('数据截至')
+        ->and($text)->toContain('任务指标：未接入')
+        ->and($text)->toContain('12.5 万行')
+        ->and($text)->toContain('近 7 天 155 次提交')
+        ->and($text)->not->toContain('进度 0%');
 });
