@@ -177,3 +177,24 @@ test('scheduled time follows the setting and falls back when invalid', function 
     $settings->set('feishu_daily_time', '', 'notification');
     expect(DailyReportService::scheduledTime())->toBe('08:30');
 });
+
+// 阈值钉死：采集器 1 小时一刷，2h 还没刷就该标黄。
+// 这条用例的作用是「改回去会红」——把 2h 这个判断固化下来，
+// 而不是让下一个人随手把阈值调回 6h 而没人发现。
+test('flags ci data older than two hours as stale', function () {
+    $user = User::factory()->admin()->create();
+    Project::factory()->create([
+        'status' => 'active',
+        'meta' => [
+            'ci_status' => 'green',
+            'ci_main_red' => false,
+            'ci_last_run_at' => now()->subHours(3)->toIso8601String(),
+        ],
+    ]);
+
+    $service = new DailyReportService(now()->toDateString());
+    $report = $service->generate();
+
+    expect($report['summary']['ci_data_age_hours'])->toBeGreaterThan(2.0);
+    expect($service->toMarkdown($report))->toContain('CI 数据已陈旧');
+});
