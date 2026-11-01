@@ -75,21 +75,57 @@ if grep -q '^ERROR' /tmp/pmf-drill-sens.log; then
     exit 1
 fi
 
-# 4. 逐表比对行数（data.sql 的表 + 敏感快照的表）
+# 4. 逐表比对行数 —— **基准是快照自身，不是当前生产库**
+#
+# 🔴 2026-11-01 修（launchd 实跑抓到的必然假阴性）：
+#    原实现拿「当前生产库」当基准，而快照是若干小时前的。实测：晚上配好飞书后
+#    settings 由 0 行变 6 行、slow_queries 多 1 行 → 演练立刻报红：
+#        ❌ settings 行数不符：恢复=0 生产=6
+#    这个红和「备份能不能恢复」毫无关系 —— 它只是说明「快照之后有人动了数据」，
+#    而这是**备份的正常形态**。基准错了，判据就永远在报假警（同「基准须库外」）。
+#
+#    正确判据：恢复库的行数 == dump 文件里写着要导入的行数。
+#    这才是在验「导入有没有丢行」。快照 vs 生产的差异只作**信息**列出，不影响判定。
+dump_rows() {  # $1=文件 $2=表名 → 该表 COPY 段的数据行数
+    awk -v t="$2" '
+        index($0, "COPY public." t " ") == 1 { inb = 1; next }
+        /^COPY public\./                     { inb = 0 }
+        /^\\\.$/                             { inb = 0 }
+        inb                                  { c++ }
+        END                                  { print (c ? c : 0) }
+    ' "$1"
+}
+
 TABLES=$( { grep -oE '^COPY public\.[a-z_]+' "$REPO/db/data.sql" | sed 's|COPY public\.||';
             grep -oE '^COPY public\.[a-z_]+' "$SENS_FILE"       | sed 's|COPY public\.||'; } | sort -u )
 
 fail=0
 n=0
+drift=""
 for t in $TABLES; do
-    a=$(psql_q "$DRILL"  "select count(*) from $t")
-    b=$(psql_q "$DB_NAME" "select count(*) from $t")
+    restored=$(psql_q "$DRILL" "select count(*) from $t")
+    expect_in_data=$(dump_rows "$REPO/db/data.sql" "$t")
+    expect_in_sens=$(dump_rows "$SENS_FILE" "$t")
+    expect=$((expect_in_data + expect_in_sens))
     n=$((n + 1))
-    if [ "$a" != "$b" ]; then
-        echo "❌ $t 行数不符：恢复=$a 生产=$b" >&2
+
+    if [ "$restored" != "$expect" ]; then
+        echo "❌ $t 导入丢行：恢复=$restored 快照应含=$expect" >&2
         fail=1
+    fi
+
+    # 快照 vs 生产：只报告，不判定（快照滞后是常态）
+    live=$(psql_q "$DB_NAME" "select count(*) from $t")
+    if [ "$live" != "$expect" ]; then
+        drift="${drift}  $t: 快照 $expect / 生产 $live"$'\n'
     fi
 done
 
 [ "$fail" = "0" ] || { echo "❌ 恢复演练未通过" >&2; exit 1; }
-echo "✅ 恢复演练通过：$n 张表行数与生产一致（含敏感表 $(basename "$SENS_FILE")）· $(date '+%Y-%m-%d %H:%M')"
+
+if [ -n "$drift" ]; then
+    echo "ℹ️ 快照滞后于生产（正常，仅提示，不影响判定）："
+    printf '%s' "$drift"
+fi
+
+echo "✅ 恢复演练通过：$n 张表导入行数与快照完全一致（含敏感表 $(basename "$SENS_FILE")）· $(date '+%Y-%m-%d %H:%M')"
