@@ -1,9 +1,12 @@
 <?php
 
 use App\Models\SlowQuery;
+use App\Services\SettingsService;
 use App\Services\SlowQueryMonitor;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 
 // ─── SlowQuery Model ───
@@ -108,4 +111,45 @@ it('skips persistence when slow_queries table is not ready', function () {
     Schema::dropIfExists('slow_queries');
 
     expect($method->invoke($monitor))->toBeFalse();
+});
+
+// ─── 2026-11-01：飞书告警冷却（防同一症状复读）───
+// webhook 一配，≥1000ms 的慢查询就开始推飞书。实测全站日均个位数，
+// 但来源集中在空队列表轮询 —— 同一句 SQL 反复命中，推一次和推十次信息量相同。
+// 注意：冷却只作用于推送，日志与 slow_queries 表仍然全量记录（不静音）。
+
+it('throttles feishu alerts per sql fingerprint', function () {
+    Cache::flush();
+    app(SettingsService::class)->set('feishu_webhook_url', 'https://open.feishu.cn/hook/test', 'notification');
+    Http::fake(['*' => Http::response(['code' => 0], 200)]);
+
+    $monitor = new SlowQueryMonitor;
+    $method = new ReflectionMethod($monitor, 'pushFeishuAlert');
+    $method->setAccessible(true);
+
+    $jobsPoll = (object) ['sql' => 'select * from "jobs" where "queue" = ?', 'time' => 4200, 'connectionName' => 'pgsql'];
+    $cacheDel = (object) ['sql' => 'delete from "cache" where "key" = ?', 'time' => 1800, 'connectionName' => 'pgsql'];
+
+    $method->invoke($monitor, $jobsPoll);
+    $method->invoke($monitor, $jobsPoll);   // 同指纹 → 冷却命中，不推
+    $method->invoke($monitor, $cacheDel);   // 不同指纹 → 照常推
+
+    Http::assertSentCount(2);
+});
+
+it('does not throttle when cooldown window is zero', function () {
+    Cache::flush();
+    config(['ops.slow_query_alert_cooldown_min' => 0]);
+    app(SettingsService::class)->set('feishu_webhook_url', 'https://open.feishu.cn/hook/test', 'notification');
+    Http::fake(['*' => Http::response(['code' => 0], 200)]);
+
+    $monitor = new SlowQueryMonitor;
+    $method = new ReflectionMethod($monitor, 'pushFeishuAlert');
+    $method->setAccessible(true);
+
+    $q = (object) ['sql' => 'select * from "jobs" where "queue" = ?', 'time' => 4200, 'connectionName' => 'pgsql'];
+    $method->invoke($monitor, $q);
+    $method->invoke($monitor, $q);
+
+    Http::assertSentCount(2);
 });

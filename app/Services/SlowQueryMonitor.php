@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\SlowQuery;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Request;
@@ -138,12 +139,36 @@ class SlowQueryMonitor
                 return;
             }
 
+            // 🔴 2026-11-01：同一 SQL 指纹冷却，防同一症状反复刷群。
+            // 背景（实测）：全站慢查询日均个位数，但来源高度集中 —— 空队列表轮询
+            // `select * from "jobs" ...` 反复命中 4s 级，看得到也处理不了。
+            // 同一症状一天内重复推送没有新增信息量，只会让人开始忽略这个群
+            // （告警价值 = 症状准 × 药方对，重复推送把「药方」稀释成 0）。
+            // **只降推送频次，不静音**：日志与 slow_queries 表照常全量记录，
+            // 复盘要数据的时候一条不少。窗口可配，设 0 即关闭冷却。
+            $cooldownMin = (int) config('ops.slow_query_alert_cooldown_min', 30);
+            $fingerprint = 'slowq_alert:'.md5((string) $query->sql);
+
+            if ($cooldownMin > 0 && Cache::has($fingerprint)) {
+                Log::info('慢查询告警冷却中，本次不推送', [
+                    'sql' => $this->truncateSql($query->sql, 120),
+                    'duration_ms' => $query->time,
+                    'cooldown_min' => $cooldownMin,
+                ]);
+
+                return;
+            }
+
             $feishu->sendText(sprintf(
                 "⚠️ 慢查询告警\n耗时：%dms\n连接：%s\nSQL：%s",
                 $query->time,
                 $query->connectionName,
                 $this->truncateSql($query->sql, 200)
             ));
+
+            if ($cooldownMin > 0) {
+                Cache::put($fingerprint, now()->toIso8601String(), now()->addMinutes($cooldownMin));
+            }
         } catch (\Throwable $e) {
             Log::error('慢查询飞书推送失败', [
                 'error' => $e->getMessage(),

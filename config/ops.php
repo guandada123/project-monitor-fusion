@@ -22,6 +22,10 @@ return [
     // 日报必须把「数据时点」一并报出来，超过本阈值再加显式陈旧警告。
     'ci_stale_hours' => (int) env('OPS_CI_STALE_HOURS', 6),
 
+    // 2026-11-01：慢查询飞书告警的同 SQL 冷却窗口（分钟），0 = 关闭冷却。
+    // 只降推送频次，日志与 slow_queries 表照常全量记录 —— 不静音，只防复读。
+    'slow_query_alert_cooldown_min' => (int) env('OPS_SLOW_QUERY_COOLDOWN_MIN', 30),
+
     // HTTP 探测目标（端口可用 env 覆盖，与 QTS compose 的端口映射对齐）
     'http_targets' => [
         'qts_engine' => ['port' => (int) env('OPS_QTS_ENGINE_PORT', 8000), 'path' => '/health'],
