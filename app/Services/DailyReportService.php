@@ -110,12 +110,13 @@ class DailyReportService
      */
     protected function buildRealMetrics(): array
     {
-        $rows = Project::query()->get(['meta']);
+        // config 必须一起 select：snapshot_generated_at 写在 config 里，只取 meta 永远读不到。
+        $rows = Project::query()->get(['meta', 'config']);
 
         $loc = 0;
         $commits = 0;
         $ciRed = 0;
-        $latestCiRun = null;
+        $latestCollectedAt = null;
         for ($i = 0; $i < $rows->count(); $i++) {
             $p = $rows[$i];
             $loc += $p->code_loc;
@@ -124,34 +125,39 @@ class DailyReportService
             if ((bool) ($meta['ci_main_red'] ?? false)) {
                 $ciRed++;
             }
-            // 取全项目里最新的一次 CI 运行时间：它是「CI 那三个数最多新到什么时候」的凭证
-            $runAt = $meta['ci_last_run_at'] ?? null;
-            if (is_string($runAt) && $runAt !== '') {
+
+            // ── 2026-11-05：新鲜度判据必须是「采集时点」，不是「CI 最近一次运行」 ──
+            // 踩过的坑：原实现取 meta.ci_last_run_at（被观测对象最后一次事件时间）。
+            // CI 只在 push 时触发，每天 03:00 快照跑完到 08:30 都没有新 run，
+            // 于是 2h 阈值下日报连续 3 天写「CI 数据已陈旧」—— 而采集器 07:20 刚刷过、
+            // 导入每 30 分钟一次，数据其实是新的。狼来了叫三次就没人看了。
+            // 正确判据：ops:import-snapshot 写入的 config.snapshot_generated_at。
+            // 采集器若真挂掉，这个值会停在原地并持续增长 → 2h 阈值照常报警。
+            $cfg = is_array($p->config) ? $p->config : [];
+            $collectedAt = $cfg['snapshot_generated_at'] ?? null;
+            if (is_string($collectedAt) && $collectedAt !== '') {
                 try {
-                    $ts = Carbon::parse($runAt);
+                    $ts = Carbon::parse($collectedAt);
                 } catch (\Throwable) {
                     $ts = null;
                 }
-                if ($ts !== null && ($latestCiRun === null || $ts->gt($latestCiRun))) {
-                    $latestCiRun = $ts;
+                if ($ts !== null && ($latestCollectedAt === null || $ts->gt($latestCollectedAt))) {
+                    $latestCollectedAt = $ts;
                 }
             }
         }
 
-        // ── 2026-11-01：把 CI 数据的时点一起吐出来 ──
-        // 实测过一次「假事实」：Claw 在 22:56Z / 23:05Z 两次 CI failure，
-        // 日报仍报「主分支 CI 红 0 个项目」—— 不是算错了，是快照还停在 22:52Z 的旧状态。
-        // 只报数字不报数据时点，等于把有延迟的数说成实时事实。
-        // 故这里补 ci_data_as_of / ci_data_age_hours，由渲染层决定怎么说人话。
-        $ciAgeHours = $latestCiRun === null
+        // 只报数字不报数据时点，等于把有延迟的数说成实时事实（2026-11-01 实例：
+        // Claw 两次 CI failure 期间日报仍报「CI 红 0 个」—— 算法没错，是快照旧）。
+        $ciAgeHours = $latestCollectedAt === null
             ? null
-            : round($latestCiRun->diffInMinutes(now()) / 60, 1);
+            : round($latestCollectedAt->diffInMinutes(now()) / 60, 1);
 
         return [
             'total_loc' => $loc,
             'commits_7d' => $commits,
             'ci_red_projects' => $ciRed,
-            'ci_data_as_of' => $latestCiRun?->toIso8601String(),
+            'ci_data_as_of' => $latestCollectedAt?->toIso8601String(),
             'ci_data_age_hours' => $ciAgeHours,
         ];
     }

@@ -96,6 +96,7 @@ test('daily:report with date option works', function () {
 // ── 2026-11-01：CI 数据时点必须随数字一起报出 ──
 // 实例：Claw 两次 CI failure 期间，日报仍报「CI 红 0 个项目」——算法没错，是快照旧。
 // 只报数字不报时点，等于把有延迟的数说成实时事实。
+// 2026-11-05 起，时点指「采集时点」(config.snapshot_generated_at)，不是 CI 最后运行时间。
 
 test('daily report discloses ci data age and flags stale data', function () {
     $user = User::factory()->admin()->create();
@@ -104,8 +105,9 @@ test('daily report discloses ci data age and flags stale data', function () {
         'meta' => [
             'ci_status' => 'green',
             'ci_main_red' => false,
-            'ci_last_run_at' => now()->subHours(9)->toIso8601String(),
+            'ci_last_run_at' => now()->subMinutes(5)->toIso8601String(),
         ],
+        'config' => ['snapshot_generated_at' => now()->subHours(9)->toIso8601String()],
     ]);
 
     $service = new DailyReportService(now()->toDateString());
@@ -131,10 +133,12 @@ test('daily report counts red ci and stays quiet when data is fresh', function (
             'ci_main_red' => true,
             'ci_last_run_at' => now()->subMinutes(20)->toIso8601String(),
         ],
+        'config' => ['snapshot_generated_at' => now()->subMinutes(20)->toIso8601String()],
     ]);
     Project::factory()->create([
         'status' => 'active',
         'meta' => ['ci_status' => 'green', 'ci_main_red' => false, 'ci_last_run_at' => now()->subMinutes(35)->toIso8601String()],
+        'config' => ['snapshot_generated_at' => now()->subMinutes(35)->toIso8601String()],
     ]);
 
     $service = new DailyReportService(now()->toDateString());
@@ -150,6 +154,7 @@ test('daily report counts red ci and stays quiet when data is fresh', function (
 
 test('daily report says no ci data when nothing collected', function () {
     $user = User::factory()->admin()->create();
+    // factory 不带 config.snapshot_generated_at = 从未被采集器导入过 → 无数据时点
     Project::factory()->create(['status' => 'active', 'meta' => ['type' => 'x']]);
 
     $service = new DailyReportService(now()->toDateString());
@@ -178,7 +183,7 @@ test('scheduled time follows the setting and falls back when invalid', function 
     expect(DailyReportService::scheduledTime())->toBe('08:30');
 });
 
-// 阈值钉死：采集器 1 小时一刷，2h 还没刷就该标黄。
+// 阈值钉死：采集器约 1 小时一刷，2h 没刷就该标黄。
 // 这条用例的作用是「改回去会红」——把 2h 这个判断固化下来，
 // 而不是让下一个人随手把阈值调回 6h 而没人发现。
 test('flags ci data older than two hours as stale', function () {
@@ -188,13 +193,57 @@ test('flags ci data older than two hours as stale', function () {
         'meta' => [
             'ci_status' => 'green',
             'ci_main_red' => false,
-            'ci_last_run_at' => now()->subHours(3)->toIso8601String(),
+            'ci_last_run_at' => now()->subMinutes(5)->toIso8601String(),
         ],
+        'config' => ['snapshot_generated_at' => now()->subHours(3)->toIso8601String()],
     ]);
 
     $service = new DailyReportService(now()->toDateString());
     $report = $service->generate();
 
     expect($report['summary']['ci_data_age_hours'])->toBeGreaterThan(2.0);
+    expect($service->toMarkdown($report))->toContain('CI 数据已陈旧');
+});
+
+// ─── 2026-11-05：新鲜度判据回归（日报连标 3 天假陈旧）───
+// 线上实况：采集器 07:20 刚刷、ops:import-snapshot 每 30 分钟导入，数据很新；
+// 但旧实现拿 meta.ci_last_run_at（CI 最后一次 push 触发时间，每天 03:00）当新鲜度，
+// 2h 阈值下 08:30 日报天天写「CI 数据已陈旧」。CI 没跑 ≠ 数据没采。
+
+test('does not flag stale data when snapshot is fresh but ci has not run', function () {
+    $user = User::factory()->admin()->create();
+    Project::factory()->create([
+        'status' => 'active',
+        'meta' => [
+            'ci_status' => 'green',
+            'ci_main_red' => false,
+            'ci_last_run_at' => now()->subDays(3)->toIso8601String(),
+        ],
+        'config' => ['snapshot_generated_at' => now()->subMinutes(10)->toIso8601String()],
+    ]);
+
+    $service = new DailyReportService(now()->toDateString());
+    $report = $service->generate();
+
+    expect($report['summary']['ci_data_age_hours'])->toBeLessThan(1.0);
+    expect($service->toMarkdown($report))->not->toContain('CI 数据已陈旧');
+});
+
+test('flags stale snapshot even when ci ran a moment ago', function () {
+    $user = User::factory()->admin()->create();
+    Project::factory()->create([
+        'status' => 'active',
+        'meta' => [
+            'ci_status' => 'green',
+            'ci_main_red' => false,
+            'ci_last_run_at' => now()->subMinutes(2)->toIso8601String(),
+        ],
+        'config' => ['snapshot_generated_at' => now()->subHours(5)->toIso8601String()],
+    ]);
+
+    $service = new DailyReportService(now()->toDateString());
+    $report = $service->generate();
+
+    expect($report['summary']['ci_data_age_hours'])->toBeGreaterThan(4.0);
     expect($service->toMarkdown($report))->toContain('CI 数据已陈旧');
 });
