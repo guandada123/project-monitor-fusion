@@ -19,7 +19,9 @@ class Dashboard extends Component
     /** 趋势数据回溯天数（含今天） */
     private const DEFAULT_TREND_DAYS = 7;
 
-    private const int TREND_OFFSET = self::DEFAULT_TREND_DAYS - 1; // 6
+    // 不用 native typed constant（PHP 8.3+）：composer 声明 php ^8.2，
+    // larastan 3.13 按 8.2 解析会直接报「only supported on PHP 8.3 and later」。
+    private const TREND_OFFSET = self::DEFAULT_TREND_DAYS - 1; // 6
 
     // ——— Filter state (URL-persisted via Livewire 3 #[Url]) ———
     #[Url(as: 'status', history: true)]

@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /**
  * @property-read bool          $is_overdue
  * @property-read User|null     $assignee
+ * @property-read User|null     $creator
  * @property-read Collection<int,User> $assignees
  * @property-read Carbon|null $due_at
  * @property-read Project|null  $project
@@ -24,7 +25,7 @@ class Task extends Model
 
     protected $fillable = [
         'project_id', 'external_id', 'title', 'description',
-        'assignee_id', 'status', 'priority', 'sort_order',
+        'creator_id', 'assignee_id', 'status', 'priority', 'sort_order',
         'estimate', 'spent', 'start_at', 'due_at', 'completed_at',
         'tags', 'meta',
     ];
@@ -49,6 +50,14 @@ class Task extends Model
     public function assignee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assignee_id');
+    }
+
+    /**
+     * 创建人（2026-11-05 补：TaskController 早已 load('creator')，但关系不存在 → show 接口 500）。
+     */
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'creator_id');
     }
 
     public function assignments(): HasMany

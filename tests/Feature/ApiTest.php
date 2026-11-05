@@ -192,6 +192,41 @@ test('api create task with valid data', function () {
         ->assertJsonPath('data.title', 'API Task');
 });
 
+// ─── 2026-11-05：creator 关系缺失（larastan 3.13 报出的真 bug，不是误报）───
+// store() 写 creator_id 但列与 fillable 都没有 → 静默丢弃（接口照样 201）；
+// show() 直接 load('creator') 但关系不存在 → GET /api/tasks/{id} 500。
+
+test('api create task records its creator', function () {
+    $user = User::factory()->admin()->create();
+    $token = $user->createToken('API');
+    $project = Project::factory()->create(['owner_id' => $user->id]);
+
+    $response = $this->withToken($token->plainTextToken)
+        ->postJson('/api/tasks', [
+            'project_id' => $project->id,
+            'title' => 'Owned Task',
+        ]);
+
+    $response->assertCreated()
+        ->assertJsonPath('data.creator_id', $user->id);
+});
+
+test('api show task loads creator without 500', function () {
+    $user = User::factory()->admin()->create();
+    $token = $user->createToken('API');
+    $project = Project::factory()->create(['owner_id' => $user->id]);
+    $task = Task::factory()->create([
+        'project_id' => $project->id,
+        'creator_id' => $user->id,
+    ]);
+
+    $response = $this->withToken($token->plainTextToken)
+        ->getJson('/api/tasks/'.$task->id);
+
+    $response->assertOk()
+        ->assertJsonPath('data.creator.id', $user->id);
+});
+
 test('api batch update task status', function () {
     $user = User::factory()->admin()->create();
     $token = $user->createToken('API');
