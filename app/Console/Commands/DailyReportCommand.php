@@ -110,6 +110,7 @@ class DailyReportCommand extends Command
         }
 
         // 6. 推送到飞书
+        $pushFailed = false;
         if (! $this->option('no-push')) {
             if ($this->feishu->shouldSendDaily()) {
                 $this->info('📤 推送飞书日报...');
@@ -119,16 +120,48 @@ class DailyReportCommand extends Command
                 if ($result['ok']) {
                     $this->info('✅ 飞书推送成功');
                 } else {
-                    $this->error('❌ 飞书推送失败：'.($result['error'] ?? '未知错误'));
-                    $this->line('  提示：请在系统设置中配置飞书 Webhook URL');
+                    $pushFailed = true;
+                    $error = (string) ($result['error'] ?? '未知错误');
+                    $this->error('❌ 飞书推送失败：'.$error);
+                    // 2026-11-05 08:30 真实事故：飞书应用侧限流（frequency limited），
+                    // 旧代码却一律提示「请配置 Webhook URL」，把可恢复的限流误导成配置缺失；
+                    // 且失败后照样打印 ✅ 并退出 0 —— 调度器永远看不到「日报没送到」。
+                    $this->line('  '.$this->feishuFailureHint($error, $date));
                 }
             } else {
                 $this->warn('⚠️ 飞书未配置或已禁用日报推送');
             }
         }
 
+        if ($pushFailed) {
+            $this->warn('⚠️ 日报已生成，但飞书推送失败（见上方错误）—— 本次按失败退出');
+
+            return self::FAILURE;
+        }
+
         $this->info('✅ 日报生成完成');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * 按真实失败原因给可操作的提示，不给「万能模板」。
+     */
+    private function feishuFailureHint(string $error, string $date): string
+    {
+        $lower = mb_strtolower($error);
+
+        if (str_contains($lower, 'frequency limited')
+            || str_contains($lower, 'rate limit')
+            || str_contains($lower, 'too many request')
+            || str_contains($lower, 'http 429')) {
+            return '原因：飞书应用侧限流（非配置问题，Webhook 已配置）。稍后可补发：php artisan daily:report --date='.$date;
+        }
+
+        if (str_contains($lower, '未配置') || str_contains($lower, 'webhook')) {
+            return '原因：Webhook 未配置或地址无效 —— 请在系统设置中配置飞书 Webhook URL';
+        }
+
+        return '原因：请求未能送达（网络 / HTTP / 飞书返回错误）—— 详见 storage/logs/laravel.log 的 Feishu webhook 记录';
     }
 }

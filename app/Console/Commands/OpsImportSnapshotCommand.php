@@ -22,7 +22,7 @@ class OpsImportSnapshotCommand extends Command
 {
     protected $signature = 'ops:import-snapshot
                             {--dry-run : 只解析并报告，不写库}
-                            {--stale-hours=6 : 快照超过该小时数视为陈旧（仍导入，但告警）}';
+                            {--stale-hours= : 快照超过该小时数视为陈旧（仍导入，但告警）；默认取 ops.ci_stale_hours}';
 
     protected $description = '把 Claw 采集的 ops_snapshot.json 同步进 projects 表';
 
@@ -45,7 +45,10 @@ class OpsImportSnapshotCommand extends Command
         }
 
         $generatedAt = $snap['generated_at'] ?? null;
-        $staleHours = (int) $this->option('stale-hours');
+        // 2026-11-05：与日报共用同一个阈值真源。此前这里写死 6h、日报是 2h，
+        // 同一份快照在导入端「不报警」、在日报里却「已陈旧」，双口径互相打架。
+        // 仍允许 --stale-hours 显式覆盖（排障时用），但不传时一律跟 config 走。
+        $staleHours = (int) ($this->option('stale-hours') ?? config('ops.ci_stale_hours', 2));
         $ageHours = null;
 
         if ($generatedAt) {

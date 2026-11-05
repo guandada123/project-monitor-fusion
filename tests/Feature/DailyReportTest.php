@@ -4,8 +4,10 @@ use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\DailyReportService;
+use App\Services\FeishuService;
 use App\Services\SettingsService;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Http;
 
 // ─── Daily Report Command ───
 
@@ -246,4 +248,56 @@ test('flags stale snapshot even when ci ran a moment ago', function () {
 
     expect($report['summary']['ci_data_age_hours'])->toBeGreaterThan(4.0);
     expect($service->toMarkdown($report))->toContain('CI 数据已陈旧');
+});
+
+// ─── 2026-11-05 08:30 真实事故：飞书限流被误报成「未配置」，且失败仍退出 0 ───
+// 自动核对任务在日志里抓到：
+//   ❌ 飞书推送失败：frequency limited psm[lark.oapi.app_platform_runtime]appID[1500]
+//      提示：请在系统设置中配置飞书 Webhook URL   ← 误导：webhook 明明已配好
+//   ✅ 日报生成完成                              ← 假绿灯：调度器永远看不到失败
+// 下面三条把「说真话」和「失败可见」都钉死。
+
+function fakeFeishuWebhook(): void
+{
+    // FeishuService 会缓存 settings，必须先丢弃实例再写配置
+    app()->forgetInstance(FeishuService::class);
+    app(SettingsService::class)->set('feishu_webhook_url', 'https://open.feishu.cn/hook/test', 'notification');
+}
+
+test('daily:report reports rate limit honestly and exits non-zero', function () {
+    fakeFeishuWebhook();
+    Http::fake([
+        '*' => Http::response(['code' => 9499, 'msg' => 'frequency limited psm[lark.oapi.app_platform_runtime]appID[1500]'], 200),
+    ]);
+
+    $exit = Artisan::call('daily:report');
+    $out = Artisan::output();
+
+    expect($exit)->toBe(1)
+        ->and($out)->toContain('飞书应用侧限流')
+        ->and($out)->toContain('daily:report --date=')
+        ->and($out)->not->toContain('请配置飞书 Webhook URL')
+        ->and($out)->not->toContain('✅ 日报生成完成');
+});
+
+test('daily:report gives delivery hint for non-ratelimit failures', function () {
+    fakeFeishuWebhook();
+    Http::fake(['*' => Http::response(['code' => 19001, 'msg' => 'internal error'], 200)]);
+
+    $exit = Artisan::call('daily:report');
+    $out = Artisan::output();
+
+    expect($exit)->toBe(1)
+        ->and($out)->toContain('请求未能送达')
+        ->and($out)->not->toContain('请配置飞书 Webhook URL');
+});
+
+test('daily:report still exits zero when push succeeds', function () {
+    fakeFeishuWebhook();
+    Http::fake(['*' => Http::response(['code' => 0], 200)]);
+
+    $exit = Artisan::call('daily:report');
+
+    expect($exit)->toBe(0)
+        ->and(Artisan::output())->toContain('✅ 飞书推送成功');
 });
