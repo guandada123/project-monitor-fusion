@@ -87,6 +87,23 @@ class FeishuService
         return $this->getWebhookUrl() !== '';
     }
 
+    /**
+     * 是否是飞书侧限流（HTTP 200 + code≠0 的 frequency limited，或 429）。
+     *
+     * 抽成公共判据：调用方要据此决定「退避重试」还是「直接放弃」，
+     * 关键字不能各写一套 —— 2026-11-05 之前就是因为只在命令里认「frequency limited」，
+     * 而 service 层这个分支连日志都不打，导致限流在 laravel.log 里完全不可见。
+     */
+    public static function isRateLimitError(string $error): bool
+    {
+        $lower = mb_strtolower($error);
+
+        return str_contains($lower, 'frequency limited')
+            || str_contains($lower, 'rate limit')
+            || str_contains($lower, 'too many request')
+            || str_contains($lower, 'http 429');
+    }
+
     public function shouldSendDaily(): bool
     {
         return $this->isConfigured() && $this->isDailyReportEnabled();
@@ -121,6 +138,15 @@ class FeishuService
                 if (($body['code'] ?? -1) === 0) {
                     return ['ok' => true];
                 }
+
+                // 2026-11-05：这分支原来只 return、不打日志。飞书限流是 HTTP 200 + code≠0，
+                // 于是 laravel.log 里查不到任何痕迹，排障只能靠调用方打印的那行中文。
+                Log::warning('Feishu webhook rejected', [
+                    'code' => $body['code'] ?? null,
+                    'msg' => $body['msg'] ?? null,
+                    'msg_type' => 'interactive',
+                    'rate_limited' => self::isRateLimitError((string) ($body['msg'] ?? '')),
+                ]);
 
                 return ['ok' => false, 'error' => $body['msg'] ?? '飞书返回错误'];
             }

@@ -36,6 +36,11 @@ return [
     // 只降推送频次，日志与 slow_queries 表照常全量记录 —— 不静音，只防复读。
     'slow_query_alert_cooldown_min' => (int) env('OPS_SLOW_QUERY_COOLDOWN_MIN', 30),
 
+    // 2026-11-05：日报推送命中飞书限流（frequency limited）后，重试一次前的等待秒数。
+    // 只缓解「瞬时抖动」，不解决持续限流 —— 后者应错峰（改发车时间）而不是拉长重试。
+    // 设 0 = 不等待立即重试；设负数/0 也用于测试。
+    'feishu_rate_limit_retry_delay_sec' => (int) env('OPS_FEISHU_RETRY_DELAY_SEC', 5),
+
     // HTTP 探测目标（端口可用 env 覆盖，与 QTS compose 的端口映射对齐）
     'http_targets' => [
         'qts_engine' => ['port' => (int) env('OPS_QTS_ENGINE_PORT', 8000), 'path' => '/health'],

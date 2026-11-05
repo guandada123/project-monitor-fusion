@@ -266,6 +266,7 @@ function fakeFeishuWebhook(): void
 
 test('daily:report reports rate limit honestly and exits non-zero', function () {
     fakeFeishuWebhook();
+    config(['ops.feishu_rate_limit_retry_delay_sec' => 0]);
     Http::fake([
         '*' => Http::response(['code' => 9499, 'msg' => 'frequency limited psm[lark.oapi.app_platform_runtime]appID[1500]'], 200),
     ]);
@@ -300,4 +301,52 @@ test('daily:report still exits zero when push succeeds', function () {
 
     expect($exit)->toBe(0)
         ->and(Artisan::output())->toContain('✅ 飞书推送成功');
+});
+
+// 限流是暂时性的（11-05 11:05 补发即成功），值得退避重试一次；
+// 但只能重试一次 —— 反复打飞书只会延长限流窗口。
+
+test('daily:report retries once after rate limit and can succeed', function () {
+    fakeFeishuWebhook();
+    config(['ops.feishu_rate_limit_retry_delay_sec' => 0]);
+    Http::fake([
+        '*' => Http::sequence()
+            ->push(['code' => 9499, 'msg' => 'frequency limited psm[lark.oapi.app_platform_runtime]appID[1500]'], 200)
+            ->push(['code' => 0], 200),
+    ]);
+
+    $exit = Artisan::call('daily:report');
+    $out = Artisan::output();
+
+    expect($exit)->toBe(0)
+        ->and($out)->toContain('命中飞书限流')
+        ->and($out)->toContain('重试成功')
+        ->and($out)->toContain('✅ 飞书推送成功');
+    Http::assertSentCount(2);
+});
+
+test('daily:report gives up after a single retry when still rate limited', function () {
+    fakeFeishuWebhook();
+    config(['ops.feishu_rate_limit_retry_delay_sec' => 0]);
+    Http::fake([
+        '*' => Http::response(['code' => 9499, 'msg' => 'frequency limited psm[lark.oapi.app_platform_runtime]appID[1500]'], 200),
+    ]);
+
+    $exit = Artisan::call('daily:report');
+
+    expect($exit)->toBe(1)
+        ->and(Artisan::output())->toContain('飞书应用侧限流');
+    Http::assertSentCount(2);
+});
+
+test('daily:report does not retry non-ratelimit failures', function () {
+    fakeFeishuWebhook();
+    config(['ops.feishu_rate_limit_retry_delay_sec' => 0]);
+    Http::fake(['*' => Http::response(['code' => 19001, 'msg' => 'internal error'], 200)]);
+
+    $exit = Artisan::call('daily:report');
+
+    expect($exit)->toBe(1)
+        ->and(Artisan::output())->not->toContain('命中飞书限流');
+    Http::assertSentCount(1);
 });

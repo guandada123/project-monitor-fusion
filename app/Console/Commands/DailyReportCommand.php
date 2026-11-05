@@ -117,6 +117,20 @@ class DailyReportCommand extends Command
                 $card = $this->feishu->buildDailyCard($report);
                 $result = $this->feishu->sendInteractiveCard($card);
 
+                // 2026-11-05：限流是暂时性的（当天 11:05 补发即 ok），值得退避重试一次；
+                // 配置缺失 / 网络错误重试无意义，不浪费一次请求。
+                if (! ($result['ok'] ?? false) && FeishuService::isRateLimitError((string) ($result['error'] ?? ''))) {
+                    $delay = (int) config('ops.feishu_rate_limit_retry_delay_sec', 5);
+                    $this->warn("  ↻ 命中飞书限流，{$delay}s 后重试一次…");
+                    if ($delay > 0) {
+                        sleep($delay);
+                    }
+                    $result = $this->feishu->sendInteractiveCard($card);
+                    if ($result['ok'] ?? false) {
+                        $this->line('  ✅ 重试成功');
+                    }
+                }
+
                 if ($result['ok']) {
                     $this->info('✅ 飞书推送成功');
                 } else {
@@ -149,14 +163,11 @@ class DailyReportCommand extends Command
      */
     private function feishuFailureHint(string $error, string $date): string
     {
-        $lower = mb_strtolower($error);
-
-        if (str_contains($lower, 'frequency limited')
-            || str_contains($lower, 'rate limit')
-            || str_contains($lower, 'too many request')
-            || str_contains($lower, 'http 429')) {
+        if (FeishuService::isRateLimitError($error)) {
             return '原因：飞书应用侧限流（非配置问题，Webhook 已配置）。稍后可补发：php artisan daily:report --date='.$date;
         }
+
+        $lower = mb_strtolower($error);
 
         if (str_contains($lower, '未配置') || str_contains($lower, 'webhook')) {
             return '原因：Webhook 未配置或地址无效 —— 请在系统设置中配置飞书 Webhook URL';
