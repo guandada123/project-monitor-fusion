@@ -30,8 +30,20 @@ if [ "$1" = "php-fpm" ]; then
     fi
 
     # 运行迁移
+    #
+    # 2026-11-14 决策记录：**故意不加交互式人工确认**。
+    # 理由：容器启动没有 TTY，任何 read/confirm 都会让 php-fpm 永远等下去 ——
+    # 「等人工放行」= 服务直接不可用，比迁移失败更糟。可行的替代（环境变量开关）
+    # 会引入「忘记手动迁移 → 代码与库结构不一致」的新风险，同样更危险。
+    # 因此保留自动迁移，改为把失败变成**显式可见的致命错误**：
+    # set -e 本来就会退出，但日志里只有 artisan 的原始输出，容易被 restart
+    # 循环掩盖成「容器起不来」。这里补一行归因明确的 FATAL。
     echo "→ 运行数据库迁移..."
-    php artisan migrate --force
+    if ! php artisan migrate --force; then
+        echo "❌ FATAL: 数据库迁移失败，容器退出。请查看上方 artisan 输出；"
+        echo "   若容器在 restart 循环中，用 docker compose logs --tail=80 app 定位。"
+        exit 1
+    fi
 
     # 初始种子 (首次部署)
     if [ ! -f /var/www/storage/app/.seeded ]; then

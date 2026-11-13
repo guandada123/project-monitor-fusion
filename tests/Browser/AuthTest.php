@@ -116,7 +116,11 @@ test('login with invalid credentials shows error', function () {
             ->type('email', 'wrong@example.com')
             ->type('password', 'wrongpassword')
             ->click('button[type="submit"]')
-            ->pause(3000)
+            // 2026-11-14：原为 pause(3000) 盲等。改成等错误消息出现（与下方
+            // assertPresent 用同一组选择器，已由 CI 证明可匹配）：
+            // 固定等待在慢机器上会不够、在快机器上白等，且失败时报的是
+            // 「未到 3 秒」而不是「错误消息没出现」，排查方向会被带偏。
+            ->waitFor('.text-red-500, [style*="color"], .animate-fade-in', 10)
             // After failed login, should still be on login page
             ->assertPathIs('/login')
             // The error message should appear somewhere
@@ -132,7 +136,11 @@ test('login with empty fields shows validation error', function () {
             // 否则 wire:submit 尚未注册，点击会落到原生提交（停在 /login）
             ->waitUntil('typeof window.Livewire !== "undefined" && window.Livewire.initialRenderIsFinished === true', 15)
             ->click('button[type="submit"]')
-            ->pause(3000)
+            // 2026-11-14：原为 pause(3000) 只断言「还在 /login」—— 等于什么都没验
+            // （提交失败、请求没发出、校验没跑，三种情况都"通过"）。登录表单没有
+            // HTML5 required，空字段必然走 Livewire 校验并渲染错误块，所以等错误
+            // 消息出现才是真断言。
+            ->waitFor('.text-red-500, [style*="color"], .animate-fade-in', 10)
             // After failed validation, should still be on login page
             ->assertPathIs('/login');
     });
