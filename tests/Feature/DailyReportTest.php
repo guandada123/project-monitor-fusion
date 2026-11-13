@@ -250,6 +250,51 @@ test('flags stale snapshot even when ci ran a moment ago', function () {
     expect($service->toMarkdown($report))->toContain('CI 数据已陈旧');
 });
 
+// ─── 2026-11-14：未来时间戳不得让陈旧告警静默失效 ───
+// Carbon 3 的 diffInMinutes() 在「目标在未来」时返回负数（实测 future->diffInMinutes(now)
+// = -119.99），而判定是 `age > 阈值` —— 负值永不触发。时钟漂移或时区错误把
+// snapshot_generated_at 推到未来时，旧实现等于哨兵失聪，界面还会显示「距今 -2 小时」。
+// 本项目真出过 TZ=UTC + naive now() 导致落库错天，所以按真实边界钉死。
+test('does not silently accept a snapshot timestamp from the future', function () {
+    $user = User::factory()->admin()->create();
+    Project::factory()->create([
+        'status' => 'active',
+        'meta' => [
+            'ci_status' => 'green',
+            'ci_main_red' => false,
+            'ci_last_run_at' => now()->subMinutes(5)->toIso8601String(),
+        ],
+        'config' => ['snapshot_generated_at' => now()->addHours(2)->toIso8601String()],
+    ]);
+
+    $service = new DailyReportService(now()->toDateString());
+    $report = $service->generate();
+
+    // 年龄夹到 0：不出现负数，且单独打标记
+    expect($report['summary']['ci_data_age_hours'])->toBe(0.0);
+    expect($report['summary']['ci_data_in_future'])->toBeTrue();
+
+    $markdown = $service->toMarkdown($report);
+    expect($markdown)->toContain('时钟/时区异常');
+    expect($markdown)->not->toContain('距今 -');
+});
+
+// 反证：正常过去的时点不得被误标为「未来」（防止 max(0,...) 写成恒 true）
+test('does not flag a normal past snapshot as future', function () {
+    $user = User::factory()->admin()->create();
+    Project::factory()->create([
+        'status' => 'active',
+        'meta' => ['ci_status' => 'green', 'ci_main_red' => false],
+        'config' => ['snapshot_generated_at' => now()->subMinutes(30)->toIso8601String()],
+    ]);
+
+    $service = new DailyReportService(now()->toDateString());
+    $report = $service->generate();
+
+    expect($report['summary']['ci_data_in_future'])->toBeFalse();
+    expect($service->toMarkdown($report))->not->toContain('时钟/时区异常');
+});
+
 // ─── 2026-11-05 08:30 真实事故：飞书限流被误报成「未配置」，且失败仍退出 0 ───
 // 自动核对任务在日志里抓到：
 //   ❌ 飞书推送失败：frequency limited psm[lark.oapi.app_platform_runtime]appID[1500]

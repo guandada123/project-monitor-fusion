@@ -787,7 +787,8 @@ CREATE TABLE public.tasks (
     created_at timestamp(0) without time zone,
     updated_at timestamp(0) without time zone,
     deleted_at timestamp(0) without time zone,
-    sort_order integer DEFAULT 0 NOT NULL
+    sort_order integer DEFAULT 0 NOT NULL,
+    creator_id bigint
 );
 
 
@@ -1534,6 +1535,13 @@ CREATE INDEX tasks_assignee_id_index ON public.tasks USING btree (assignee_id);
 
 
 --
+-- Name: tasks_creator_id_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX tasks_creator_id_index ON public.tasks USING btree (creator_id);
+
+
+--
 -- Name: tasks_priority_index; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1566,6 +1574,14 @@ CREATE INDEX tasks_project_id_sort_order_index ON public.tasks USING btree (proj
 --
 
 CREATE INDEX tasks_status_index ON public.tasks USING btree (status);
+
+
+--
+-- Name: tasks 1; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tasks
+    ADD CONSTRAINT "1" FOREIGN KEY (creator_id) REFERENCES public.users(id) ON DELETE SET NULL;
 
 
 --
@@ -1686,6 +1702,14 @@ ALTER TABLE ONLY public.slow_queries
 
 ALTER TABLE ONLY public.tasks
     ADD CONSTRAINT tasks_assignee_id_foreign FOREIGN KEY (assignee_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: tasks tasks_creator_id_foreign; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tasks
+    ADD CONSTRAINT tasks_creator_id_foreign FOREIGN KEY (creator_id) REFERENCES public.users(id) ON DELETE SET NULL;
 
 
 --

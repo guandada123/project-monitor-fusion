@@ -105,7 +105,8 @@ class DailyReportService
      *     commits_7d: int,
      *     ci_red_projects: int,
      *     ci_data_as_of: string|null,
-     *     ci_data_age_hours: float|null
+     *     ci_data_age_hours: float|null,
+     *     ci_data_in_future: bool
      * }
      */
     protected function buildRealMetrics(): array
@@ -149,9 +150,20 @@ class DailyReportService
 
         // 只报数字不报数据时点，等于把有延迟的数说成实时事实（2026-11-01 实例：
         // Claw 两次 CI failure 期间日报仍报「CI 红 0 个」—— 算法没错，是快照旧）。
-        $ciAgeHours = $latestCollectedAt === null
-            ? null
-            : round($latestCollectedAt->diffInMinutes(now()) / 60, 1);
+        //
+        // 2026-11-14 修边界：Carbon 3 的 diffInMinutes() 在「目标在未来」时返回**负数**
+        // （实测 2 小时后 → -120 分钟，即 -2.0 小时），而陈旧判定是 `age > 阈值` ——
+        // 负值永远不触发，等于哨兵静默失聪。本项目确实发生过时区事故（容器 TZ=UTC +
+        // naive now() 导致落库日期错一天），所以不能假设时间戳一定可信：
+        // 未来一律按 0 小时处理，并单独打标记，让文案说出「时点异常」而不是「距今 -2 小时」。
+        $ciInFuture = false;
+        if ($latestCollectedAt === null) {
+            $ciAgeHours = null;
+        } else {
+            $rawAgeHours = $latestCollectedAt->diffInMinutes(now()) / 60;
+            $ciInFuture = $rawAgeHours < 0;
+            $ciAgeHours = round(max(0.0, $rawAgeHours), 1);
+        }
 
         return [
             'total_loc' => $loc,
@@ -159,6 +171,7 @@ class DailyReportService
             'ci_red_projects' => $ciRed,
             'ci_data_as_of' => $latestCollectedAt?->toIso8601String(),
             'ci_data_age_hours' => $ciAgeHours,
+            'ci_data_in_future' => $ciInFuture,
         ];
     }
 
@@ -182,8 +195,17 @@ class DailyReportService
             $label = $asOf;
         }
 
+        // 时点落在未来 = 采集器时钟/时区异常（本项目发生过 TZ=UTC 导致落库错天）。
+        // 这种数据不能按「距今 0 小时 = 最新」呈现，否则只是把「静默失聪」换成了
+        // 「假新鲜」—— 同样危险，所以显式说异常。
+        if (($summary['ci_data_in_future'] ?? false) === true) {
+            return "（数据时点 {$label} 晚于当前时间，疑似采集器时钟/时区异常，该值不可信）";
+        }
+
         $note = "（数据截至 {$label}，距今 {$ageHours} 小时）";
-        $staleHours = (int) config('ops.ci_stale_hours', 6);
+        // fallback 必须与 config/ops.php（默认 2）及导入端 OpsImportSnapshotCommand
+        // （默认 2）一致：三处若出现 6 vs 2，config 缓存过期即让告警延迟 3 倍。
+        $staleHours = (int) config('ops.ci_stale_hours', 2);
         if ($ageHours > $staleHours) {
             $note .= " ⚠️ CI 数据已陈旧（＞{$staleHours}h），该值仅供参考";
         }
