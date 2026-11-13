@@ -43,9 +43,27 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('tasks', function (Blueprint $table) {
-            $table->dropForeign(['creator_id']);
-            $table->dropIndex(['creator_id']);
-        });
+        // 与 up() 对称：外键/索引都可能已被手工删过（11-05 就因重复 rollback 丢过一次
+        // 外键，列与迁移记录还留着）。无条件 drop 会让 rollback 直接抛错、迁移卡在半路，
+        // 所以两者各自先查存在性，缺了就当已完成。
+        $hasFk = (int) DB::selectOne(
+            "select count(*) as c from pg_constraint where conrelid = 'tasks'::regclass and conname = 'tasks_creator_id_foreign'"
+        )->c;
+
+        if ($hasFk > 0) {
+            Schema::table('tasks', function (Blueprint $table) {
+                $table->dropForeign(['creator_id']);
+            });
+        }
+
+        $hasIndex = (int) DB::selectOne(
+            "select count(*) as c from pg_indexes where tablename = 'tasks' and indexname = 'tasks_creator_id_index'"
+        )->c;
+
+        if ($hasIndex > 0) {
+            Schema::table('tasks', function (Blueprint $table) {
+                $table->dropIndex(['creator_id']);
+            });
+        }
     }
 };
