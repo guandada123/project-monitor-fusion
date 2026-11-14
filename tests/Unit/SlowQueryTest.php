@@ -153,3 +153,47 @@ it('does not throttle when cooldown window is zero', function () {
 
     Http::assertSentCount(2);
 });
+
+// ─── 2026-11-14：caller 定位修复 ───
+// 症状：线上 slow_queries 台账 33 条的 caller 全是 SlowQueryMonitor.php:49/50/51。
+// 根因：findCaller 从 frame 0 起找「不含 /vendor/ 的帧」，而 frame 0 恒为
+//       `$caller = $this->findCaller();` 这一行（本文件）→ 永远返回自己。
+// 这些用例在旧实现上会失败（返回 SlowQueryMonitor.php:<行号>），修复后返回业务调用点。
+
+it('findCaller 跳过监控自身，返回真实业务调用点', function () {
+    $monitor = new SlowQueryMonitor;
+    $method = new ReflectionMethod($monitor, 'findCaller');
+    $method->setAccessible(true);
+
+    $self = (new ReflectionClass(SlowQueryMonitor::class))->getFileName();
+
+    $trace = [
+        // frame 0：真实链路上就是 handle() 里的 $caller = $this->findCaller();
+        ['file' => $self, 'line' => 51],
+        // frame 1：DB::listen 闭包（boot 里注册）
+        ['file' => $self, 'line' => 42],
+        // frame 2：框架代码，必须忽略
+        ['file' => '/var/www/vendor/laravel/framework/src/Illuminate/Support/Facades/Facade.php', 'line' => 100],
+        // frame 3：真实业务调用点
+        ['file' => '/var/www/app/Http/Controllers/ReportController.php', 'line' => 42],
+    ];
+
+    expect($method->invoke($monitor, $trace))
+        ->toBe('/var/www/app/Http/Controllers/ReportController.php:42');
+});
+
+it('findCaller 只有自身与 vendor 帧时返回 null', function () {
+    $monitor = new SlowQueryMonitor;
+    $method = new ReflectionMethod($monitor, 'findCaller');
+    $method->setAccessible(true);
+
+    $self = (new ReflectionClass(SlowQueryMonitor::class))->getFileName();
+
+    $trace = [
+        ['file' => $self, 'line' => 51],
+        ['file' => '/var/www/vendor/laravel/framework/src/Illuminate/Queue/DatabaseQueue.php', 'line' => 88],
+        ['function' => 'Illuminate\Foundation\Console\QueueWorkCommand::{closure}'],
+    ];
+
+    expect($method->invoke($monitor, $trace))->toBeNull();
+});

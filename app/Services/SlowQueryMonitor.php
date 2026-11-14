@@ -178,15 +178,37 @@ class SlowQueryMonitor
     }
 
     /**
-     * 从调用栈定位业务代码调用点（排除 vendor/ 目录）
+     * 从调用栈定位业务代码调用点（排除 vendor/ 目录与监控自身）
+     *
+     * 🔴 2026-11-14 修（慢查询告警无法定位来源）：
+     *   原实现从 frame 0 起找「不含 /vendor/ 的帧」，但 frame 0 恒为
+     *   `$caller = $this->findCaller();` 这一行（本文件）—— 于是永远返回自己。
+     *   线上 slow_queries 台账 33 条的 caller 全是 SlowQueryMonitor.php:49/50/51，
+     *   等于没有定位能力：看到告警也不知道是谁、哪条链路发的 SQL。
+     *   现在先跳过本文件自身的帧（findCaller / handle / boot 闭包都在此），
+     *   再返回第一个项目内调用点；只剩 vendor 与自身时返回 null。
+     *
+     * @param  array<int, array<string, mixed>>|null  $trace  便于单测注入调用栈
      */
-    protected function findCaller(): ?string
+    protected function findCaller(?array $trace = null): ?string
     {
-        $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 30);
+        $trace ??= debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 30);
+
         foreach ($trace as $frame) {
-            if (isset($frame['file']) && ! str_contains($frame['file'], '/vendor/')) {
-                return sprintf('%s:%d', $frame['file'], $frame['line']);
+            if (! isset($frame['file'])) {
+                continue;
             }
+
+            // 监控自身不算业务调用点（否则永远只报到自己）
+            if ($frame['file'] === __FILE__) {
+                continue;
+            }
+
+            if (str_contains($frame['file'], '/vendor/')) {
+                continue;
+            }
+
+            return sprintf('%s:%d', $frame['file'], $frame['line'] ?? 0);
         }
 
         return null;
