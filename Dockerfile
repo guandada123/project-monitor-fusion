@@ -78,6 +78,17 @@ COPY . .
 COPY --from=composer /build/vendor/ vendor/
 COPY --from=node /build/public/build/ public/build/
 
+# ─── 源码权限兜底（2026-11-17 事故换来的）───
+# 宿主（外置卷）上有多个 AI 会话/工具写代码文件，写出的权限不可控：
+# 一次实测单个 600 权限的 SlowQueryMonitor.php 就让容器启动失败、陷入 restart 循环
+# （www-data 读不了 → autoload 炸 → migrate 失败）。git 不记录读写位，
+# 所以这类问题无法在 CI 层拦截，只能在镜像层统一：
+# 目录 755（可遍历）、文件一律 644、shell 脚本保留 755（entrypoint 用 bash 调用
+# 不依赖执行位，但保持原语义）。
+RUN find app config database resources routes tests scripts -type d -exec chmod 755 {} + \
+    && find app config database resources routes tests scripts -type f -exec chmod 644 {} + \
+    && find app config database resources routes tests scripts -type f -name '*.sh' -exec chmod 755 {} +
+
 # ─── 目录权限 & storage link ───
 RUN set -eux; \
     mkdir -p storage/app storage/framework/cache/data \
