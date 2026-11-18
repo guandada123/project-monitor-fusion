@@ -165,7 +165,10 @@ jobs:
           # 2026-10-24 收紧：此前 || echo warning 掩盖了 2 个 high 漏洞
           # （follow-redirects 1.16.0 / vite ≤6.4.3）。已通过 npm audit fix
           # 修到 follow-redirects 1.16.1 + vite 6.4.5（均为补丁级），本地复验 0 漏洞。
-          npm audit --audit-level=high
+          # 2026-11-18：一票否决改逐条点名。picomatch ReDoS（GHSA-fc5q-39xc-vjpf）
+          # 上游 Patched: None、vite 全系连坐、升级无解；仅构建期使用、ReDoS 不涉数据。
+          # 白名单与移除条件在 scripts/npm-audit-gate.mjs，豁免在日志中可见。
+          npm audit --json | node scripts/npm-audit-gate.mjs
       - name: Check for secrets (gitleaks)
         uses: gitleaks/gitleaks-action@v3
         with:
