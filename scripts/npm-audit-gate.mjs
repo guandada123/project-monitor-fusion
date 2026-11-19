@@ -74,6 +74,15 @@ function collectAdvisories(data) {
 
 const advisories = collectAdvisories(data);
 if (advisories.length === 0) {
+  // 2026-11-19: 区分「真零漏洞」与「结构异常」——前者是合法状态（2026-10-24 起已修到 0 漏洞）。
+  // 判据：两种已知结构的键至少其一存在且为对象；都缺 = npm 输出形态不可识别，保留 fail-safe。
+  const knownStructure =
+    (data.vulnerabilities && typeof data.vulnerabilities === "object") ||
+    (data.advisories && typeof data.advisories === "object");
+  if (knownStructure) {
+    console.log(`✅ npm audit 真零漏洞（vulnerabilities/advisories 结构可解析且为空）——闸门通过`);
+    process.exit(0);
+  }
   console.error("⚠️ 未能从 audit 报告解析出任何 advisory（npm 结构又变了？）——按失败处理，不静默放行");
   process.exit(1);
 }
