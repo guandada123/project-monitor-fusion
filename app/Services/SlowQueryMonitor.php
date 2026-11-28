@@ -97,9 +97,27 @@ class SlowQueryMonitor
         }
 
         // 3. 超过 1000ms 的推送飞书告警
-        if ($isCritical) {
+        //   2026-11-28：合成睡眠语句（select pg_sleep(...)）**不推**。
+        //   这类行是取证探针自己造的，不是业务查询；它仍要落库（`is_critical` 照记，作为停顿证据：
+        //   睡 1.2s 却记 5546ms = 卡了 4.3s），但进告警会让「告警里一半是自己造的」。
+        //   口径与 Claw 仓 scripts/pgsql_stall_watch.py 的 is_probe_query() 一致。
+        if ($isCritical && ! $this->isProbeQuery($query->sql)) {
             $this->pushFeishuAlert($query);
         }
+    }
+
+    /**
+     * 是否是取证探针自己睡出来的语句（`select pg_sleep(...)`）。
+     *
+     * 业务代码不可能这么查。保留落库（作为停顿证据），但**不进告警**——
+     * 与 Claw 仓 scripts/pgsql_stall_watch.py 的 is_probe_query() 同口径，
+     * 两边判据必须一致，否则同一批行在一边沉默、在另一边告警。
+     */
+    protected function isProbeQuery(string $sql): bool
+    {
+        $normalized = strtolower(preg_replace('/\s+/', ' ', trim($sql)) ?? '');
+
+        return str_starts_with($normalized, 'select pg_sleep(');
     }
 
     /**
